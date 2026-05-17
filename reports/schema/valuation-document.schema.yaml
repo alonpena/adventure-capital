@@ -1,0 +1,74 @@
+schema_version: "1.0"
+required:
+  - document.title
+  - empresa.nombre
+  - empresa.rut
+  - empresa.descripcion
+  - empresa.beneficios
+  - empresa.valores
+  - target_market.tipo
+  - target_market.segmentos
+  - modelo_negocio.principal.nombre
+  - modelo_negocio.principal.descripcion
+  - modelo_negocio.principal.ticket_descripcion
+  - unidades
+  - fx.uf_clp
+  - fx.usd_clp
+  - fecha_referencia
+  - dcf.beta_capm
+  - dcf.Rf_local
+  - dcf.Rf_us
+  - dcf.Rm
+  - dcf.country_risk
+  - dcf.sector
+  - dcf.castigo_riesgo
+  - inversion.total
+  - inversion.uso_capital
+  - cap_table.pre
+  - report.author
+  - report.date
+  - sensitivity.method
+  - sensitivity.wacc_range
+  - sensitivity.ebitda_multiple_range
+collections:
+  empresa.beneficios:
+    min_items: 1
+  empresa.valores:
+    min_items: 1
+  target_market.segmentos:
+    min_items: 1
+  unidades:
+    min_items: 1
+  inversion.uso_capital:
+    min_items: 1
+  cap_table.pre:
+    min_items: 1
+  sensitivity.wacc_range:
+    min_items: 1
+  sensitivity.ebitda_multiple_range:
+    min_items: 1
+optional_sections:
+  equipo:
+    collections:
+      equipo:
+        min_items: 1
+  timeline:
+    collections:
+      timeline:
+        min_items: 1
+  problemas:
+    collections:
+      problemas:
+        min_items: 1
+  scenario_comparison:
+    required:
+      - report.comparativa.nombre
+      - report.comparativa.config_ref
+  floor_value_adjustments:
+    required:
+      - floor_value
+      - pasivos
+  advisory_team:
+    collections:
+      report.team:
+        min_items: 1

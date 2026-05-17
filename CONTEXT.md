@@ -76,6 +76,18 @@ _Avoid_: Total customers, active clients
 A summary view that groups monthly **Planning Periods** by year without changing model granularity.
 _Avoid_: Annual model, yearly period
 
+**Standard Valuation Report**:
+A Spanish client-facing report that presents valuation, financial planning, unit economics, and strategic narrative using model outputs plus document-specific narrative inputs.
+_Avoid_: Notebook output, raw report dump
+
+**Document YAML**:
+A report-specific input file containing narrative and presentation data for one **Standard Valuation Report**, separate from model configuration.
+_Avoid_: Model config, instance YAML
+
+**Report Data Package**:
+The intermediate render-ready data package that normalizes model outputs and **Document YAML** inputs for generating a **Standard Valuation Report**.
+_Avoid_: Work document, final report
+
 ## Relationships
 
 - An **Acquisition** belongs to exactly one **Service** and one **Planning Period**.
@@ -90,6 +102,9 @@ _Avoid_: Annual model, yearly period
 - The **Fixed Acquisition Period** contains exactly twelve **Planning Periods**.
 - An **Annual Aggregation** summarizes twelve **Planning Periods**.
 - **Adquisición** and **Acquisition** refer to the same business concept in different languages.
+- A **Standard Valuation Report** is generated from a **Report Data Package**.
+- A **Report Data Package** combines model output artifacts with one **Document YAML**.
+- A **Document YAML** does not define optimization assumptions.
 
 ## Example dialogue
 

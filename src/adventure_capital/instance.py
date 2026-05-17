@@ -96,4 +96,5 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         "tax": config["tax"],
         "parametros": config,
         "g_max_suavizado": config.get("g_max_suavizado", 0.25),
+        "commercial_productivity_lag": config.get("commercial_productivity_lag", 0),
     }

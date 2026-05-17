@@ -118,3 +118,13 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("meta must be > 0.")
     if config["sup"] <= 0:
         raise ValueError("sup must be > 0.")
+    if config.get("commercial_productivity_lag", 0) < 0:
+        raise ValueError("commercial_productivity_lag must be >= 0.")
+
+    solver = config.get("solver", {})
+    if solver.get("name", "cbc") != "cbc":
+        raise ValueError("Only cbc solver is supported.")
+
+    liquidity_policy = config.get("liquidity_policy", {"type": "none"})
+    if liquidity_policy.get("type", "none") not in {"none", "nonnegative", "minimum_cash"}:
+        raise ValueError("Unsupported liquidity policy.")

@@ -4,11 +4,13 @@ version = "0.1.0"
 description = "MILP optimization model for accelerated growth planning"
 requires-python = ">=3.11"
 dependencies = [
+  "jinja2>=3.1.6",
   "matplotlib>=3.8",
   "numpy>=1.26",
   "pandas>=2.2",
   "pulp>=2.8",
   "pyyaml>=6.0",
+  "weasyprint>=68.1",
 ]
 
 [project.scripts]
@@ -19,6 +21,9 @@ dev = [
   "pytest>=8.0",
   "ruff>=0.6",
 ]
+
+[tool.ruff]
+exclude = ["optimizacion_plan_crecimiento_acelerado_v3 (1).py"]
 
 [build-system]
 requires = ["hatchling"]

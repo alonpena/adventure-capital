@@ -1,0 +1,87 @@
+# Calibration thresholds for the Adventure Capital model.
+# Each check can be enabled/disabled and its threshold tuned per project.
+
+schema_version: "1.0"
+
+# Aggregation rule for the verdict.
+verdict:
+  fail_on_error: true        # any error -> FAIL
+  warn_on_warning: true      # any warning (no errors) -> WARN
+
+# C01: Solver status must be Optimal.
+C01_solver_status:
+  enabled: true
+  severity: error
+  accepted_statuses: ["Optimal", "Optimal solution found"]
+
+# C02: Seller capacity saturation across the optimized horizon.
+C02_seller_capacity:
+  enabled: true
+  severity: warning
+  start_month: 13            # optimization horizon starts at month 13
+  saturation_slack: 0.5      # months with slack < 0.5 considered saturated
+  max_pct_saturated: 0.70    # FAIL if > 70% of months are saturated
+
+# C03: Sellers never grow but capacity is saturated.
+C03_sellers_no_growth:
+  enabled: true
+  severity: warning
+  start_month: 13
+  saturation_slack: 0.5
+  min_saturation_pct: 0.50   # only flag if at least 50% of months are saturated
+
+# C04: Cash must stay non-negative (or above floor).
+C04_cash_floor:
+  enabled: true
+  severity: error
+  minimum_cash: 0.0
+
+# C05: Total EBITDA must be positive.
+C05_total_ebitda:
+  enabled: true
+  severity: error
+  minimum_total: 0.0
+
+# C06: DCF NPV must be positive.
+C06_npv:
+  enabled: true
+  severity: error
+  minimum_npv: 0.0
+
+# C07: Gross margin must be in a realistic band.
+C07_gross_margin:
+  enabled: true
+  severity: warning
+  min_gp: 0.30               # below 30% indicates non-VC margin
+  max_gp: 0.92               # above 92% indicates c_u/c_min are understated
+
+# C08: LTV/CAC must be in a realistic band.
+C08_ltv_cac:
+  enabled: true
+  severity: warning
+  min_ratio: 1.0             # below 1× means LTV doesn't cover acquisition
+  max_ratio: 20.0            # above 20× usually indicates formula artifact
+
+# C09: Mix concentration check.
+C09_mix_concentration:
+  enabled: true
+  severity: warning
+  max_concentration: 0.85    # FAIL if top service > 85% of acquisitions
+
+# C10: Retention check.
+C10_retention:
+  enabled: true
+  severity: warning
+  min_retention_ratio: 0.20  # final stock / total acquisition
+
+# C11: Document YAML required-fields validation (reuses validate_report_inputs).
+C11_document_completeness:
+  enabled: true
+  severity: error
+
+# C12: Internal consistency check between A, Q, C series.
+C12_internal_consistency:
+  enabled: false             # disabled in MVP — needs repurchase eligibility recompute
+  severity: warning
+  max_deviation: 0.05
+  max_pct_violating: 0.05

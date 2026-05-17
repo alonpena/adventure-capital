@@ -9,7 +9,8 @@ The immediate migration preserves current optimization behavior, but package bou
 1. Financial modeling of cashflow structure for fixed acquisition period.
 2. Optimization of accelerated growth plan for remaining horizon.
 3. DCF valuation and unit economics calculation.
-4. Financial report generation.
+4. Basic financial report generation.
+5. Standard valuation report generation from `docs/report-blueprint.md`.
 
 ## Current State
 
@@ -188,16 +189,17 @@ dev = [
 3. Port `cargar_parametros_base()` into `config.py` as loader/default config.
 4. Port `generar_instancia()` into `instance.py`.
 5. Extract deterministic fixed-period cashflow modeling into `financial_model.py` for baseline/reporting.
-6. Port full-horizon optimization build/solve into `model.py`, keeping months 1-12 fixed and months 13-H optimized.
-7. Port result extraction/reporting into `results.py`.
-8. Port valuation into `valuation.py`.
-9. Port unit economics into `unit_economics.py`.
-10. Port visualization/report output into `reporting.py` as first report-generation capability.
-11. Port orchestration into `pipeline.py`.
-12. Add CLI in `cli.py`.
+6. Port full-horizon optimization build/solve into `model.py`, keeping months 1-12 fixed and months 13-H optimized. ✅ Phase 2 complete.
+7. Port result extraction/reporting into `results.py`. ✅ Phase 2 result extraction complete.
+8. Port valuation into `valuation.py`. ✅ Phase 3 valuation complete.
+9. Port unit economics into `unit_economics.py`. ✅ Phase 3 unit economics complete.
+10. Port visualization/report output into `reporting.py` as first report-generation capability. ✅ Phase 4 complete.
+11. Port orchestration into `pipeline.py`. ✅
+12. Add CLI in `cli.py`. ✅
 13. Delete notebook top-level execution from migrated code.
-14. Add smoke tests.
-15. Update README with `uv sync`, `uv run`, config, and output examples.
+14. Add smoke tests. ✅ Phase 1-4 smoke coverage.
+15. Update README with `uv sync`, `uv run`, config, and output examples. ✅ Initial update complete.
+16. Phase 5 preparation: standard report blueprint reviewed and implementation plan written in `docs/phase-5-plan.md`. ✅
 
 ## Test Plan
 
@@ -206,7 +208,10 @@ dev = [
 - Config loads and validates, including `H >= 14`.
 - Instance generation creates expected horizon, service count, base acquisition, discount factors, churn, recurrence, and survival dictionaries.
 - Fixed-period financial model produces 12 monthly cashflow rows from `A_base`.
-- DCF returns expected keys and finite values for minimal fixture.
+- DCF returns expected keys and finite values for minimal fixture. ✅
+- Multiples valuation returns revenue and EBITDA valuation table. ✅
+- Unit economics returns business-facing metrics table. ✅
+- Reporting writes Markdown report, dashboard PNG, and core CSV outputs. ✅
 
 ### Smoke test
 
@@ -260,16 +265,34 @@ After refactor, compare same metrics within tolerance.
 15. Commercial staffing is monotonic across the transition from fixed period to optimized forecast: month 13 staffing must be at least month 12 staffing, and staffing remains non-decreasing afterward.
 16. Commercial productivity lag is configurable. Default is same-period productivity (`lag = 0`) to preserve current behavior; `lag = 1` can require prior-month staff for acquisition capacity.
 17. Operational cost uses max-cost semantics: each service-period cost is constrained by both variable usage cost and minimum capacity-step cost, so the effective cost is the greater of the two, not fixed plus variable.
-18. First report generator produces a Markdown report with linked dashboard PNG and CSV outputs.
+18. First report generator produces a Markdown report, dashboard PNG, and CSV outputs.
 19. Package exposes both CLI and Python API. CLI writes a timestamped output directory by default; Python API returns objects by default and writes artifacts only when `output_dir` is provided.
 20. Python API is documented in `docs/api.md` for notebook and Colab-style exploration.
 21. Use simple config validation first: plain dictionaries/dataclasses with explicit validation functions. Defer Pydantic until config complexity or UX requires it.
 22. Use light solver abstraction now: PuLP/CBC remains the only implemented solver, but config includes solver name, time limit, and verbosity for future extension.
 23. Formal mathematical formulation lives in `docs/model.md`, not README or code-only docstrings.
+24. Full standard valuation report is Phase 5 and follows `docs/report-blueprint.md`; implementation plan lives in `docs/phase-5-plan.md`.
+
+## Phase 5 Delivery Split
+
+Phase 5 is split into smaller delivery steps to keep the report generator shippable and testable:
+
+- **Phase 5A — Data contract**: add separate document YAML for report narrative, define required fields in `reports/schema/valuation-document.schema.yaml`, validate required blueprint narrative fields by default, define the Report Data Package boundary, write `report_data.json` plus `artifacts_manifest.json`, and preserve core pipeline execution without narrative fields.
+- **Phase 5B — Derived artifacts**: generate `sensitivity_wacc_multiple.csv`, `sensitivity_variables.csv`, `breakeven_variables.csv`, and `mapvalue.json` from pipeline results. Default sensitivity method is document-configured `calculation`; upcoming `deterministic_rerun` support will solve multiple standard instances with parameter variations, not stochastic optimization.
+- **Phase 5C — Figures**: generate the required `figures/*.png` catalog consumed by the standard report.
+- **Phase 5D — HTML report MVP**: implement `render_report()`, `report.html`, blueprint-aligned section order, key metrics, charts where available, and placeholders for optional narrative.
+- **Phase 5E — CLI and tests**: add separate `adventure-capital report --input ... --document ...` command, keep `adventure-capital run` scoped to Phases 1-4, add smoke tests for report rendering, and artifact assertions.
+- **Phase 5F — PDF and polish**: add optional PDF rendering and page/theme polish without making PDF required for core or report tests.
+- **Phase 6 — Scenario comparison**: support PULL vs PUSH or other two-scenario comparisons via a second pipeline run.
 
 ## Open Decisions
 
-No open decisions currently.
+Phase 5/6 open implementation choices:
+
+- Whether to add `jinja2` as a required dependency for Phase 5D or delay until rendering starts.
+- Whether to keep `weasyprint` as an optional dependency for Phase 5F only.
+- Whether `docs/report-blueprint.md` remains human-readable only or becomes machine-readable section metadata.
+- Whether operational sensitivity tables use algebraic recalculation first or full MILP reruns per scenario.
 
 ## Recommended Defaults
 

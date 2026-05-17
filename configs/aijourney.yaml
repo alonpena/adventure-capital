@@ -1,0 +1,59 @@
+H: 36
+VC: 209000
+beta: 0.3544
+g_max_suavizado: 0.01
+servicios:
+  - nombre: A
+    ticket: 1233.33
+    frecuencia: 12
+    alpha: 1.0
+    churn_anual: [0.5, 0.5, 0.5]
+    c_u: 125
+    c_min: 0
+    u_max: 1000
+    A_base: [1, 0, 1, 3, 8, 8, 12, 16, 16, 20, 20, 20]
+  - nombre: B
+    ticket: 4111.11
+    frecuencia: 12
+    alpha: 1.0
+    churn_anual: [0.5, 0.5, 0.5]
+    c_u: 125
+    c_min: 0
+    u_max: 1000
+    A_base: [0, 0, 1, 2, 8, 8, 12, 12, 12, 12, 12, 12]
+  - nombre: C
+    ticket: 14388.89
+    frecuencia: 12
+    alpha: 1.0
+    churn_anual: [0.5, 0.5, 0.5]
+    c_u: 125
+    c_min: 0
+    u_max: 1000
+    A_base: [0, 0, 0, 1, 2, 2, 4, 4, 4, 4, 4, 4]
+  - nombre: D
+    ticket: 41111.11
+    frecuencia: 12
+    alpha: 1.0
+    churn_anual: [0.5, 0.5, 0.5]
+    c_u: 125
+    c_min: 0
+    u_max: 1000
+    A_base: [0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 2]
+meta: 38
+sup: 1
+rem_v: 1333
+rem_l: 1556
+com_v: 0.035
+com_l: 0.035
+g_adm: 3674
+RRHH_mensual: [18796, 22458, 23581]
+ciclo_op: [90, 90, 90]
+buffer_caja: 26000
+tax: 0.15
+liquidity_policy:
+  type: none
+solver:
+  name: cbc
+  time_limit: 120
+  verbose: false
+commercial_productivity_lag: 0

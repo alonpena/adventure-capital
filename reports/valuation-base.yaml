@@ -1,0 +1,71 @@
+document:
+  title: Informe de Valorización
+
+empresa:
+  nombre: Empresa Demo SpA
+  rut: 00.000.000-0
+  descripcion: |
+    Empresa demo para validar el flujo documental estándar de Adventure Capital.
+  beneficios:
+    - Crecimiento planificado con foco en caja.
+    - Visibilidad de unit economics.
+    - Valorización trazable.
+  valores:
+    - titulo: Claridad
+      descripcion: Decisiones financieras explicables.
+
+target_market:
+  tipo: B2B
+  segmentos:
+    - id: A
+      rango_min: 1
+      rango_max: 25
+      nombre: MiPyME
+
+modelo_negocio:
+  principal:
+    nombre: Servicio principal
+    descripcion: Servicio recurrente modelado en Adventure Capital.
+    ticket_descripcion: Ticket configurado en modelo.
+
+unidades:
+  - simbolo: USD$
+    descripcion: Dólares estadounidenses
+  - simbolo: MUS$
+    descripcion: Miles de dólares estadounidenses
+fx:
+  uf_clp: 40000
+  usd_clp: 900
+fecha_referencia: 2026-04-01
+
+dcf:
+  beta_capm: 1.05
+  Rf_local: 0.0486
+  Rf_us: 0.0384
+  Rm: 0.20
+  country_risk: 0.0102
+  sector: IT Services / Software
+  castigo_riesgo: 0.10
+
+inversion:
+  total: 100000
+  uso_capital:
+    - hito: Inversión inicial
+      monto: 100000
+      pct: 1.0
+
+cap_table:
+  pre:
+    - accionista: Founder
+      common: 100.0
+      fully_diluted: 1.0
+
+report:
+  author: Adventure Capital Chile
+  date: 2026-04-01
+
+sensitivity:
+  method: calculation
+  wacc_range: [-0.06, -0.04, -0.02, 0, 0.02, 0.04, 0.06]
+  ebitda_multiple_range: [0.5, 0.75, 1.0, 1.25, 1.5]
+  include_ltv_cac_reference: true

@@ -11,7 +11,8 @@ This is not only notebook cleanup. It is groundwork for a full financial plannin
 1. Financial modeling of cashflow structure for the fixed acquisition period.
 2. Optimization of the accelerated growth plan for the remaining horizon.
 3. DCF valuation and unit economics calculation.
-4. Financial report generation.
+4. Basic financial report generation.
+5. Standard valuation report generation from `docs/report-blueprint.md`.
 
 Read these files before changing architecture:
 
@@ -20,6 +21,9 @@ Read these files before changing architecture:
 - `docs/model.md`
 - `docs/api.md`
 - `docs/adr/0001-operational-cost-floor.md`
+- `docs/report-blueprint.md`
+- `docs/phase-5-plan.md`
+- `docs/adr/0002-standard-report-blueprint.md`
 
 ## Current Source File
 
@@ -175,7 +179,7 @@ Port:
 - multiples valuation
 - unit economics
 
-### Stage 4: Financial report generation
+### Stage 4: Basic financial report generation
 
 First reporting artifact should include:
 
@@ -184,6 +188,28 @@ First reporting artifact should include:
 - core CSV outputs
 
 Visualization belongs to reporting, not core model logic.
+
+### Phase 5: Standard valuation report generator
+
+Build full Spanish valuation report from `docs/report-blueprint.md`.
+
+Preparation docs:
+
+- `docs/report-blueprint.md`
+- `docs/phase-5-plan.md`
+- `docs/adr/0002-standard-report-blueprint.md`
+
+Target new outputs:
+
+- `report.html`
+- `report.pdf` when PDF backend is available
+- `figures/*.png`
+- `sensitivity_wacc_multiple.csv`
+- `sensitivity_variables.csv`
+- `breakeven_variables.csv`
+- `mapvalue.json`
+
+Do not make report narrative YAML required for core optimization. Core pipeline must still run without Phase 5 report-only fields.
 
 ## API and CLI
 
