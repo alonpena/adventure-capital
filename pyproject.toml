@@ -1,0 +1,25 @@
+[project]
+name = "adventure-capital"
+version = "0.1.0"
+description = "MILP optimization model for accelerated growth planning"
+requires-python = ">=3.11"
+dependencies = [
+  "matplotlib>=3.8",
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "pulp>=2.8",
+  "pyyaml>=6.0",
+]
+
+[project.scripts]
+adventure-capital = "adventure_capital.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
