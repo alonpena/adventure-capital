@@ -5,3 +5,5 @@ __pycache__/
 outputs/*
 !outputs/.gitkeep
 /.DS_Store
+/src/adventure_capital/.DS_Store
+/src/.DS_Store
