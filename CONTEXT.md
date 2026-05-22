@@ -88,6 +88,46 @@ _Avoid_: Model config, instance YAML
 The intermediate render-ready data package that normalizes model outputs and **Document YAML** inputs for generating a **Standard Valuation Report**.
 _Avoid_: Work document, final report
 
+## Workflow layers
+
+**Due Diligence**:
+A future pre-model diagnostic layer that evaluates a raw startup instance — assumptions, business-model quality, data completeness — and recommends instance adjustments before the valuation workflow runs. Not built today; not a mandatory gate.
+_Avoid_: Calibration, investment decision engine
+
+**Calibration**:
+The existing post-model validation layer that reads **Deterministic Model** outputs and emits checks, verdicts, and suggestions. Distinct from **Due Diligence** by timing (after the model) and inputs (optimized results).
+_Avoid_: Due diligence, pre-model gate
+
+**Deterministic Model**:
+The baseline single-scenario MILP that optimizes the growth plan against point-estimate parameters. Serves as the ex-ante valuation and diagnostic baseline.
+_Avoid_: Stochastic model, point model
+
+**Stochastic Model**:
+The robust-valuation layer that runs after the **Deterministic Model** baseline, optimizing one growth plan across many **Scenarios**.
+_Avoid_: Monte Carlo, simulation
+
+## Stochastic optimization
+
+**Scenario**:
+One realized draw of the uncertain parameters (churn/retention, commercial productivity, available financing, discount rate) used by the **Stochastic Model**.
+_Avoid_: Simulation run, trial
+
+**First-Stage Decision**:
+A decision committed before uncertainty is realized, shared across all **Scenarios**: the acquisition plan, sellers, and leaders.
+_Avoid_: Here-and-now plan (informal), strategic vars
+
+**Recourse Decision**:
+A decision allowed to adapt per **Scenario** after uncertainty is observed: operational capacity steps and all financial outcomes (revenue, EBITDA, cash, valuation, funding gap).
+_Avoid_: Second-stage hack, wait-and-see
+
+**Expected NPV**:
+The probability-weighted average NPV across **Scenarios**; the objective the **Stochastic Model** maximizes.
+_Avoid_: Robust value, mean cashflow
+
+**Funding Gap**:
+The financing shortfall implied when a **Scenario**'s cash position breaches the **Liquidity Policy** floor.
+_Avoid_: Cash deficit (ambiguous), loss
+
 ## Relationships
 
 - An **Acquisition** belongs to exactly one **Service** and one **Planning Period**.
@@ -105,6 +145,11 @@ _Avoid_: Work document, final report
 - A **Standard Valuation Report** is generated from a **Report Data Package**.
 - A **Report Data Package** combines model output artifacts with one **Document YAML**.
 - A **Document YAML** does not define optimization assumptions.
+- A future **Due Diligence** layer may run before the **Deterministic Model**; **Calibration** runs after it. They are separate, optional layers and are not merged. Neither is a mandatory step today.
+- The **Stochastic Model** runs after the **Deterministic Model** baseline, only for cases accepted for deeper analysis.
+- A **First-Stage Decision** is identical across all **Scenarios**; a **Recourse Decision** may differ per **Scenario**.
+- **Expected NPV** is computed over the **Scenarios** of the **Stochastic Model**.
+- A **Funding Gap** arises in a **Scenario** when cash breaches the **Liquidity Policy** floor.
 
 ## Example dialogue
 
