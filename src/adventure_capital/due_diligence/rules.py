@@ -1,0 +1,381 @@
+"""Due Diligence rule registry.
+
+Due Diligence is an iterative assess -> recommend -> rerun workflow, not a hard
+gate. DD owns new logic only: pre-rules over the raw instance, startup-eligibility
+and synthesis rules over deterministic outputs, and a liquidity diagnostic.
+Post-model financial checks (NPV, LTV/CAC, margin, cash floor, EBITDA, retention,
+solver status) are consumed from ``calibration`` via :func:`map_calibration_findings`,
+not reimplemented.
+
+Severity classes, worst-first:
+    structural -> rejected_for_stochastic       (instance cannot be modeled)
+    major      -> requires_major_adjustment     (not yet venture-scale eligible)
+    minor      -> requires_minor_adjustment      (fixable business/liquidity risk)
+    warning    -> passed_with_warnings
+    ok         -> (no effect)
+
+Only ``structural`` blocks the stochastic valuation. Liquidity issues (negative
+cash, funding gap, runway) are diagnostic and never structural.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+import pandas as pd
+
+from adventure_capital.config import validate_config
+
+STRUCTURAL = "structural"
+MAJOR = "major"
+MINOR = "minor"
+WARNING = "warning"
+OK = "ok"
+
+DEFAULT_THRESHOLDS: dict[str, float] = {
+    "churn_warn": 0.6,
+    "churn_major": 0.95,           # extreme churn -> not scalable (major)
+    "breakeven_warn_month": 24,
+    "runway_minor": 6,             # cash negative on/before this month -> minor
+    "gap_warn": 0.5,               # working-capital trough as fraction of VC -> warning
+    "gap_minor": 5.0,              # working-capital trough as multiple of VC -> minor
+    "ebitda_regime_year": 3,       # annual EBITDA must be positive by this year
+    "revenue_growth_min_multiple": 1.5,  # final-year revenue / first-year revenue
+}
+
+
+@dataclass
+class Finding:
+    """One Due Diligence rule outcome."""
+
+    id: str
+    name: str
+    severity_class: str  # STRUCTURAL | MAJOR | MINOR | WARNING | OK
+    passed: bool
+    message: str
+    evidence: dict[str, Any] = field(default_factory=dict)
+    recommendation: str = ""
+    source: str = "due_diligence"  # "due_diligence" | "calibration"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "severity_class": self.severity_class,
+            "passed": self.passed,
+            "message": self.message,
+            "evidence": self.evidence,
+            "recommendation": self.recommendation,
+            "source": self.source,
+        }
+
+
+def _ok(rule_id: str, name: str, message: str) -> Finding:
+    return Finding(id=rule_id, name=name, severity_class=OK, passed=True, message=message)
+
+
+# ----- Pre-rules (raw instance, structural) -------------------------------
+
+
+def _rule_instance_valid(config: dict[str, Any]) -> Finding:
+    try:
+        validate_config(config)
+    except Exception as exc:
+        return Finding(
+            id="DD01", name="instance_valid", severity_class=STRUCTURAL, passed=False,
+            message=f"Instancia inválida o incompleta: {exc}",
+            evidence={"error": str(exc)},
+            recommendation="Completar/corregir los inputs esenciales del config antes de modelar.",
+        )
+    return _ok("DD01", "instance_valid", "Config válido y completo.")
+
+
+def _rule_unit_margin_positive(config: dict[str, Any]) -> Finding:
+    offenders = [
+        s.get("nombre", str(i))
+        for i, s in enumerate(config.get("servicios", []))
+        if float(s.get("ticket", 0.0)) <= float(s.get("c_u", 0.0))
+    ]
+    if offenders:
+        return Finding(
+            id="DD02", name="unit_margin_positive", severity_class=STRUCTURAL, passed=False,
+            message=f"Servicios con ticket <= costo unitario (economía unitaria no computable): {', '.join(offenders)}.",
+            evidence={"servicios": offenders},
+            recommendation="Subir `ticket` o bajar `c_u` para que el margen unitario sea positivo.",
+        )
+    return _ok("DD02", "unit_margin_positive", "Todos los servicios tienen margen unitario positivo.")
+
+
+def _rule_financing_present(config: dict[str, Any]) -> Finding:
+    vc = float(config.get("VC", 0.0))
+    if vc <= 0:
+        return Finding(
+            id="DD03", name="financing_present", severity_class=STRUCTURAL, passed=False,
+            message="Falta input esencial: `VC` <= 0 (sin capital de trabajo inicial para ejecutar el plan).",
+            evidence={"VC": vc},
+            recommendation="Definir un `VC` (capital de trabajo inicial) > 0.",
+        )
+    return _ok("DD03", "financing_present", f"Financiamiento inicial VC={vc:,.0f}.")
+
+
+def _rule_churn_valid(config: dict[str, Any]) -> Finding:
+    bad = [
+        s.get("nombre", str(i))
+        for i, s in enumerate(config.get("servicios", []))
+        if any(not (0.0 <= float(v) <= 1.0) for v in s.get("churn_anual", []))
+    ]
+    if bad:
+        return Finding(
+            id="DD04", name="churn_valid", severity_class=STRUCTURAL, passed=False,
+            message=f"Config inválido: `churn_anual` fuera de [0,1] en {', '.join(bad)}.",
+            evidence={"servicios": bad},
+            recommendation="Expresar churn anual como fracción en [0,1].",
+        )
+    return _ok("DD04", "churn_valid", "Churn anual dentro de [0,1].")
+
+
+# ----- Startup-eligibility / synthesis rules (deterministic outputs) -------
+
+
+def _rule_churn_severity(config: dict[str, Any], thresholds: dict[str, float]) -> Finding:
+    services = config.get("servicios", [])
+    max_churn = max((max(s.get("churn_anual", [0.0])) for s in services), default=0.0)
+    major = float(thresholds["churn_major"])
+    warn = float(thresholds["churn_warn"])
+    evidence = {"max_annual_churn": max_churn, "warn": warn, "major": major}
+    if max_churn >= major:
+        return Finding(
+            id="DD05", name="churn_severity", severity_class=MAJOR, passed=False,
+            message=f"Churn anual máximo {max_churn:.0%} extremo — retención incompatible con escalamiento.",
+            evidence=evidence,
+            recommendation="Replantear retención/recurrencia; reducir `churn_anual` o aumentar `frecuencia`.",
+        )
+    if max_churn >= warn:
+        return Finding(
+            id="DD05", name="churn_severity", severity_class=WARNING, passed=False,
+            message=f"Churn anual máximo {max_churn:.0%} alto — riesgo de retención.",
+            evidence=evidence,
+            recommendation="Validar churn con datos; considerar mejoras de retención.",
+        )
+    return _ok("DD05", "churn_severity", f"Churn anual máximo {max_churn:.0%} en rango aceptable.")
+
+
+def _rule_breakeven(optimized: pd.DataFrame, thresholds: dict[str, float]) -> Finding:
+    cumulative = optimized["EBITDA"].cumsum()
+    positive = optimized.loc[cumulative >= 0, "t"]
+    warn_month = float(thresholds["breakeven_warn_month"])
+    if positive.empty:
+        return Finding(
+            id="DD06", name="breakeven_within_horizon", severity_class=MAJOR, passed=False,
+            message="El EBITDA acumulado nunca llega a cero — sin régimen de EBITDA creíble en el horizonte.",
+            evidence={"breakeven_month": None, "horizon": int(optimized["t"].max())},
+            recommendation="Extender horizonte `H`, mejorar margen, o reducir costos fijos (`g_adm`/`RRHH`).",
+        )
+    month = int(positive.iloc[0])
+    if month > warn_month:
+        return Finding(
+            id="DD06", name="breakeven_within_horizon", severity_class=WARNING, passed=False,
+            message=f"Breakeven tardío en el mes {month} (> {int(warn_month)}).",
+            evidence={"breakeven_month": month, "warn_month": warn_month},
+            recommendation="Acelerar adquisición rentable o reducir estructura de costos.",
+        )
+    return _ok("DD06", "breakeven_within_horizon", f"Breakeven en el mes {month}.")
+
+
+def _rule_ebitda_regime(optimized: pd.DataFrame, thresholds: dict[str, float]) -> Finding:
+    target_year = int(thresholds["ebitda_regime_year"])
+    available_years = sorted(optimized["Año"].unique())
+    if target_year not in available_years:
+        return _ok(
+            "DD09", "ebitda_regime_by_year3",
+            f"Horizonte no alcanza el año {target_year}; régimen de EBITDA no evaluado.",
+        )
+    annual_ebitda = float(optimized.loc[optimized["Año"] == target_year, "EBITDA"].sum())
+    if annual_ebitda <= 0:
+        return Finding(
+            id="DD09", name="ebitda_regime_by_year3", severity_class=MAJOR, passed=False,
+            message=f"EBITDA anual del año {target_year} no positivo ({annual_ebitda:,.0f}) — sin régimen de rentabilidad creíble.",
+            evidence={"year": target_year, "annual_ebitda": annual_ebitda},
+            recommendation="Revisar pricing, costos y velocidad de adquisición para alcanzar EBITDA positivo hacia el año 3.",
+        )
+    return _ok("DD09", "ebitda_regime_by_year3", f"EBITDA año {target_year} positivo ({annual_ebitda:,.0f}).")
+
+
+def _rule_revenue_growth(optimized: pd.DataFrame, thresholds: dict[str, float]) -> Finding:
+    by_year = optimized.groupby("Año")["Ingresos"].sum()
+    if len(by_year) < 2:
+        return _ok("DD10", "revenue_growth", "Horizonte insuficiente para evaluar crecimiento anual.")
+    first_year = float(by_year.iloc[0])
+    last_year = float(by_year.iloc[-1])
+    multiple = last_year / first_year if first_year > 0 else float("inf")
+    min_multiple = float(thresholds["revenue_growth_min_multiple"])
+    evidence = {"first_year_revenue": first_year, "last_year_revenue": last_year, "multiple": multiple, "min_multiple": min_multiple}
+    if multiple < min_multiple:
+        return Finding(
+            id="DD10", name="revenue_growth", severity_class=MAJOR, passed=False,
+            message=f"Crecimiento de ingresos {multiple:.2f}× en el horizonte (< {min_multiple:.2f}×) — perfil tipo PYME, no escalable.",
+            evidence=evidence,
+            recommendation="Revisar supuestos de adquisición/recurrencia; el caso debe mostrar crecimiento tipo venture.",
+        )
+    return _ok("DD10", "revenue_growth", f"Crecimiento de ingresos {multiple:.2f}× en el horizonte.")
+
+
+# ----- Liquidity diagnostic (reported, not pass/fail eligibility) ----------
+
+
+def _rule_runway(optimized: pd.DataFrame, thresholds: dict[str, float]) -> Finding:
+    negative = optimized.loc[optimized["Caja"] < 0, "t"]
+    minor_month = float(thresholds["runway_minor"])
+    if negative.empty:
+        return _ok("DD07", "runway", "La caja nunca cae por debajo de cero.")
+    first_negative = int(negative.iloc[0])
+    evidence = {"first_cash_negative_month": first_negative, "runway_minor": minor_month}
+    # Liquidity is diagnostic: minor (fixable) at worst, never structural.
+    severity = MINOR if first_negative <= minor_month else WARNING
+    return Finding(
+        id="DD07", name="runway", severity_class=severity, passed=False,
+        message=f"La caja se vuelve negativa en el mes {first_negative} — presión de capital de trabajo (diagnóstico).",
+        evidence=evidence,
+        recommendation="Aumentar `VC`, diferir contrataciones, o suavizar la aceleración de adquisición.",
+    )
+
+
+def _rule_funding_gap(optimized: pd.DataFrame, config: dict[str, Any], thresholds: dict[str, float]) -> Finding:
+    min_cash = float(optimized["Caja"].min())
+    gap = max(0.0, -min_cash)
+    vc = float(config.get("VC", 0.0)) or 1.0
+    ratio = gap / vc
+    warn = float(thresholds["gap_warn"])
+    minor = float(thresholds["gap_minor"])
+    evidence = {"funding_gap": gap, "vc": vc, "gap_over_vc": ratio, "warn": warn, "minor": minor}
+    if ratio >= minor:
+        return Finding(
+            id="DD08", name="funding_gap_severity", severity_class=MINOR, passed=False,
+            message=f"Capital de trabajo requerido {gap:,.0f} = {ratio:.1f}× el VC — brecha alta (diagnóstico).",
+            evidence=evidence,
+            recommendation="Asegurar financiamiento intermedio o reestructurar el ritmo de gasto/adquisición.",
+        )
+    if ratio >= warn:
+        return Finding(
+            id="DD08", name="funding_gap_severity", severity_class=WARNING, passed=False,
+            message=f"Capital de trabajo requerido {gap:,.0f} = {ratio:.1f}× el VC.",
+            evidence=evidence,
+            recommendation="Monitorear el colchón de caja; podría requerirse financiamiento puente.",
+        )
+    return _ok("DD08", "funding_gap_severity", f"Brecha de financiamiento moderada ({gap:,.0f}).")
+
+
+def compute_liquidity_diagnostic(optimized: pd.DataFrame) -> dict[str, Any]:
+    """Liquidity trajectory summary — reported regardless of verdict."""
+    cash = optimized["Caja"].astype(float)
+    min_cash = float(cash.min())
+    min_cash_month = int(optimized.loc[cash.idxmin(), "t"])
+    gap_series = (-cash).clip(lower=0.0)
+    max_gap = float(gap_series.max())
+    max_gap_month = int(optimized.loc[gap_series.idxmax(), "t"]) if max_gap > 0 else None
+
+    cumulative_ebitda = optimized["EBITDA"].cumsum()
+    breakeven = optimized.loc[cumulative_ebitda >= 0, "t"]
+    breakeven_month = int(breakeven.iloc[0]) if not breakeven.empty else None
+
+    went_negative = bool((cash < 0).any())
+    cash_recovers = bool(went_negative and float(cash.iloc[-1]) >= 0)
+
+    return {
+        "min_cash": min_cash,
+        "min_cash_month": min_cash_month,
+        "max_funding_gap": max_gap,
+        "max_funding_gap_month": max_gap_month,
+        "breakeven_month": breakeven_month,
+        "cash_went_negative": went_negative,
+        "cash_recovers": cash_recovers,
+        "final_cash": float(cash.iloc[-1]),
+    }
+
+
+# ----- Calibration mapping -------------------------------------------------
+
+
+def map_calibration_findings(
+    calibration: Any,
+    *,
+    blocking_ids: list[str] | None = None,
+    major_ids: list[str] | None = None,
+    overrides: dict[str, str] | None = None,
+) -> list[Finding]:
+    """Map calibration ``CheckResult``s into DD findings (no logic duplicated).
+
+    Severity: ids in ``blocking_ids`` -> structural; ids in ``major_ids`` ->
+    major; other failing errors -> minor; warnings -> warning. ``overrides``
+    forces a specific class per check id. Passing/skipped checks are ignored.
+    """
+    if calibration is None:
+        return []
+    blocking = set(blocking_ids or ["C01"])
+    major = set(major_ids or [])
+    overrides = overrides or {}
+
+    findings: list[Finding] = []
+    for check in getattr(calibration, "checks", []):
+        if check.passed or check.skipped:
+            continue
+        if check.id in overrides:
+            severity = overrides[check.id]
+        elif check.id in blocking:
+            severity = STRUCTURAL
+        elif check.id in major:
+            severity = MAJOR
+        elif check.severity == "error":
+            severity = MINOR
+        else:
+            severity = WARNING
+        findings.append(
+            Finding(
+                id=check.id, name=check.name, severity_class=severity, passed=False,
+                message=check.message,
+                evidence={"value": check.value, "threshold": check.threshold},
+                source="calibration",
+            )
+        )
+    return findings
+
+
+# ----- Orchestration helpers ----------------------------------------------
+
+
+def evaluate_pre_rules(config: dict[str, Any], thresholds: dict[str, float]) -> list[Finding]:
+    return [
+        _rule_instance_valid(config),
+        _rule_unit_margin_positive(config),
+        _rule_financing_present(config),
+        _rule_churn_valid(config),
+        _rule_churn_severity(config, thresholds),
+    ]
+
+
+def evaluate_synthesis_rules(
+    optimized: pd.DataFrame | None, config: dict[str, Any], thresholds: dict[str, float]
+) -> list[Finding]:
+    if optimized is None or optimized.empty:
+        return [
+            Finding(
+                id="DD00", name="synthesis_unavailable", severity_class=STRUCTURAL, passed=False,
+                message="No hay resultados optimizados para evaluar reglas de síntesis.",
+                recommendation="Verificar que el modelo determinista corrió y produjo resultados.",
+            )
+        ]
+    return [
+        _rule_breakeven(optimized, thresholds),
+        _rule_ebitda_regime(optimized, thresholds),
+        _rule_revenue_growth(optimized, thresholds),
+        _rule_runway(optimized, thresholds),
+        _rule_funding_gap(optimized, config, thresholds),
+    ]
+
+
+def resolve_thresholds(dd_config: dict[str, Any] | None) -> dict[str, float]:
+    merged = dict(DEFAULT_THRESHOLDS)
+    if dd_config:
+        merged.update(dd_config.get("thresholds", {}) or {})
+    return merged

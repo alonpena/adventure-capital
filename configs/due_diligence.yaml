@@ -1,0 +1,24 @@
+# Due Diligence rule thresholds and calibration mapping.
+# All keys are optional; code defaults apply when omitted.
+
+thresholds:
+  churn_warn: 0.6                  # max annual churn -> warning
+  churn_major: 0.95               # max annual churn -> major (not scalable)
+  breakeven_warn_month: 24        # breakeven later than this -> warning
+  runway_minor: 6                 # cash negative on/before this month -> minor
+  gap_warn: 0.5                   # working-capital trough as fraction of VC -> warning
+  gap_minor: 5.0                  # working-capital trough as multiple of VC -> minor
+  ebitda_regime_year: 3           # annual EBITDA must be positive by this year
+  revenue_growth_min_multiple: 1.5  # final-year / first-year revenue (venture-scale)
+
+# Calibration check IDs whose failure is treated as structurally blocking.
+blocking_ids:
+  - C01                           # solver non-optimal/infeasible -> rejected
+
+# Calibration check IDs whose failure is a major (venture-eligibility) issue.
+major_ids:
+  - C06                           # negative NPV -> valuation does not support the case
+
+# Force a specific DD class for a calibration check id (optional).
+# Values: structural | major | minor | warning
+calibration_overrides: {}
