@@ -91,12 +91,20 @@ _Avoid_: Work document, final report
 ## Workflow layers
 
 **Due Diligence**:
-A future pre-model diagnostic layer that evaluates a raw startup instance — assumptions, business-model quality, data completeness — and recommends instance adjustments before the valuation workflow runs. Not built today; not a mandatory gate.
-_Avoid_: Calibration, investment decision engine
+An iterative assess → recommend → rerun workflow that wraps the **Deterministic Model**: it applies business and venture-eligibility rules over both the raw instance and the deterministic outputs, reuses **Calibration** as evidence, and produces a **Due Diligence Verdict** plus a report recommending which assumptions to recalibrate before re-running. Not a hard fail/stop gate; broader than **Calibration**.
+_Avoid_: Calibration, hard gate, investment decision engine
 
 **Calibration**:
-The existing post-model validation layer that reads **Deterministic Model** outputs and emits checks, verdicts, and suggestions. Distinct from **Due Diligence** by timing (after the model) and inputs (optimized results).
+The existing post-model validation layer that reads **Deterministic Model** outputs and emits checks, verdicts, and suggestions. A technical check that **Due Diligence** may reuse as an input; distinct from it and not merged.
 _Avoid_: Due diligence, pre-model gate
+
+**Due Diligence Verdict**:
+The outcome of the **Due Diligence** workflow, one of: `passed`, `passed_with_warnings`, `requires_minor_adjustment`, `requires_major_adjustment`, `rejected_for_stochastic`. It carries decision fields: `allows_stochastic`, `valuation_mode` (`final`/`warning`/`diagnostic`/`none`), `adjustment_level` (`none`/`minor`/`major`/`structural`), `blocking_reasons`, `adjustment_recommendations`, `rerun_recommended`. A report is always produced. Findings are classed `structural` (blocks the **Stochastic Model**), `major` (not yet venture-scale eligible), `minor` (fixable business/liquidity risk), or `warning`.
+_Avoid_: Pass/fail, investment recommendation
+
+**Valuation Mode**:
+How a **Stochastic Model** run should be read given the **Due Diligence Verdict**: `final` (decision-ready), `warning` (preliminary), `diagnostic` (not investment-ready), or `none` (not run).
+_Avoid_: Confidence level, rating
 
 **Deterministic Model**:
 The baseline single-scenario MILP that optimizes the growth plan against point-estimate parameters. Serves as the ex-ante valuation and diagnostic baseline.
@@ -145,8 +153,10 @@ _Avoid_: Cash deficit (ambiguous), loss
 - A **Standard Valuation Report** is generated from a **Report Data Package**.
 - A **Report Data Package** combines model output artifacts with one **Document YAML**.
 - A **Document YAML** does not define optimization assumptions.
-- A future **Due Diligence** layer may run before the **Deterministic Model**; **Calibration** runs after it. They are separate, optional layers and are not merged. Neither is a mandatory step today.
-- The **Stochastic Model** runs after the **Deterministic Model** baseline, only for cases accepted for deeper analysis.
+- **Due Diligence** wraps the **Deterministic Model** and may reuse **Calibration** outputs as inputs; the two remain conceptually distinct and are not merged.
+- The **Stochastic Model** is blocked only by a `rejected_for_stochastic` **Due Diligence Verdict** (structural infeasibility). All other verdicts permit it to run; the **Valuation Mode** records how to read the result (`final`/`warning`/`diagnostic`). It is never mandatory.
+- Business/financial risk (negative cash, **Funding Gap**, low runway, weak unit economics) is diagnostic — it shapes the verdict, **Valuation Mode**, and recalibration recommendations but does not block the **Stochastic Model**, because the point is to study plan robustness under uncertainty.
+- A `requires_major_adjustment` verdict means the case is not yet venture-scale eligible (e.g. insufficient revenue growth, no credible EBITDA regime by year 3); the **Stochastic Model** may still run in `diagnostic` **Valuation Mode**.
 - A **First-Stage Decision** is identical across all **Scenarios**; a **Recourse Decision** may differ per **Scenario**.
 - **Expected NPV** is computed over the **Scenarios** of the **Stochastic Model**.
 - A **Funding Gap** arises in a **Scenario** when cash breaches the **Liquidity Policy** floor.
