@@ -98,9 +98,9 @@ def main() -> int:
         config = load_config(args.config)
         output_dir = args.output
         if output_dir is None:
-            stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            output_dir = str(Path("outputs") / stamp)
-        run_pipeline(config, output_dir=output_dir)
+            stamp = datetime.now().strftime("%y-%d-%m-%H:%M:%S")
+            output_dir = str(Path("runs") / stamp)
+        run_pipeline(config, output_dir=output_dir, baseline_only=False)
         print(f"Artifacts written to {output_dir}")
         return 0
     if args.command == "report":

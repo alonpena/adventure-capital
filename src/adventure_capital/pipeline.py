@@ -13,8 +13,30 @@ from adventure_capital.unit_economics import calculate_unit_economics
 from adventure_capital.valuation import calculate_dcf, calculate_multiples_valuation
 
 
-def run_pipeline(config: dict[str, Any], *, output_dir: str | None = None, verbose_solver: bool = False) -> dict[str, Any]:
-    """Run full pipeline and optionally generate Phase 4 artifacts."""
+def run_pipeline(
+    config: dict[str, Any],
+    *,
+    output_dir: str | None = None,
+    verbose_solver: bool = False,
+    baseline_only: bool = True,
+) -> dict[str, Any]:
+    """Run full pipeline and optionally generate Phase 4 artifacts.
+
+    If baseline_only is True, runs only the deterministic model baseline.
+    If baseline_only is False, orchestrates the entire due diligence and stochastic assessment flow.
+    """
+    if not baseline_only:
+        from pathlib import Path
+        from datetime import datetime
+        from adventure_capital.due_diligence.workflow import run_assessment
+
+        out_dir = output_dir
+        if out_dir is None:
+            stamp = datetime.now().strftime("%y-%d-%m-%H:%M:%S")
+            out_dir = str(Path("runs") / stamp)
+
+        return run_assessment(config, output_dir=out_dir, verbose_solver=verbose_solver)
+
     instance = generate_instance(config)
     fixed_cashflow = build_fixed_period_financial_model(instance)
     solution = solve_growth_plan(instance, verbose=verbose_solver)
