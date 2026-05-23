@@ -7,6 +7,53 @@ from typing import Any
 import pandas as pd
 
 
+def calcular_valor_residual(
+    ebitda_last_month: float,
+    metodo: str,
+    wacc: float,
+    ebitda_multiple: float = None,
+    gordon_g: float = None
+) -> float:
+    """
+    Calcula el valor residual (terminal value) según el método configurado.
+
+    Args:
+        ebitda_last_month: EBITDA del último mes del horizonte de proyección
+        metodo: "none" | "ebitda_multiple" | "gordon"
+        wacc: tasa de descuento anual (decimal, ej: 0.35)
+        ebitda_multiple: múltiplo EV/EBITDA (requerido si metodo="ebitda_multiple")
+        gordon_g: tasa de crecimiento perpetuo (requerido si metodo="gordon")
+
+    Returns:
+        Valor residual en la misma moneda que ebitda_last_month (no descontado)
+
+    Supuestos documentados:
+        - ebitda_multiple: asume EBITDA anualizado = ebitda_last_month * 12
+        - gordon: asume EBITDA ≈ FCF (simplificación — documentar como limitación)
+        - gordon: requiere wacc > gordon_g, sino lanza ValueError
+    """
+    if metodo == "none":
+        return 0.0
+
+    elif metodo == "ebitda_multiple":
+        if ebitda_multiple is None:
+            raise ValueError("ebitda_multiple requerido cuando metodo='ebitda_multiple'")
+        ebitda_anual = ebitda_last_month * 12
+        return max(ebitda_anual * ebitda_multiple, 0.0)
+
+    elif metodo == "gordon":
+        if gordon_g is None:
+            raise ValueError("gordon_g requerido cuando metodo='gordon'")
+        if wacc <= gordon_g:
+            raise ValueError(f"WACC ({wacc}) debe ser mayor que g ({gordon_g}) en Gordon Growth")
+        ebitda_anual = ebitda_last_month * 12
+        # LIMITACIÓN: EBITDA se usa como proxy de FCF. En contexto startup puede sobreestimar VR.
+        return max(ebitda_anual * (1 + gordon_g) / (wacc - gordon_g), 0.0)
+
+    else:
+        raise ValueError(f"Método de valor residual desconocido: '{metodo}'. Opciones: none, ebitda_multiple, gordon")
+
+
 def calculate_dcf(df: pd.DataFrame, instance: dict[str, Any]) -> dict[str, Any]:
     """Calculate discounted cashflow valuation from monthly optimization results."""
     monthly_discount = instance["beta"]
@@ -15,6 +62,11 @@ def calculate_dcf(df: pd.DataFrame, instance: dict[str, Any]) -> dict[str, Any]:
     parameters = instance.get("parametros", instance.get("params", {}))
     tax = float(parameters.get("tax", instance.get("tax", 0.125)))
     terminal_ebitda_multiple = float(parameters.get("mult_vd_ebitda", 1.0))
+
+    # E.1 read residual value params
+    metodo = parameters.get("valor_residual_metodo", "none")
+    ebitda_multiple = parameters.get("ebitda_multiple", terminal_ebitda_multiple)
+    gordon_g = parameters.get("gordon_g")
 
     cashflow = pd.DataFrame(
         {
@@ -35,7 +87,15 @@ def calculate_dcf(df: pd.DataFrame, instance: dict[str, Any]) -> dict[str, Any]:
 
     last_month_ebitda = float(cashflow.iloc[-1]["EBITDA"])
     annualized_ebitda = last_month_ebitda * 12
-    terminal_value_nominal = max(annualized_ebitda * terminal_ebitda_multiple, 0.0)
+    
+    terminal_value_nominal = calcular_valor_residual(
+        last_month_ebitda,
+        metodo,
+        annual_discount,
+        ebitda_multiple=ebitda_multiple,
+        gordon_g=gordon_g
+    )
+    
     terminal_discount_factor = 1 / (1 + monthly_discount) ** int(instance["H"])
     terminal_value_pv = terminal_value_nominal * terminal_discount_factor
     pv_cashflows = float(cashflow["FC_desc"].sum())
@@ -61,6 +121,8 @@ def calculate_dcf(df: pd.DataFrame, instance: dict[str, Any]) -> dict[str, Any]:
         "vp_flujos": pv_cashflows,
         "valor_desecho_nominal": terminal_value_nominal,
         "valor_desecho_vp": terminal_value_pv,
+        "vr_nominal": terminal_value_nominal,
+        "vr_pv": terminal_value_pv,
         "VAN": float(npv),
         "ebitda_ultimo_mes": last_month_ebitda,
         "ebitda_anualizado": annualized_ebitda,

@@ -51,6 +51,22 @@ def write_core_csv_outputs(result: dict[str, Any], output_dir: str | Path) -> di
     result["dcf"]["resumen_anual_dcf"].to_csv(paths["dcf_annual_summary"])
     result["multiples_valuation"]["df_multiplos"].to_csv(paths["multiples_valuation"], index=False)
     result["unit_economics"].to_csv(paths["unit_economics"], index=False)
+
+    import json
+    summary_data = {
+        "vc_invested": float(result["instance"]["VC"]),
+        "van": float(result["dcf"]["VAN"]),
+        "vr_nominal": float(result["dcf"]["vr_nominal"]),
+        "vr_pv": float(result["dcf"]["vr_pv"]),
+        "valor_desecho_nominal": float(result["dcf"]["valor_desecho_nominal"]),
+        "valor_desecho_vp": float(result["dcf"]["valor_desecho_vp"]),
+        "beta_anual": float(result["dcf"]["beta_anual"]),
+        "beta_mensual": float(result["dcf"]["beta_mensual"]),
+        "ebitda_ultimo_mes": float(result["dcf"]["ebitda_ultimo_mes"]),
+        "ebitda_anualizado": float(result["dcf"]["ebitda_anualizado"]),
+    }
+    (out / "summary.json").write_text(json.dumps(summary_data, indent=2, ensure_ascii=False), encoding="utf-8")
+
     return paths
 
 
