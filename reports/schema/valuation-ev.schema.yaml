@@ -1,0 +1,44 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+title: "Valuation EV Document Schema"
+type: object
+required:
+  - document
+  - params
+  - dcf
+properties:
+  document:
+    type: object
+    required: [title, company_name, author, report_date]
+    properties:
+      title:        { type: string }
+      company_name: { type: string }
+      author:       { type: string }
+      report_date:  { type: string, format: date }
+  params:
+    type: object
+    required: [config_path]
+    properties:
+      config_path:  { type: string }
+  dcf:
+    type: object
+    required: [tasa_descuento, horizonte_meses, valor_residual_metodo]
+    properties:
+      tasa_descuento:          { type: number, minimum: 0, maximum: 1 }
+      horizonte_meses:         { type: integer, minimum: 12, maximum: 120 }
+      valor_residual_metodo:
+        type: string
+        enum: [none, ebitda_multiple, gordon]
+        default: none
+      ebitda_multiple:         { type: number }
+      gordon_g:                { type: number }
+  empresa:
+    type: object
+    properties:
+      descripcion:   { type: string }
+      mision:        { type: string }
+      vision:        { type: string }
+  target_market:     { type: string }
+  modelo_negocio:    { type: string }
+  cap_table:         { type: array }
+  inversion:         { type: object }
+additionalProperties: false

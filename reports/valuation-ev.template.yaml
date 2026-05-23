@@ -1,0 +1,13 @@
+document:
+  title: "Enterprise Value Report"
+  company_name: "Empresa Demo SpA"
+  author: "Adventure Capital"
+  report_date: "2026-04-01"
+
+params:
+  config_path: "configs/base.yaml"
+
+dcf:
+  tasa_descuento: 0.35
+  horizonte_meses: 36
+  valor_residual_metodo: none
