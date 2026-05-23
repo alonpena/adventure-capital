@@ -238,3 +238,81 @@ table.aggregation tr.totals td {
 
 ul { padding-left: 18px; }
 ul li { margin: 4px 0; }
+
+/* ================================================================
+   Formula blocks — pseudocódigo matemático
+   No usar MathJax/KaTeX: WeasyPrint no ejecuta JS
+   ================================================================ */
+.formula-container {
+  margin: 0.75rem 0 1rem 0;
+  border-left: 3px solid #2563EB;  /* azul Adventure Capital */
+  background: #0F172A;             /* slate-900 */
+  border-radius: 0 4px 4px 0;
+  padding: 0.75rem 1rem;
+  page-break-inside: avoid;
+}
+
+.formula-label {
+  display: block;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.65rem;
+  color: #64748B;  /* slate-500 */
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+}
+
+.formula {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.72rem;
+  color: #E2E8F0;  /* slate-200 */
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+/* ================================================================
+   Valor Residual summary box
+   ================================================================ */
+.vr-summary {
+  margin: 1rem 0;
+  background: #111827;
+  border: 1px solid #1F2937;
+  border-left: 3px solid #F59E0B; /* Golden color */
+  border-radius: 0 12px 12px 0;
+  padding: 16px 20px;
+  page-break-inside: avoid;
+}
+
+.vr-summary h4 {
+  margin: 0 0 8px;
+  color: #F59E0B;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.vr-method {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #F9FAFB;
+}
+
+.vr-note {
+  margin: 4px 0 8px;
+  font-size: 11px;
+  color: #9CA3AF;
+  font-style: italic;
+}
+
+.vr-value {
+  margin: 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #38BDF8; /* sky-400 */
+}
+
+.vr-warning {
+  color: #F87171; /* red-400 */
+  font-weight: 500;
+}

@@ -91,15 +91,37 @@ def build_report_data_package(
     narratives = build_all_narratives(summary, tables, document)
     figure_paths = generate_figures(out, instance=instance, base_wacc=tables.get("wacc_base"))
 
+    qualitative_present = bool(
+        document.get("empresa", {}).get("descripcion")
+        or document.get("empresa", {}).get("mision")
+        or document.get("empresa", {}).get("vision")
+        or document.get("target_market")
+        or document.get("modelo_negocio")
+        or document.get("cap_table")
+        or document.get("inversion", {}).get("narrativa")
+    )
+    scope = "full" if qualitative_present else "ev_only"
+
+    summary_json_path = out / "summary.json"
+    valuation_data = {}
+    if summary_json_path.exists():
+        try:
+            valuation_data = json.loads(summary_json_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
     report_data = {
         "schema_version": "1.0",
         "created_at": created_at,
         "document": {
-            "title": document["document"]["title"],
-            "company_name": document["empresa"]["nombre"],
-            "report_date": document["report"]["date"],
-            "author": document["report"]["author"],
+            "title": document.get("document", {}).get("title", "Informe de Valorización"),
+            "company_name": document.get("document", {}).get("company_name") or document.get("empresa", {}).get("nombre", "Empresa Demo SpA"),
+            "report_date": document.get("document", {}).get("report_date") or document.get("report", {}).get("date") or document.get("fecha_referencia", ""),
+            "author": document.get("document", {}).get("author") or document.get("report", {}).get("author", "Adventure Capital"),
+            "scope": scope,
         },
+        "dcf": document.get("dcf", {}),
+        "valuation": valuation_data,
         "summary": summary,
         "narrative": document,
         "tables": tables,
