@@ -413,13 +413,39 @@ def build_unit_economics_table(unit_economics: pd.DataFrame, optimized: pd.DataF
     if not unit_economics.empty:
         for _, row in unit_economics.iterrows():
             valor = row.get("Valor")
-            valor_f = float(valor) if pd.notna(valor) else None
+            unidad = str(row.get("Unidad", ""))
+            if pd.notna(valor):
+                val_f = float(valor)
+                if "%" in unidad:
+                    valor_str = f"{val_f * 100:.1f}%"
+                elif "usd/cliente" in unidad.lower():
+                    valor_str = f"USD {val_f:,.0f}"
+                elif "usd/día" in unidad.lower():
+                    valor_str = f"USD {val_f:,.0f}"
+                elif "usd" in unidad.lower():
+                    if val_f >= 1_000_000:
+                        valor_str = f"USD {val_f / 1_000_000:.2f}M"
+                    elif val_f >= 1_000:
+                        valor_str = f"USD {val_f / 1_000:.1f}K"
+                    else:
+                        valor_str = f"USD {val_f:,.0f}"
+                elif "veces/mes" in unidad:
+                    valor_str = f"{val_f:.2f}"
+                elif "ratio" in unidad.lower() or "x" in unidad.lower() or "×" in unidad.lower():
+                    valor_str = f"{val_f:.2f}×"
+                elif "clientes" in unidad:
+                    valor_str = f"{int(val_f):,}"
+                else:
+                    valor_str = f"{val_f:,.2f}" if val_f % 1 != 0 else f"{int(val_f):,}"
+            else:
+                valor_str = "—"
+            
             detail_rows.append(
                 (
                     str(row.get("Unit Economic", "")),
                     str(row.get("Definición", "")),
-                    valor_f,
-                    str(row.get("Unidad", "")),
+                    valor_str,
+                    unidad,
                 )
             )
 
@@ -532,6 +558,8 @@ def build_all_tables(
 
 def _document_wacc(document: dict[str, Any]) -> float:
     dcf = document.get("dcf", {})
+    if "tasa_descuento" in dcf:
+        return float(dcf["tasa_descuento"])
     beta_capm = float(dcf.get("beta_capm", 1.0))
     rf = float(dcf.get("Rf_us", dcf.get("Rf_local", 0.0)))
     rm = float(dcf.get("Rm", 0.0))

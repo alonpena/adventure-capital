@@ -110,6 +110,22 @@ def build_report_data_package(
         except Exception:
             pass
 
+    dd_json_path = out / "due_diligence_report.json"
+    dd_data = {
+        "verdict": "ok",
+        "allows_stochastic": True,
+        "calibration_verdict": "N/A",
+        "summary": {"failing": 0, "structural": 0, "major": 0, "minor": 0, "warnings": 0},
+        "findings": []
+    }
+    if dd_json_path.exists():
+        try:
+            loaded = json.loads(dd_json_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                dd_data.update(loaded)
+        except Exception:
+            pass
+
     report_data = {
         "schema_version": "1.0",
         "created_at": created_at,
@@ -122,6 +138,7 @@ def build_report_data_package(
         },
         "dcf": document.get("dcf", {}),
         "valuation": valuation_data,
+        "due_diligence": dd_data,
         "summary": summary,
         "narrative": document,
         "tables": tables,

@@ -23,10 +23,10 @@ def test_ev_only_renders_13_pages(tmp_path):
     html = path.read_text(encoding="utf-8")
     soup = BeautifulSoup(html, "html.parser")
     pages = soup.find_all("section", class_="page")
-    assert len(pages) == 13, f"Esperadas 13 páginas, encontradas {len(pages)}"
+    assert len(pages) == 14, f"Esperadas 14 páginas, encontradas {len(pages)}"
 
 def test_full_renders_14_pages(tmp_path):
-    """Reporte full debe tener exactamente 14 secciones .page."""
+    """Reporte full debe tener exactamente 15 secciones .page."""
     out_dir = tmp_path / "full"
     run_pipeline(_fast_config(), output_dir=str(out_dir))
     
@@ -37,4 +37,4 @@ def test_full_renders_14_pages(tmp_path):
     html = path.read_text(encoding="utf-8")
     soup = BeautifulSoup(html, "html.parser")
     pages = soup.find_all("section", class_="page")
-    assert len(pages) == 14, f"Esperadas 14 páginas, encontradas {len(pages)}"
+    assert len(pages) == 15, f"Esperadas 15 páginas, encontradas {len(pages)}"

@@ -62,7 +62,7 @@ def _smart_cell(value: Any, column_name: str = "") -> str:
         return f"{float(value):.2f}×"
     if "fte" in column or "vendedores" in column or "líderes" in column or "lideres" in column:
         return f"{float(value):,.2f}"
-    if "usd" in column or "valor" in column or "ingres" in column or "ebitda" in column or "costo" in column or "cac" in column or "plani" in column or "comercial" in column or "caja" in column or "valorización" in column or "base" in column:
+    if "usd" in column or ("valor" in column and column != "valor") or "ingres" in column or "ebitda" in column or "costo" in column or "cac" in column or "plani" in column or "comercial" in column or "caja" in column or "valorización" in column or "base" in column:
         return _money_short(value)
     if "frecuencia" in column or "ticket" in column:
         return f"{float(value):,.2f}"

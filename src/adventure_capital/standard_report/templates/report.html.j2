@@ -74,7 +74,7 @@
     {% endif %}
   {% endmacro %}
 
-  {% set total_pages = 13 if data.document.scope == "ev_only" else 14 %}
+  {% set total_pages = 14 if data.document.scope == "ev_only" else 15 %}
 
   <section class="page cover">
     {% if data.document.scope == "ev_only" %}
@@ -145,7 +145,7 @@
       <img class="chart" src="{{ data.figures.acquisition_year1 }}" alt="Adquisición año 1">
       <img class="chart" src="{{ data.figures.clients_evolution_36m }}" alt="Evolución de stock de clientes">
     </div>
-    {{ formula_block("Clientes", "Clientes_t  = Clientes_{t-1} × (1 − churn_rate) + Nuevos_t\nNuevos_t    = eff_sales × vendedores_activos_t\nActivos_t   = Activos_{t-1} + contrataciones_t − salidas_t") }}
+    {{ formula_block("Clientes", "Clientes_t  = Clientes_{t-1} * (1 - churn_rate) + Nuevos_t\nNuevos_t    = eff_sales * active_vendedores_t\nActivos_t   = Activos_{t-1} + hires_t - exits_t") }}
     <h3>Agregación anual</h3>
     {{ render_table(data.tables.clientes.summary) }}
     <h3>Adquisición por servicio</h3>
@@ -173,7 +173,7 @@
         </div>
       </div>
     </div>
-    {{ formula_block("Servicios", "Mix_s_t     = Clientes_s_t / Clientes_total_t            [fracción por servicio s]\nPenetración_s_t = Clientes_s_t / TAM_s                   [si TAM disponible]") }}
+    {{ formula_block("Servicios", "Mix_s_t     = Clientes_s_t / Clientes_total_t            [fraccion por servicio s]\nPenetration_s_t = Clientes_s_t / TAM_s                   [si TAM disponible]") }}
     <h3>Parámetros por servicio</h3>
     {{ render_table(data.tables.servicios.parameters) }}
     <h3>Agregación anual</h3>
@@ -190,7 +190,7 @@
     <h2>Ingresos: composición por servicio</h2>
     <img class="chart" src="{{ data.figures.revenue_breakdown_3y }}" alt="Ingresos anuales por servicio">
     <img class="chart" src="{{ data.figures.revenue_monthly_composition }}" alt="Ingresos mensuales por servicio">
-    {{ formula_block("Ingresos", "Ingresos_t  = Σ_s [ Clientes_s_t × ARPU_s ]\nARPU_s      = precio_base_s × (1 + upsell_rate_s)        [si aplica]") }}
+    {{ formula_block("Ingresos", "Ingresos_t  = Sum_s [ Clientes_s_t * ARPU_s ]\nARPU_s      = precio_base_s * (1 + upsell_rate_s)        [si aplica]") }}
     <h3>Agregación anual</h3>
     {{ render_table(data.tables.ingresos.summary) }}
     {{ narrative_block(data.narratives.ingresos) }}
@@ -217,7 +217,7 @@
       <img class="chart" src="{{ data.figures.op_cost_composition }}" alt="Costos operacionales por servicio">
       <img class="chart" src="{{ data.figures.gross_margin_progression }}" alt="Cascada margen bruto">
     </div>
-    {{ formula_block("Costos operacionales", "Costo_op_t  = Σ_s [ Clientes_s_t × costo_unitario_s ]\nMargen_op_s = 1 − (costo_unitario_s / ARPU_s)") }}
+    {{ formula_block("Costos operacionales", "Costo_op_t  = Sum_s [ Clientes_s_t * costo_unitario_s ]\nMargen_op_s = 1 - (costo_unitario_s / ARPU_s)") }}
     <h3>Parámetros operativos por servicio</h3>
     {{ render_table(data.tables.costos_operacionales.parameters) }}
     <h3>Agregación anual</h3>
@@ -250,7 +250,7 @@
     <h2>Estructura de resultados</h2>
     <img class="chart" src="{{ data.figures.cashflow_monthly }}" alt="Cashflow mensual">
     <img class="chart" src="{{ data.figures.pnl_waterfall }}" alt="Cascada P&L último año">
-    {{ formula_block("P&L", "EBITDA_t    = Ingresos_t − Costo_op_t − CAC_t − G_adm_t − RRHH_t\nEBITDA_%_t  = EBITDA_t / Ingresos_t") }}
+    {{ formula_block("P&L", "EBITDA_t    = Ingresos_t - Costo_op_t - CAC_t - G_adm_t - RRHH_t\nEBITDA_pct_t  = EBITDA_t / Ingresos_t") }}
     <h3>P&L anual</h3>
     {{ render_table(data.tables.pnl.summary) }}
     {{ footer(10, total_pages) }}
@@ -261,7 +261,7 @@
     <div class="section-tag">09 · Valorización</div>
     <h2>Valorización</h2>
     <img class="chart" src="{{ data.figures.valuation_methods }}" alt="Valorización por método">
-    {{ formula_block("Valorización DCF", "EV          = Σ_{t=1}^{T} [ FCF_t / (1 + WACC)^t ] + VR / (1 + WACC)^T\nWACC        = Rf + β × (Rm − Rf) + Rp          [CAPM ajustado por riesgo país]\nVR          = según método configurado (ver Fase E)") }}
+    {{ formula_block("Valorización DCF", "EV          = Sum_{t=1}^{T} [ FCF_t / (1 + WACC)^t ] + VR / (1 + WACC)^T\nWACC        = Rf + beta * (Rm - Rf) + Rp          [CAPM model]\nVR          = según método configurado (ver Fase E)") }}
     <h3>Resultados</h3>
     {{ render_table(data.tables.valorizacion.summary) }}
 
@@ -296,7 +296,7 @@
     <div class="section-tag">10 · Unit Economics</div>
     <h2>Unit Economics</h2>
     <img class="chart" src="{{ data.figures.unit_economics_grid }}" alt="Dashboard unit economics">
-    {{ formula_block("Unit Economics", "LTV_s       = ARPU_s × GP_s / churn_rate_s      [vida útil esperada = 1/churn]\nLTV/CAC_s   = LTV_s / CAC_t                     [ratio de eficiencia de adquisición]\nPayback_s   = CAC_t / (ARPU_s × GP_s)           [meses para recuperar CAC]\nGP_s        = 1 − (costo_unitario_s / ARPU_s)   [margen bruto por servicio]") }}
+    {{ formula_block("Unit Economics", "LTV_s       = ARPU_s * GP_s / churn_rate_s      [vida util = 1/churn]\nLTV/CAC_s   = LTV_s / CAC_t                     [ratio de adquisicion]\nPayback_s   = CAC_t / (ARPU_s * GP_s)           [recuperacion CAC]\nGP_s        = 1 - (costo_unitario_s / ARPU_s)   [margen bruto]") }}
     <h3>Agregación anual</h3>
     {{ render_table(data.tables.unit_economics.annual) }}
     <h3>Detalle por métrica</h3>
@@ -305,11 +305,73 @@
     {{ footer(12, total_pages) }}
   </section>
 
-  {# --- Page 13: Sensibilidad --- #}
+  {# --- Page 13: Alertas del Modelo (10-bis) --- #}
+  <section class="page">
+    <div class="section-tag">10-bis · Alertas del Modelo</div>
+    <h2>Alertas del Modelo (Due Diligence & Calibración)</h2>
+    
+    <div class="tile-grid three">
+      <div class="tile {% if data.due_diligence.verdict == 'passed_with_warnings' or data.due_diligence.verdict == 'ok' %}primary{% endif %}">
+        <div class="label">Veredicto Due Diligence</div>
+        <div class="value" style="font-size: 15px; text-transform: uppercase;">{{ data.due_diligence.verdict | default('sin veredicto') | replace('_', ' ') }}</div>
+      </div>
+      <div class="tile">
+        <div class="label">Fallas / Alertas</div>
+        <div class="value">{{ data.due_diligence.summary.failing | default(0) }}</div>
+      </div>
+      <div class="tile">
+        <div class="label">Calibración Técnica</div>
+        <div class="value" style="font-size: 18px;">{{ data.due_diligence.calibration_verdict | default('N/A') }}</div>
+      </div>
+    </div>
+
+    <h3>Fallas y Alertas Detectadas</h3>
+    <table class="aggregation">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Regla / Nombre</th>
+          <th>Severidad</th>
+          <th>Mensaje / Evidencia</th>
+          <th>Recomendación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set ns = namespace(has_alerts=false) %}
+        {% if data.due_diligence and data.due_diligence.findings %}
+          {% for finding in data.due_diligence.findings %}
+            {% if not finding.passed %}
+              {% set ns.has_alerts = true %}
+              <tr>
+                <th scope="row">{{ finding.id }}</th>
+                <td><strong>{{ finding.name }}</strong></td>
+                <td style="color: {% if finding.severity_class == 'structural' or finding.severity_class == 'major' %}#EF4444{% elif finding.severity_class == 'minor' or finding.severity_class == 'warning' %}#F59E0B{% else %}#38BDF8{% endif %}; font-weight: 700;">
+                  {{ finding.severity_class | upper }}
+                </td>
+                <td>{{ finding.message }}</td>
+                <td>{{ finding.recommendation | default('—') }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {% if not ns.has_alerts %}
+          <tr>
+            <td colspan="5" style="text-align: center; color: #10B981; font-weight: 700; padding: 20px;">
+              ✔ No se detectaron alertas críticas ni fallas de calibración en el modelo.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    {{ footer(13, total_pages) }}
+  </section>
+
+  {# --- Page 14: Sensibilidad --- #}
   <section class="page">
     <div class="section-tag">11 · Sensibilidad</div>
     <h2>Análisis de Sensibilidad</h2>
-    {{ formula_block("Sensibilidad", "ΔEV/ΔWACC   = ∂EV/∂WACC  [calculado numéricamente ±100 bps]\nΔEV/Δmult   = EV(mult+1) − EV(mult)\nBreakeven   = t* tal que EBITDA_acum_{t*} = 0") }}
+    {{ formula_block("Sensibilidad", "dEV/dWACC   = dEV/dWACC  [numerical sensitivity]\ndEV/dmult   = EV(mult+1) - EV(mult)\nBreakeven   = t_star such that EBITDA_acum_{t_star} = 0") }}
     <h3>Matriz WACC × múltiplo de EBITDA</h3>
     <img class="chart" src="{{ data.figures.sensitivity_heatmap }}" alt="Heatmap sensibilidad WACC × múltiplo">
     {{ render_table(data.tables.sensibilidad.wacc) }}
@@ -320,10 +382,10 @@
     <img class="chart" src="{{ data.figures.breakeven_chart }}" alt="Variables breakeven">
     {{ render_table(data.tables.sensibilidad.breakeven) }}
     {{ narrative_block(data.narratives.sensibilidad) }}
-    {{ footer(13, total_pages) }}
+    {{ footer(14, total_pages) }}
   </section>
 
-  {# --- Page 14: Anexos --- #}
+  {# --- Page 15: Anexos --- #}
   {% if data.document.scope == "full" %}
   <section class="page">
     <div class="section-tag">12 · Anexos</div>
@@ -348,7 +410,7 @@
         <p class="muted">{{ data.narrative.modelo_negocio.principal.ticket_descripcion }}</p>
       </div>
     </div>
-    {{ footer(14, total_pages) }}
+    {{ footer(15, total_pages) }}
   </section>
   {% endif %}
 </body>
