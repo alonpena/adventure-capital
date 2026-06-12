@@ -394,6 +394,7 @@ def diagnose_financing_gap(
         "first_breach_month": breaches[0] if breaches else None,
         "total_gap": float(sum(values.values())),
         "diagnostic_status": solution["status"],
+        "diagnostic_solution": solution,
     }
 
 

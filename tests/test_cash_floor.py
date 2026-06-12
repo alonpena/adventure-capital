@@ -6,12 +6,14 @@ import pytest
 
 from adventure_capital.config import load_config
 from adventure_capital.instance import generate_instance
+from adventure_capital.due_diligence.workflow import run_due_diligence
 from adventure_capital.model import (
     build_model,
     diagnose_financing_gap,
     solve_growth_plan,
     solve_with_working_capital,
 )
+from adventure_capital.pipeline import run_pipeline
 from adventure_capital.results import extract_results
 
 WC_CONFIG = "configs/demo-working-capital.yaml"
@@ -91,3 +93,35 @@ def test_diagnostic_does_not_modify_main_model():
     assert len(main["problem"].constraints) == constraints_before
     assert main["problem"].sense == sense_before
     assert main["variables"]["cash_shortfall"] == {}
+
+
+def test_pipeline_continues_with_diagnostic_outputs(tmp_path):
+    config = load_config(WC_CONFIG)
+    config["VC"] = 40000
+    config["solver"]["time_limit"] = 60
+
+    result = run_pipeline(config, output_dir=str(tmp_path))
+
+    assert result["solution"]["status"] == "Infeasible"
+    diagnostic = result["working_capital_diagnostic"]
+    assert diagnostic["feasible"] is False
+    assert diagnostic["financing_gap_usd"] > 0
+    assert result["diagnostic_solution"]["status"] == "Optimal"
+    assert (tmp_path / "optimized_results.csv").exists()
+    assert "diagnostic_cash_shortfall" in result["optimized_results"].columns
+
+
+def test_due_diligence_receives_financing_gap_alert(tmp_path):
+    config = load_config(WC_CONFIG)
+    config["VC"] = 40000
+    config["solver"]["time_limit"] = 60
+
+    result = run_due_diligence(config, output_dir=tmp_path)
+    verdict = result["verdict"]
+
+    assert verdict.allows_stochastic is True
+    dd11 = next(f for f in verdict.findings if f.id == "DD11")
+    assert dd11.severity_class == "minor"
+    assert "additional financing" in dd11.message
+    assert verdict.liquidity_diagnostic["financing_gap_usd"] > 0
+    assert "first breach" in verdict.liquidity_diagnostic["financing_gap_alert"]

@@ -241,14 +241,22 @@ def _rule_runway(optimized: pd.DataFrame, thresholds: dict[str, float]) -> Findi
     )
 
 
+def _working_capital_floor(config: dict[str, Any]) -> float:
+    working_capital = config.get("working_capital", {}) or {}
+    if working_capital.get("enabled", False) and "VC" in config:
+        return -float(config.get("VC", 0.0))
+    return 0.0
+
+
 def _rule_funding_gap(optimized: pd.DataFrame, config: dict[str, Any], thresholds: dict[str, float]) -> Finding:
     min_cash = float(optimized["Caja"].min())
-    gap = max(0.0, -min_cash)
+    floor = _working_capital_floor(config)
+    gap = max(0.0, floor - min_cash)
     vc = float(config.get("VC", 0.0)) or 1.0
     ratio = gap / vc
     warn = float(thresholds["gap_warn"])
     minor = float(thresholds["gap_minor"])
-    evidence = {"funding_gap": gap, "vc": vc, "gap_over_vc": ratio, "warn": warn, "minor": minor}
+    evidence = {"funding_gap": gap, "vc": vc, "floor": floor, "gap_over_vc": ratio, "warn": warn, "minor": minor}
     if ratio >= minor:
         return Finding(
             id="DD08", name="funding_gap_severity", severity_class=MINOR, passed=False,
@@ -266,12 +274,13 @@ def _rule_funding_gap(optimized: pd.DataFrame, config: dict[str, Any], threshold
     return _ok("DD08", "funding_gap_severity", f"Brecha de financiamiento moderada ({gap:,.0f}).")
 
 
-def compute_liquidity_diagnostic(optimized: pd.DataFrame) -> dict[str, Any]:
+def compute_liquidity_diagnostic(optimized: pd.DataFrame, config: dict[str, Any] | None = None) -> dict[str, Any]:
     """Liquidity trajectory summary — reported regardless of verdict."""
     cash = optimized["Caja"].astype(float)
     min_cash = float(cash.min())
     min_cash_month = int(optimized.loc[cash.idxmin(), "t"])
-    gap_series = (-cash).clip(lower=0.0)
+    floor = _working_capital_floor(config or {})
+    gap_series = (floor - cash).clip(lower=0.0)
     max_gap = float(gap_series.max())
     max_gap_month = int(optimized.loc[gap_series.idxmax(), "t"]) if max_gap > 0 else None
 
@@ -285,6 +294,7 @@ def compute_liquidity_diagnostic(optimized: pd.DataFrame) -> dict[str, Any]:
     return {
         "min_cash": min_cash,
         "min_cash_month": min_cash_month,
+        "working_capital_floor": floor,
         "max_funding_gap": max_gap,
         "max_funding_gap_month": max_gap_month,
         "breakeven_month": breakeven_month,

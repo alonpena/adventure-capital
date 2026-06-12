@@ -41,11 +41,16 @@ working_capital:
 | File | Change |
 |---|---|
 | `src/adventure_capital/config.py` | `working_capital` default (disabled); validation of `floor_mode`. |
-| `src/adventure_capital/model.py` | `build_model(..., elastic_floor=False)`; hard floor `Caja[t] >= -VC` when enabled (supersedes `liquidity_policy`); `cash_shortfall` vars + min-shortfall objective in elastic mode; `diagnose_financing_gap`, `solve_with_working_capital`, `_shortfall_value`. |
+| `src/adventure_capital/model.py` | `build_model(..., elastic_floor=False)`; hard floor `Caja[t] >= -VC` when enabled (supersedes `liquidity_policy`); `cash_shortfall` vars + min-shortfall objective in elastic mode; `diagnose_financing_gap`, `solve_with_working_capital`, `_shortfall_value`; diagnostic solution returned for safe downstream artifacts. |
+| `src/adventure_capital/pipeline.py` | Uses `solve_with_working_capital` when enabled; feasible runs use the main solution, infeasible runs retain main `Infeasible` status and use the diagnostic solution for safe artifacts. |
+| `src/adventure_capital/results.py` | Adds floor/slack/hit columns on working-capital runs and diagnostic shortfall columns when extracting diagnostic outputs. |
+| `src/adventure_capital/due_diligence/rules.py` | Liquidity diagnostic and funding-gap rule use `-VC` floor when working capital is enabled. |
+| `src/adventure_capital/due_diligence/workflow.py` | Routes infeasible main solve + diagnostic gap into DD finding `DD11` and report diagnostics without crashing. |
+| `src/adventure_capital/due_diligence/report.py` | Shows working-capital financing-gap alert in the liquidity section. |
 | `src/adventure_capital/calibration/checks.py` | C04 floor source = `-VC` when working_capital enabled (handles both generated-instance and raw-config shapes). |
 | `docs/model.md` | New "Working-capital cash floor (Phase 4)" section. |
 | `configs/demo-working-capital.yaml` | New demo config (demo-complex + working_capital). |
-| `tests/test_cash_floor.py` | New: 6 Phase 4 tests. |
+| `tests/test_cash_floor.py` | 8 Phase 4 tests, including pipeline and DD alert wiring. |
 | `docs/STAGE_4.md` | This handoff. |
 
 ## Key design decisions
@@ -64,10 +69,11 @@ working_capital:
 4. **Diagnostic outputs:** `financing_gap_usd` = max monthly shortfall (peak additional
    financing needed beyond the ticket); `first_breach_month` = first month with shortfall;
    `total_gap` = Σ shortfall.
-5. **Pipeline scope:** feasible configs flow through the normal `all` pipeline
-   (`solve_growth_plan` builds the floor). The infeasible→diagnostic route is exercised by
-   `solve_with_working_capital` and the unit tests; full DD-report gap wiring is left to a
-   later integration step (see open debt).
+5. **Pipeline/DD scope:** feasible configs flow through the normal pipeline. On a main
+   infeasible working-capital run, `run_pipeline` keeps the main solution status
+   (`Infeasible`), uses the diagnostic solution for safe artifacts, and exposes the
+   structured diagnostic. `run_due_diligence` converts that diagnostic into DD finding
+   `DD11` with the required alert text.
 
 ## Invariants verified
 
@@ -79,43 +85,48 @@ working_capital:
 - Diagnostic build/solve does not modify the main model (`test_diagnostic_does_not_modify_main_model`).
 - Main objective contains only discounted EBITDA (floor is a constraint).
 - C04 uses `-VC` floor when working_capital enabled (verified at unit level for both instance shapes).
+- Pipeline continues on infeasible main solve by writing diagnostic outputs and preserving the main `Infeasible` status.
+- DD receives `DD11` financing-gap alert with `financing_gap_usd`, `first_breach_month`, and `total_gap`.
 - Untouched: unit economics (Phase 5), report narrative, PDF, UI, stochastic model.
 
 ## Test results
 
 ```
 uv run pytest
-# 90 passed, 3 skipped   (84 Phase 3 baseline + 6 new cash-floor tests)
+# 101 passed, 3 skipped
 
 uv run pytest tests/test_cash_floor.py
-# 6 passed
+# 8 passed
 ```
 
 ## Demo output
 
-```
-configs/demo-working-capital.yaml -> outputs/demo-wc-stage-4
+```bash
+uv run adventure-capital all --config configs/demo-complex.yaml \
+  --output outputs/demo-complex-stage-4 \
+  --document reports/valuation-ev.template.yaml \
+  --schema reports/schema/valuation-ev.schema.yaml
+
+uv run adventure-capital all --config configs/demo-working-capital.yaml \
+  --output outputs/demo-wc-stage-4 \
+  --document reports/valuation-ev.template.yaml \
+  --schema reports/schema/valuation-ev.schema.yaml
 ```
 
-Solver **Optimal**; `min_cash = 2620 >= -VC (-110000)` (floor not binding for this VC);
-`Caja_final == VC + Σ EBITDA` (rel ~1e-8); consistency `all_passed = True`; report.html
-rendered. C04 floor source confirmed `-VC` against the saved output.
+Both runs wrote `report.html`. For `demo-working-capital`, solver **Optimal**;
+`min_cash = 2620 >= -VC (-110000)` (floor not binding for this VC);
+`Caja_final == VC + Σ EBITDA` (rel ~1e-8); consistency `all_passed = True`. C04 floor
+source confirmed `-VC` against the saved output.
 
-Output path gitignored.
+Output paths are gitignored.
 
 ## Open debt
 
-- **Pipeline infeasible path not fully wired into the DD report.** `solve_with_working_capital`
-  returns the structured gap, but the `all` pipeline (`run_assessment`) still calls
-  `solve_growth_plan` and would error on an infeasible main solve. Routing the diagnostic
-  gap into the DD report narrative/alert is a follow-up (no shipped demo config is
-  infeasible, so this is not hit in practice yet).
-- **DD `rules.py` (`compute_liquidity_diagnostic`, `_rule_funding_gap`)** still read
-  `optimized["Caja"]` (feasible-run trough). They were not changed to consume the
-  secondary diagnostic gap on infeasibility.
 - **`floor_mode: fixed`** reserved but not implemented.
 - **Stochastic parity / cash-init divergence** (`evaluate.py` starts cash at `0.0` vs
   deterministic `VC + EBITDA[1]`) remains flagged, out of scope.
+- **Report narrative polish** can make the DD financing-gap alert more prominent in the
+  full standard report, but the structured DD report and diagnostics are now wired.
 
 ## Re-audit checklist (for Codex)
 
@@ -126,4 +137,5 @@ Output path gitignored.
 5. Confirm diagnostic dict fields: `financing_gap_usd`, `first_breach_month`, `total_gap`.
 6. Confirm `Caja_final == VC + Σ EBITDA` and the documented operational-flows assumption.
 7. Confirm C04 floor = `-VC` when enabled (both instance/config shapes).
-8. Run `uv run pytest` → expect 90 passed, 3 skipped.
+8. Confirm infeasible working-capital run produces DD11 alert and pipeline artifacts.
+9. Run `uv run pytest` → expect 101 passed, 3 skipped in this working tree.

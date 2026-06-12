@@ -119,6 +119,17 @@ def extract_results(instance: dict[str, Any], solution: dict[str, Any] | dict[st
         df["total_acquisition_cost"].cumsum(), df["new_customers"].cumsum()
     )
 
+    working_capital = instance.get("parametros", {}).get("working_capital", {})
+    if working_capital.get("enabled", False):
+        floor = -float(instance["VC"])
+        df["working_capital_floor"] = floor
+        df["floor_slack"] = df["Caja"] - floor
+        df["floor_hit"] = df["floor_slack"].abs() <= 1e-6
+        shortfall_vars = variables.get("cash_shortfall", {})
+        if shortfall_vars:
+            df["diagnostic_cash_shortfall"] = [_value(shortfall_vars[t]) for t in instance["T"]]
+            df["diagnostic_financing_gap"] = df["diagnostic_cash_shortfall"]
+
     df["Costos_totales_sin_CAC"] = df["Costo_operacional"] + df["G_adm"] + df["RRHH"]
     df["Egresos_totales"] = df["Costo_operacional"] + df["CAC"] + df["G_adm"] + df["RRHH"]
     df["EBITDA_acum"] = df["EBITDA"].cumsum()

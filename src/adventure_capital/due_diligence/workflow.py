@@ -30,6 +30,7 @@ from adventure_capital.due_diligence.report import (
     write_due_diligence_report,
 )
 from adventure_capital.due_diligence.rules import (
+    MINOR,
     STRUCTURAL,
     Finding,
     compute_liquidity_diagnostic,
@@ -101,6 +102,10 @@ def run_due_diligence(
     pipeline_result = run_pipeline(config, output_dir=str(out), verbose_solver=verbose_solver, baseline_only=True)
     optimized = pipeline_result["optimized_results"]
     solver_status = pipeline_result["solution"]["status"]
+    wc_diagnostic = pipeline_result.get("working_capital_diagnostic") or {}
+    solver_status_for_calibration = solver_status
+    if wc_diagnostic and wc_diagnostic.get("feasible") is False:
+        solver_status_for_calibration = wc_diagnostic.get("diagnostic_status", solver_status)
 
     # Persist the config so calibration can load the same instance.
     config_path = out / "config.yaml"
@@ -114,18 +119,52 @@ def run_due_diligence(
         document_path=document_path,
         schema_path=schema_path,
         thresholds_path=calibration_thresholds_path,
-        solver_status=solver_status,
+        solver_status=solver_status_for_calibration,
     )
     write_calibration_report(calibration, out)
     calibration_findings = map_calibration_findings(
         calibration, blocking_ids=blocking_ids, major_ids=major_ids, overrides=overrides
     )
 
+    financing_gap_findings: list[Finding] = []
+    if wc_diagnostic and wc_diagnostic.get("feasible") is False:
+        gap = float(wc_diagnostic.get("financing_gap_usd", 0.0))
+        month = wc_diagnostic.get("first_breach_month")
+        alert = (
+            f"Plan requires additional financing of ${gap:,.0f} beyond the VC ticket, "
+            f"first breach in month {month}."
+        )
+        financing_gap_findings.append(
+            Finding(
+                id="DD11",
+                name="working_capital_financing_gap",
+                severity_class=MINOR,
+                passed=False,
+                message=alert,
+                evidence={
+                    "financing_gap_usd": gap,
+                    "first_breach_month": month,
+                    "total_gap": float(wc_diagnostic.get("total_gap", 0.0)),
+                    "diagnostic_status": wc_diagnostic.get("diagnostic_status"),
+                },
+                recommendation="Asegurar financiamiento adicional o recalibrar el ritmo de gasto/adquisición.",
+            )
+        )
+
     # 4. Synthesis + liquidity diagnostic over deterministic outputs.
     synthesis_findings = evaluate_synthesis_rules(optimized, config, thresholds)
-    liquidity = compute_liquidity_diagnostic(optimized)
+    liquidity = compute_liquidity_diagnostic(optimized, config)
+    if wc_diagnostic and wc_diagnostic.get("feasible") is False:
+        liquidity.update(
+            {
+                "financing_gap_usd": float(wc_diagnostic.get("financing_gap_usd", 0.0)),
+                "first_breach_month": wc_diagnostic.get("first_breach_month"),
+                "total_gap": float(wc_diagnostic.get("total_gap", 0.0)),
+                "financing_gap_alert": financing_gap_findings[0].message if financing_gap_findings else "",
+            }
+        )
 
-    findings = pre_findings + synthesis_findings + calibration_findings
+    findings = pre_findings + synthesis_findings + financing_gap_findings + calibration_findings
     verdict = build_verdict(
         findings,
         calibration_verdict=calibration.verdict,
@@ -260,6 +299,7 @@ def run_assessment(
             f"Minimum Cash Month: {diag.get('min_cash_month')}",
             f"Maximum Funding Gap: {diag.get('max_funding_gap', 0.0):,.2f}",
             f"Maximum Funding Gap Month: {diag.get('max_funding_gap_month')}",
+            f"Financing Gap Alert: {diag.get('financing_gap_alert', '')}",
             f"Breakeven Month: {diag.get('breakeven_month')}",
             f"Cash Went Negative: {diag.get('cash_went_negative')}",
             f"Cash Recovers: {diag.get('cash_recovers')}",

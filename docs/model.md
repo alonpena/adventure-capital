@@ -214,6 +214,11 @@ without ever mutating the main model. `solve_with_working_capital(instance)` ret
 - feasible: `{feasible: True, min_cash_balance, min_cash_month, financing_gap_usd: 0}`
 - infeasible: `{feasible: False, financing_gap_usd (max shortfall), first_breach_month, total_gap}`
 
+When the main solve is infeasible, the pipeline preserves the main `Infeasible` status,
+uses the diagnostic solution only for safe downstream artifacts, and routes the structured
+financing gap to Due Diligence as alert `DD11`: `Plan requires additional financing of $X
+beyond the VC ticket, first breach in month Y.`
+
 Calibration C04 uses `-VC` as its floor when working_capital is enabled (else the legacy
 `minimum_cash`).
 

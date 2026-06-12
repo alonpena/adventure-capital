@@ -169,6 +169,11 @@ def _liquidity_section(diag: dict[str, Any]) -> list[str]:
         f"- Caja mínima: {diag.get('min_cash', 0):,.0f} (mes {diag.get('min_cash_month', '—')})",
         f"- Brecha máxima de financiamiento: {diag.get('max_funding_gap', 0):,.0f} "
         f"(mes {diag.get('max_funding_gap_month', '—')})",
+        *(
+            [f"- Alerta capital de trabajo: {diag.get('financing_gap_alert')}"]
+            if diag.get("financing_gap_alert")
+            else []
+        ),
         f"- Mes de breakeven (EBITDA acumulado ≥ 0): {diag.get('breakeven_month', '—')}",
         f"- ¿La caja se vuelve negativa?: {'sí' if diag.get('cash_went_negative') else 'no'}",
         f"- ¿La caja se recupera al final?: {'sí' if diag.get('cash_recovers') else 'no'}",

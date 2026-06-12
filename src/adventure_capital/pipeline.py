@@ -6,7 +6,7 @@ from typing import Any
 
 from adventure_capital.financial_model import build_fixed_period_financial_model
 from adventure_capital.instance import generate_instance
-from adventure_capital.model import solve_growth_plan
+from adventure_capital.model import solve_growth_plan, solve_with_working_capital
 from adventure_capital.reporting import generate_report
 from adventure_capital.results import extract_results, summarize_results
 from adventure_capital.unit_economics import calculate_unit_economics
@@ -89,8 +89,19 @@ def run_pipeline(
             raise ValueError("gordon_g es requerido cuando valor_residual_metodo es 'gordon'")
 
     fixed_cashflow = build_fixed_period_financial_model(instance)
-    solution = solve_growth_plan(instance, verbose=verbose_solver)
-    optimized_results = extract_results(instance, solution)
+    working_capital_enabled = instance.get("parametros", {}).get("working_capital", {}).get("enabled", False)
+    working_capital_diagnostic = None
+    diagnostic_solution = None
+    if working_capital_enabled:
+        working_capital_diagnostic = solve_with_working_capital(instance, verbose=verbose_solver)
+        solution = working_capital_diagnostic["solution"]
+        diagnostic_solution = working_capital_diagnostic.get("diagnostic_solution")
+        solution_for_outputs = diagnostic_solution if diagnostic_solution is not None else solution
+    else:
+        solution = solve_growth_plan(instance, verbose=verbose_solver)
+        solution_for_outputs = solution
+
+    optimized_results = extract_results(instance, solution_for_outputs)
     summary = summarize_results(optimized_results)
     dcf = calculate_dcf(optimized_results, instance)
     multiples_valuation = calculate_multiples_valuation(optimized_results, instance)
@@ -100,6 +111,9 @@ def run_pipeline(
         "instance": instance,
         "fixed_cashflow": fixed_cashflow,
         "solution": solution,
+        "solution_for_outputs": solution_for_outputs,
+        "diagnostic_solution": diagnostic_solution,
+        "working_capital_diagnostic": working_capital_diagnostic,
         "optimized_results": optimized_results,
         "summary": summary,
         "dcf": dcf,
