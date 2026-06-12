@@ -226,6 +226,39 @@ Calibration C04 uses `-VC` as its floor when working_capital is enabled (else th
 only operational flows. If future extensions add CapEx, debt service, or other
 non-operational cash flows, this identity must be updated accordingly.
 
+## Unit economics and breakeven (Phase 5)
+
+All unit-economics metrics are **annual** and **post-solve** (no MILP variables). Service
+lines are **summed**, never averaged.
+
+```text
+annual_frequency_s          = 12 / frecuencia_s
+gross_margin_s              = 1 - c_u_s / ticket_s
+annual_churn_s              = churn_anual_s[0]
+
+LTV   = Σ_s ticket_s * annual_frequency_s * gross_margin_s / annual_churn_s
+CAC   = cumulative_cac_per_user = Σ total_acquisition_cost / Σ new_customers
+LTV/CAC = LTV / CAC
+```
+
+A high `LTV/CAC` (calibration C08 band, default `> 20×`) is surfaced as a **known
+artifact** of the model structure (annual churn denominator × high gross margin), never
+silently corrected.
+
+Breakeven / payback diagnostics (post-solve arithmetic):
+
+```text
+annual_gross_profit_per_customer = Σ_s (ticket_s - c_u_s) * annual_frequency_s
+annual_contribution_per_customer = annual_gross_profit_per_customer - CAC
+breakeven_customers = annual_fixed_costs / annual_contribution_per_customer
+payback_customers   = VC / annual_contribution_per_customer
+payback_month       = first t where Caja[t] >= VC   (original ticket recovered)
+runway[t]           = Caja[t] / |EBITDA[t]|          (NaN when EBITDA[t] >= 0)
+```
+
+`annual_fixed_costs` is the year-1 sum of `G_adm + RRHH`. Enterprise Value only — no
+Equity Value module.
+
 ## CAC cost components and traceability (Phase 3)
 
 CAC is decomposed into linear **cost-component** decision variables. No CAC ratio is
