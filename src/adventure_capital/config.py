@@ -59,7 +59,7 @@ _DEFAULT_CONFIG: dict[str, Any] = {
             "min_share": 0.0,
             "max_share": 1.0,
         },
-        "third_party": {"active": False, "min_share": 0.0, "max_share": 1.0},
+        "third_party": {"active": False, "commission": 0.0, "min_share": 0.0, "max_share": 1.0},
     },
     "solver": {"name": "cbc", "time_limit": 120, "verbose": False},
     "commercial_productivity_lag": 0,
@@ -179,6 +179,10 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ValueError(
                 "Sum of max_share across active channels must be >= 1.0 (mix otherwise infeasible)."
             )
+
+        third_party = channels.get("third_party", {})
+        if third_party.get("active", False) and third_party.get("commission", 0.0) < 0:
+            raise ValueError("channels.third_party.commission must be >= 0.")
 
         advertising = channels.get("advertising", {})
         if advertising.get("active", False):

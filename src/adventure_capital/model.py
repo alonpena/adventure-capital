@@ -66,6 +66,11 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
     advertising_cac_cost = (
         {t: pulp.LpVariable(f"adv_cac_{t}", lowBound=0) for t in periods} if ad_active else {}
     )
+    salesforce_cac_cost = {t: pulp.LpVariable(f"sf_cac_{t}", lowBound=0) for t in periods}
+    third_party_cost = (
+        {t: pulp.LpVariable(f"tp_cac_{t}", lowBound=0) for t in periods} if tp_active else {}
+    )
+    total_acquisition_cost = {t: pulp.LpVariable(f"tot_cac_{t}", lowBound=0) for t in periods}
 
     def sf_term(s, t):
         return acq_sf[(s, t)]
@@ -220,15 +225,28 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
             problem += pulp.lpSum(sf_term(s, t) for s in range(service_count)) <= instance["meta"] * sellers[capacity_period]
             problem += sellers[t] <= instance["sup"] * leaders[t]
 
-        problem += cac[t] == (
+        # CAC cost components (linear; ratios are computed post-solve in results.py).
+        problem += salesforce_cac_cost[t] == (
             instance["rem_v"] * sellers[t]
             + instance["rem_l"] * leaders[t]
             + pulp.lpSum(
                 (instance["com_v"] + instance["com_l"]) * services[s]["ticket"] * sf_term(s, t)
                 for s in range(service_count)
             )
-            + (advertising_cac_cost[t] if ad_active else 0)
         )
+        if tp_active:
+            tp_commission = channels["third_party"]["commission"]
+            problem += third_party_cost[t] == pulp.lpSum(
+                tp_commission * services[s]["ticket"] * acq_tp[(s, t)]
+                for s in range(service_count)
+            )
+        problem += total_acquisition_cost[t] == (
+            salesforce_cac_cost[t]
+            + (advertising_cac_cost[t] if ad_active else 0)
+            + (third_party_cost[t] if tp_active else 0)
+        )
+        # CAC remains the canonical alias for total acquisition cost.
+        problem += cac[t] == total_acquisition_cost[t]
         problem += ebitda[t] == (
             pulp.lpSum(revenue[(s, t)] for s in range(service_count))
             - pulp.lpSum(operational_cost[(s, t)] for s in range(service_count))
@@ -277,6 +295,9 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
         "A_tp": acq_tp,
         "I_ad": ad_investment,
         "advertising_cac_cost": advertising_cac_cost,
+        "salesforce_cac_cost": salesforce_cac_cost,
+        "third_party_cost": third_party_cost,
+        "total_acquisition_cost": total_acquisition_cost,
     }
     return {"problem": problem, "variables": variables}
 

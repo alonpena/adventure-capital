@@ -14,6 +14,13 @@ def _value(variable: Any) -> float:
     return 0.0 if value is None else float(value)
 
 
+def _safe_div(numerator: Any, denominator: Any) -> Any:
+    """Element-wise division returning NaN where the denominator is zero."""
+    numerator = np.asarray(numerator, dtype=float)
+    denominator = np.asarray(denominator, dtype=float)
+    return np.where(denominator > 0, numerator / np.where(denominator > 0, denominator, 1.0), np.nan)
+
+
 def extract_results(instance: dict[str, Any], solution: dict[str, Any] | dict[str, Any]) -> pd.DataFrame:
     """Convert PuLP variables into monthly results DataFrame."""
     variables = solution.get("variables", solution)
@@ -91,6 +98,26 @@ def extract_results(instance: dict[str, Any], solution: dict[str, Any] | dict[st
         df["share_salesforce"] = np.where(total > 0, df["A_salesforce"] / total, 0.0)
         df["share_advertising"] = np.where(total > 0, df["A_advertising"] / total, 0.0)
         df["share_third_party"] = np.where(total > 0, df["A_third_party"] / total, 0.0)
+
+    # CAC traceability (Phase 3). Cost components come from the MILP; all per-user
+    # ratios are computed here post-solve and never enter the optimization.
+    cac_component_vars = {
+        "salesforce_cac_cost": variables.get("salesforce_cac_cost", {}),
+        "third_party_cost": variables.get("third_party_cost", {}),
+        "total_acquisition_cost": variables.get("total_acquisition_cost", {}),
+    }
+    for col, var_map in cac_component_vars.items():
+        if var_map:
+            df[col] = [_value(var_map[t]) for t in instance["T"]]
+    if "third_party_cost" not in df.columns:
+        df["third_party_cost"] = 0.0
+    if "total_acquisition_cost" not in df.columns:
+        df["total_acquisition_cost"] = df["CAC"]
+    df["new_customers"] = df["Adq_clientes"]
+    df["period_cac_per_user"] = _safe_div(df["total_acquisition_cost"], df["new_customers"])
+    df["cumulative_cac_per_user"] = _safe_div(
+        df["total_acquisition_cost"].cumsum(), df["new_customers"].cumsum()
+    )
 
     df["Costos_totales_sin_CAC"] = df["Costo_operacional"] + df["G_adm"] + df["RRHH"]
     df["Egresos_totales"] = df["Costo_operacional"] + df["CAC"] + df["G_adm"] + df["RRHH"]

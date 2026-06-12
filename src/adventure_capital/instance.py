@@ -108,6 +108,7 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         },
         "third_party": {
             "active": tp_active,
+            "commission": float(tp_cfg.get("commission", 0.0)),
             "min_share": float(tp_cfg.get("min_share", 0.0)),
             "max_share": float(tp_cfg.get("max_share", 1.0)),
         },

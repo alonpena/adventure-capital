@@ -93,12 +93,16 @@ def build_fixed_period_financial_model(instance: dict[str, Any]) -> pd.DataFrame
                 )
             row["advertising_cac_cost"] = advertising_cac_cost
 
-        row["CAC"] = (
-            instance["rem_v"] * sellers
-            + instance["rem_l"] * leaders
-            + cac_commissions
-            + advertising_cac_cost
+        row["salesforce_cac_cost"] = (
+            instance["rem_v"] * sellers + instance["rem_l"] * leaders + cac_commissions
         )
+        row["third_party_cost"] = 0.0
+        row["CAC"] = (
+            row["salesforce_cac_cost"]
+            + advertising_cac_cost
+            + row["third_party_cost"]
+        )
+        row["total_acquisition_cost"] = row["CAC"]
 
         service_names = [service["nombre"] for service in services]
         row["Adq_clientes"] = sum(row[f"A_{name}"] for name in service_names)
@@ -115,6 +119,15 @@ def build_fixed_period_financial_model(instance: dict[str, Any]) -> pd.DataFrame
         rows.append(row)
 
     df = pd.DataFrame(rows)
+    df["new_customers"] = df["Adq_clientes"]
+    df["period_cac_per_user"] = np.where(
+        df["new_customers"] > 0, df["total_acquisition_cost"] / df["new_customers"].where(df["new_customers"] > 0, 1.0), np.nan
+    )
+    df["cumulative_cac_per_user"] = np.where(
+        df["new_customers"].cumsum() > 0,
+        df["total_acquisition_cost"].cumsum() / df["new_customers"].cumsum().where(df["new_customers"].cumsum() > 0, 1.0),
+        np.nan,
+    )
     df["EBITDA_acum"] = df["EBITDA"].cumsum()
     df["MoM_adq"] = df["Adq_clientes"].pct_change().replace([np.inf, -np.inf], np.nan)
     df["MoM_ingresos"] = df["Ingresos"].pct_change().replace([np.inf, -np.inf], np.nan)

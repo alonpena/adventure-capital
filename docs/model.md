@@ -182,6 +182,32 @@ CAC[t] = rem_v*V[t] + rem_l*L[t]
 
 Effective channel proportions (`share_*`) are post-solve diagnostics, not variables.
 
+## CAC cost components and traceability (Phase 3)
+
+CAC is decomposed into linear **cost-component** decision variables. No CAC ratio is
+ever a decision variable — all per-user ratios are computed post-solve.
+
+```text
+salesforce_cac_cost[t] = rem_v*V[t] + rem_l*L[t] + sum_s (com_v+com_l)*ticket[s]*A_sf[s,t]
+third_party_cost[t]    = sum_s tp_commission * ticket[s] * A_tp[s,t]        (when third-party active)
+total_acquisition_cost[t] = salesforce_cac_cost[t] + advertising_cac_cost[t] + third_party_cost[t]
+CAC[t] = total_acquisition_cost[t]                                          (canonical alias)
+```
+
+`EBITDA[t]` still subtracts `CAC[t]`, so legacy configs are byte-identical
+(`salesforce_cac_cost ≡` old CAC, other components 0).
+
+Post-solve traceability columns (in `results.py`, never in the MILP):
+
+```text
+new_customers[t]            = total acquisition (Adq_clientes)
+period_cac_per_user[t]      = total_acquisition_cost[t] / new_customers[t]          (NaN if 0)
+cumulative_cac_per_user[t]  = Σ_{1..t} total_acquisition_cost / Σ_{1..t} new_customers (NaN if 0)
+```
+
+Third-party cost is a commission on ticket (`channels.third_party.commission`,
+default 0.0), mirroring the salesforce commission.
+
 ## Phase 3 post-processing
 
 DCF valuation uses monthly optimization results after solver completion:
