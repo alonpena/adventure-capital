@@ -42,6 +42,7 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "buffer_caja": 0,
     "tax": 0.125,
     "liquidity_policy": {"type": "none"},
+    "working_capital": {"enabled": False, "floor_mode": "ticket"},
     "acquisition_ceiling": {
         "enabled": False,
         "target_stock_multiplier": 2.0,
@@ -147,6 +148,11 @@ def validate_config(config: dict[str, Any]) -> None:
     liquidity_policy = config.get("liquidity_policy", {"type": "none"})
     if liquidity_policy.get("type", "none") not in {"none", "nonnegative", "minimum_cash"}:
         raise ValueError("Unsupported liquidity policy.")
+
+    working_capital = config.get("working_capital", {})
+    if working_capital.get("enabled", False):
+        if working_capital.get("floor_mode", "ticket") not in {"ticket"}:
+            raise ValueError("Unsupported working_capital.floor_mode (only 'ticket' supported).")
 
     ceiling = config.get("acquisition_ceiling", {})
     if ceiling.get("enabled", False):

@@ -182,6 +182,45 @@ CAC[t] = rem_v*V[t] + rem_l*L[t]
 
 Effective channel proportions (`share_*`) are post-solve diagnostics, not variables.
 
+## Working-capital cash floor (Phase 4)
+
+A hard working-capital floor indexed to the financing ticket. Cash may fall to `-VC`
+(all financing consumed, the working-capital limit) but no further. This is **not**
+`>= 0` — it enables breakeven modeling.
+
+```text
+Caja[1] = VC + EBITDA[1]
+Caja[t] = Caja[t-1] + EBITDA[t]
+Caja[t] >= -VC                 ∀t ∈ T        (when working_capital.enabled)
+```
+
+Config (disabled by default; supersedes `liquidity_policy` when enabled):
+
+```yaml
+working_capital:
+  enabled: true
+  floor_mode: ticket     # floor = -VC
+```
+
+The main objective stays pure discounted EBITDA — the floor is a hard constraint, never
+a penalty term.
+
+**Financing-gap diagnostic.** If the main model is infeasible, a *secondary* model is
+built (`build_model(instance, elastic_floor=True)`): the floor is relaxed with
+non-negative `cash_shortfall[t]` (`Caja[t] + shortfall[t] >= -VC`) and the objective is
+replaced by `minimize Σ shortfall[t]`. This separate solve measures the financing gap
+without ever mutating the main model. `solve_with_working_capital(instance)` returns:
+
+- feasible: `{feasible: True, min_cash_balance, min_cash_month, financing_gap_usd: 0}`
+- infeasible: `{feasible: False, financing_gap_usd (max shortfall), first_breach_month, total_gap}`
+
+Calibration C04 uses `-VC` as its floor when working_capital is enabled (else the legacy
+`minimum_cash`).
+
+**Documented identity.** `Caja_final == VC + Σ EBITDA` holds because the model considers
+only operational flows. If future extensions add CapEx, debt service, or other
+non-operational cash flows, this identity must be updated accordingly.
+
 ## CAC cost components and traceability (Phase 3)
 
 CAC is decomposed into linear **cost-component** decision variables. No CAC ratio is

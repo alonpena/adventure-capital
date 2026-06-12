@@ -1,0 +1,65 @@
+# demo-complex.yaml — Consultoría + Talleres, 2 servicios, presión de caja
+# Esperado: passed_with_warnings o recalibration_required (minor)
+# Muestra: multi-servicio, flujos heterogéneos, advertencias de DD sin bloqueo
+
+H: 36
+VC: 110000          # capital más ajustado — generará presión de caja visible
+beta: 0.35          # WACC 35% — refleja mayor riesgo operacional
+g_max_suavizado: 0.20
+
+servicios:
+  - nombre: Consultoria_Estrategica
+    ticket: 3200           # alto ticket, baja frecuencia — revenue concentrado
+    frecuencia: 6          # cada 6 meses compra de nuevo
+    alpha: 0.80            # 80% tasa de recompra
+    churn_anual: [0.45, 0.30, 0.18]   # churn alto en año 1 (etapa market fit)
+    c_u: 450               # costo por cliente (horas consultor)
+    c_min: 4000            # costo mínimo operacional del área
+    u_max: 25              # capacidad limitada — servicio intensivo en personas
+    A_base: [1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5, 6]
+
+  - nombre: Taller_Formacion
+    ticket: 750            # ticket bajo, alta frecuencia — volumen
+    frecuencia: 3          # trimestral
+    alpha: 0.70
+    churn_anual: [0.50, 0.35, 0.22]   # churn también alto — producto más commodity
+    c_u: 75                # bajo costo unitario
+    c_min: 1500
+    u_max: 100
+    A_base: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15]
+
+meta: 5          # menor productividad comercial — servicios más complejos de vender
+sup: 3
+rem_v: 1800
+rem_l: 2500
+com_v: 0.10
+com_l: 0.05
+g_adm: 3000
+RRHH_mensual: [11000, 15000, 21000]
+ciclo_op: [150, 120, 90]
+buffer_caja: 0
+tax: 0.125
+
+liquidity_policy:
+  type: none
+
+# Hard working-capital floor: cash may fall to -VC (all financing consumed) but no further.
+working_capital:
+  enabled: true
+  floor_mode: ticket
+
+solver:
+  name: cbc
+  time_limit: 180
+  verbose: false
+
+commercial_productivity_lag: 1   # equipo se contrata 1 mes antes de necesitarse
+
+# CHECKS ESPERADOS:
+# - margen svc1: 3200-450 = 2750 (positivo) ✓
+# - margen svc2: 750-75 = 675 (positivo) ✓
+# - churn año 1 svc2: 50% anual = 5.8% mensual → warning de retención
+# - VC 110K con RRHH+admin 14K/mes → runway ~7-8 meses → advertencia funding gap
+# - concentración: dos servicios pero svc1 domina valor → advertencia mix
+# - DD: varios warnings, ninguno estructural → passed_with_warnings probable
+# - Interesante para demo: muestra árbol de decisión completo con recomendaciones

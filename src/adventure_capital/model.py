@@ -11,10 +11,15 @@ import pulp
 ModelBundle = dict[str, Any]
 
 
-def build_model(instance: dict[str, Any]) -> ModelBundle:
+def build_model(instance: dict[str, Any], *, elastic_floor: bool = False) -> ModelBundle:
     """Build full-horizon MILP.
 
     Months 1-12 acquisition fixed from A_base. Months 13-H optimized.
+
+    When ``elastic_floor`` is True (diagnostic mode), the hard working-capital floor is
+    relaxed with non-negative shortfall variables and the objective is replaced by
+    minimizing total shortfall. This is used only to measure the financing gap after the
+    main model is infeasible; it never mutates the main model.
     """
     horizon = instance["H"]
     service_count = instance["S"]
@@ -265,17 +270,38 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
         if t > 1:
             problem += cash[t] == cash[t - 1] + ebitda[t]
 
-    liquidity_policy = instance.get("parametros", {}).get("liquidity_policy", {"type": "none"})
-    policy_type = liquidity_policy.get("type", "none")
-    if policy_type == "nonnegative":
-        for t in periods:
-            problem += cash[t] >= 0
-    elif policy_type == "minimum_cash":
-        floor = float(liquidity_policy.get("value", 0.0))
-        for t in periods:
-            problem += cash[t] >= floor
-    elif policy_type != "none":
-        raise ValueError(f"Unsupported liquidity policy: {policy_type}")
+    params = instance.get("parametros", {})
+    working_capital = params.get("working_capital", {})
+    cash_shortfall: dict[int, Any] = {}
+    if working_capital.get("enabled", False):
+        # Working-capital floor indexed to the financing ticket: cash may fall to -VC
+        # (all financing consumed) but no further. Supersedes liquidity_policy.
+        floor_value = -float(instance["VC"])
+        if elastic_floor:
+            cash_shortfall = {
+                t: pulp.LpVariable(f"cash_shortfall_{t}", lowBound=0) for t in periods
+            }
+            for t in periods:
+                problem += cash[t] + cash_shortfall[t] >= floor_value
+            # Diagnostic objective: minimize total financing shortfall (separate from
+            # the main discounted-EBITDA objective).
+            problem.setObjective(pulp.lpSum(cash_shortfall[t] for t in periods))
+            problem.sense = pulp.LpMinimize
+        else:
+            for t in periods:
+                problem += cash[t] >= floor_value
+    else:
+        liquidity_policy = params.get("liquidity_policy", {"type": "none"})
+        policy_type = liquidity_policy.get("type", "none")
+        if policy_type == "nonnegative":
+            for t in periods:
+                problem += cash[t] >= 0
+        elif policy_type == "minimum_cash":
+            floor = float(liquidity_policy.get("value", 0.0))
+            for t in periods:
+                problem += cash[t] >= floor
+        elif policy_type != "none":
+            raise ValueError(f"Unsupported liquidity policy: {policy_type}")
 
     variables = {
         "A": acquisition,
@@ -298,6 +324,7 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
         "salesforce_cac_cost": salesforce_cac_cost,
         "third_party_cost": third_party_cost,
         "total_acquisition_cost": total_acquisition_cost,
+        "cash_shortfall": cash_shortfall,
     }
     return {"problem": problem, "variables": variables}
 
@@ -339,6 +366,66 @@ def solve_growth_plan(
         verbose=solver_config.get("verbose", False) if verbose is None else verbose,
         time_limit=solver_config.get("time_limit", 120) if time_limit is None else time_limit,
     )
+
+
+def diagnose_financing_gap(
+    instance: dict[str, Any], *, time_limit: int | None = None
+) -> dict[str, Any]:
+    """Measure the working-capital financing gap via a secondary elastic solve.
+
+    Builds a fresh diagnostic model (hard floor relaxed with non-negative shortfall,
+    objective = minimize total shortfall). Does not touch the main model.
+    """
+    solver_config = instance.get("parametros", {}).get("solver", {})
+    bundle = build_model(instance, elastic_floor=True)
+    solution = solve_model(
+        bundle,
+        solver_name=solver_config.get("name", "cbc"),
+        verbose=False,
+        time_limit=solver_config.get("time_limit", 120) if time_limit is None else time_limit,
+    )
+    shortfall = solution["variables"]["cash_shortfall"]
+    periods = instance["T"]
+    values = {t: max(0.0, _shortfall_value(shortfall[t])) for t in periods}
+    breaches = [t for t in periods if values[t] > 1e-6]
+    return {
+        "feasible": False,
+        "financing_gap_usd": max(values.values()) if values else 0.0,
+        "first_breach_month": breaches[0] if breaches else None,
+        "total_gap": float(sum(values.values())),
+        "diagnostic_status": solution["status"],
+    }
+
+
+def solve_with_working_capital(
+    instance: dict[str, Any], *, verbose: bool | None = None, time_limit: int | None = None
+) -> dict[str, Any]:
+    """Solve the main model; on infeasibility, run the financing-gap diagnostic.
+
+    Returns a structured dict for due diligence. The pipeline does not break: a feasible
+    run continues normally, an infeasible run reports the gap.
+    """
+    solution = solve_growth_plan(instance, verbose=verbose, time_limit=time_limit)
+    if solution["status"] == "Optimal":
+        cash = solution["variables"]["Caja"]
+        periods = instance["T"]
+        cash_values = {t: _shortfall_value(cash[t]) for t in periods}
+        min_month = min(periods, key=lambda t: cash_values[t])
+        return {
+            "feasible": True,
+            "min_cash_balance": cash_values[min_month],
+            "min_cash_month": min_month,
+            "financing_gap_usd": 0.0,
+            "solution": solution,
+        }
+    diagnostic = diagnose_financing_gap(instance, time_limit=time_limit)
+    diagnostic["solution"] = solution
+    return diagnostic
+
+
+def _shortfall_value(variable: Any) -> float:
+    value = pulp.value(variable)
+    return 0.0 if value is None else float(value)
 
 
 # Legacy Spanish API alias.

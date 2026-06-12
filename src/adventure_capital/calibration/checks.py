@@ -165,9 +165,18 @@ def check_sellers_no_growth(config: dict[str, Any], optimized: pd.DataFrame, ins
 
 # C04 --------------------------------------------------------------
 
-def check_cash_floor(config: dict[str, Any], optimized: pd.DataFrame) -> CheckResult:
+def check_cash_floor(
+    config: dict[str, Any], optimized: pd.DataFrame, instance: dict[str, Any] | None = None
+) -> CheckResult:
     severity = config.get("severity", "error")
     minimum_cash = float(config.get("minimum_cash", 0.0))
+    # Working-capital floor (Phase 4) supersedes the hard-zero default: cash may fall to -VC.
+    # ``instance`` may be the generated instance (with "parametros") or the raw config.
+    if instance is not None:
+        params = instance.get("parametros", instance)
+        working_capital = params.get("working_capital", {})
+        if working_capital.get("enabled", False):
+            minimum_cash = -float(params.get("VC", instance.get("VC", 0.0)))
     min_cash = float(optimized["Caja"].min())
     passed = min_cash >= minimum_cash
     return CheckResult(
@@ -432,7 +441,7 @@ def collect_checks(
         ("C01_solver_status", lambda c: check_solver_status(c, solver_status)),
         ("C02_seller_capacity", lambda c: check_seller_capacity(c, optimized, instance)),
         ("C03_sellers_no_growth", lambda c: check_sellers_no_growth(c, optimized, instance)),
-        ("C04_cash_floor", lambda c: check_cash_floor(c, optimized)),
+        ("C04_cash_floor", lambda c: check_cash_floor(c, optimized, instance)),
         ("C05_total_ebitda", lambda c: check_total_ebitda(c, optimized)),
         ("C06_npv", lambda c: check_npv(c, output_dir)),
         ("C07_gross_margin", lambda c: check_gross_margin(c, optimized)),
