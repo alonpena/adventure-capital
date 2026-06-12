@@ -49,6 +49,12 @@ def extract_results(instance: dict[str, Any], solution: dict[str, Any] | dict[st
     df = pd.DataFrame(rows)
     names = [service["nombre"] for service in services]
 
+    log_ceiling = instance.get("log_ceiling", {})
+    if log_ceiling:
+        ceiling_slack = instance.get("ceiling_slack", 0.0)
+        df["Log_ceiling"] = df["t"].map(log_ceiling).astype(float)
+        df["Log_ceiling_slack"] = df["Log_ceiling"] * (1 + ceiling_slack)
+
     df["Adq_clientes"] = df[[f"A_{name}" for name in names]].sum(axis=1)
     df["Clientes_activos"] = df[[f"C_{name}" for name in names]].sum(axis=1)
     df["Ventas_recurrentes"] = df[[f"R_{name}" for name in names]].sum(axis=1)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from adventure_capital.config import validate_config
@@ -68,6 +69,25 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
 
     discount_factor = {t: 1 / (1 + monthly_discount) ** t for t in periods}
 
+    # Logarithmic acquisition ceiling (optional). A conservative, monotonically
+    # decreasing per-period brake on total acquisition for t >= 13, modeling
+    # market saturation. See docs/model.md.
+    ceiling_config = config.get("acquisition_ceiling", {})
+    log_ceiling: dict[int, float] = {}
+    ceiling_slack = 0.0
+    if ceiling_config.get("enabled", False):
+        ceiling_slack = float(ceiling_config.get("slack", 0.0))
+        target_multiplier = float(ceiling_config["target_stock_multiplier"])
+        S_0 = sum(base_acquisition[(s, t)] for s in range(service_count) for t in fixed_periods)
+        S_target = S_0 * target_multiplier
+        H_post = H - 12  # months in years 2+ (post fixed-acquisition period)
+        K = (S_target - S_0) / math.log(1 + H_post)
+        prev_stock = S_0
+        for t in range(13, H + 1):
+            stock_t = S_0 + K * math.log(1 + (t - 12))
+            log_ceiling[t] = stock_t - prev_stock
+            prev_stock = stock_t
+
     return {
         "H": H,
         "T": periods,
@@ -97,4 +117,6 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         "parametros": config,
         "g_max_suavizado": config.get("g_max_suavizado", 0.25),
         "commercial_productivity_lag": config.get("commercial_productivity_lag", 0),
+        "log_ceiling": log_ceiling,
+        "ceiling_slack": ceiling_slack,
     }

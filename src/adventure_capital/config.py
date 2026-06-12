@@ -42,6 +42,11 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "buffer_caja": 0,
     "tax": 0.125,
     "liquidity_policy": {"type": "none"},
+    "acquisition_ceiling": {
+        "enabled": False,
+        "target_stock_multiplier": 2.0,
+        "slack": 0.15,
+    },
     "solver": {"name": "cbc", "time_limit": 120, "verbose": False},
     "commercial_productivity_lag": 0,
 }
@@ -128,3 +133,12 @@ def validate_config(config: dict[str, Any]) -> None:
     liquidity_policy = config.get("liquidity_policy", {"type": "none"})
     if liquidity_policy.get("type", "none") not in {"none", "nonnegative", "minimum_cash"}:
         raise ValueError("Unsupported liquidity policy.")
+
+    ceiling = config.get("acquisition_ceiling", {})
+    if ceiling.get("enabled", False):
+        multiplier = ceiling.get("target_stock_multiplier")
+        if multiplier is None or multiplier <= 1.0:
+            raise ValueError("acquisition_ceiling.target_stock_multiplier must be > 1.0 when enabled.")
+        slack = ceiling.get("slack", 0.0)
+        if slack < 0.0:
+            raise ValueError("acquisition_ceiling.slack must be >= 0.")

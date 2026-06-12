@@ -81,6 +81,15 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
                 acquisition[(s, t - 1)] + acquisition[(s, t - 2)] + acquisition[(s, t - 3)]
             )
 
+    # Optional logarithmic acquisition ceiling: additional upper bound on TOTAL
+    # acquisition across all services for t >= 13. Does not replace smoothing.
+    log_ceiling = instance.get("log_ceiling", {})
+    ceiling_slack = instance.get("ceiling_slack", 0.0)
+    for t, ceiling_value in log_ceiling.items():
+        problem += pulp.lpSum(
+            acquisition[(s, t)] for s in range(service_count)
+        ) <= ceiling_value * (1 + ceiling_slack)
+
     for s in range(service_count):
         for t in periods:
             problem += active_clients[(s, t)] == pulp.lpSum(

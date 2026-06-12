@@ -89,6 +89,47 @@ Caja[t] = Caja[t-1] + EBITDA[t]                                 for t > 1
 
 Liquidity policy defaults to `none`, adding no cash floor. Optional policies currently implemented: `nonnegative` and `minimum_cash`.
 
+## Logarithmic acquisition ceiling (optional)
+
+An optional upper bound on **total** acquisition across all services for `t >= 13`,
+modeling market saturation. It is a conservative brake on Enterprise Value: it can
+only lower or leave EV unchanged, never raise it. It is an **additional** constraint
+layered on top of the existing smoothing constraints — it does not replace them.
+
+Config block (disabled by default):
+
+```yaml
+acquisition_ceiling:
+  enabled: true
+  target_stock_multiplier: 2.0   # target cumulative acquisition stock vs. year-1 total
+  slack: 0.15                    # tolerance above the ceiling (>= 0)
+```
+
+Preprocessing (in `instance.py`), where `S_0` is the total year-1 acquisition
+(`sum_s sum_{t=1..12} A_base[s,t]`) and `H_post = H - 12`:
+
+```text
+S_target = S_0 * target_stock_multiplier
+K        = (S_target - S_0) / ln(1 + H_post)
+S(t)     = S_0 + K * ln(1 + (t - 12))        for t >= 13
+ceiling[t] = S(t) - S(t-1)                   (S(12) = S_0)
+```
+
+`ceiling[t]` is the **marginal** per-period acquisition cap. Because the cumulative
+stock `S(t)` follows a logarithm, its increments are monotonically decreasing, so the
+ceiling tightens over time. Cumulative acquisition over `t = 13..H` reaches `S_target`
+by construction.
+
+Constraint added to the MILP:
+
+```text
+sum_s A[s,t] <= ceiling[t] * (1 + slack)      for t >= 13
+```
+
+`slack` provides tolerance above the formula ceiling. The optimizer may acquire
+anywhere from 0 up to the cap. Diagnostic output columns `Log_ceiling[t]` and
+`Log_ceiling_slack[t]` are emitted when the ceiling is active.
+
 ## Phase 3 post-processing
 
 DCF valuation uses monthly optimization results after solver completion:
