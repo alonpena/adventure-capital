@@ -1,0 +1,56 @@
+# demo-bad.yaml — Margen unitario negativo → rechazo estructural garantizado
+# Esperado: rejected_for_valuation
+# Mecanismo: c_u > ticket en el servicio principal (costo unitario > precio)
+# El sistema rechaza ANTES de correr el solver — gate pre-modelo
+
+H: 36
+VC: 50000           # capital insuficiente (problema secundario)
+beta: 0.40
+g_max_suavizado: 0.15
+
+servicios:
+  - nombre: Servicio_Deficitario
+    ticket: 400            # USD por cliente — precio bajo
+    frecuencia: 1
+    alpha: 0.90
+    churn_anual: [0.20, 0.15, 0.10]
+    c_u: 580               # COSTO UNITARIO > TICKET: 580 > 400 → margen = -180 USD
+    c_min: 3000            # costo mínimo alto encima del margen negativo
+    u_max: 100
+    A_base: [5, 8, 10, 12, 15, 18, 20, 22, 25, 28, 30, 35]   # adquisición agresiva
+    # que empeora: más clientes → más pérdidas
+
+meta: 10
+sup: 3
+rem_v: 3000        # sueldos altos para un negocio de ticket $400
+rem_l: 4500
+com_v: 0.15
+com_l: 0.08
+g_adm: 5000        # admin $5K/mes — desproporcionado
+RRHH_mensual: [20000, 25000, 30000]   # RRHH $20K/mes año 1 sobre revenue ~$2K/mes
+ciclo_op: [180, 180, 180]
+buffer_caja: 0
+tax: 0.125
+
+liquidity_policy:
+  type: none
+
+solver:
+  name: cbc
+  time_limit: 60
+  verbose: false
+
+commercial_productivity_lag: 0
+
+# POR QUÉ FALLA:
+# Regla pre-modelo (due_diligence/rules.py): "margen unitario debe ser positivo"
+# ticket (400) < c_u (580) → margen = -180 USD por cliente
+# → severidad: structural
+# → due_diligence verdict: rejected_for_valuation
+# → stochastic: NO corre (bloqueado por structural fail)
+# → informe: solo rejection memo con blocking_reasons
+#
+# Dato pedagógico: adquirir 35 clientes/mes al mes 12 generaría
+# pérdida operacional de 35×180 = $6,300/mes SOLO en margen negativo
+# antes de contar RRHH ($20K), admin ($5K), CAC (~$15K) = quema $46K/mes
+# con VC de solo $50K → quiebra en semana 5.

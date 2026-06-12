@@ -1,0 +1,43 @@
+# demo-good.yaml — SaaS B2B, 1 servicio, modelo sólido
+# Esperado: passed o passed_with_warnings (LTV/CAC alto es artefacto conocido)
+# Veredicto: VAN positivo, breakeven < mes 24, EBITDA positivo en año 2-3
+
+H: 36
+VC: 100000          # capital semilla suficiente para cubrir aceleración ~8-10 meses
+beta: 0.35         # WACC 30% — razonable para SaaS B2B seed
+g_max_suavizado: 0.20
+
+servicios:
+  - nombre: Suscripcion_B2B
+    ticket: 800          # USD/mes por cliente — ticket sano para B2B
+    frecuencia: 1          # suscripción mensual
+    alpha: 0.85           # 95% tasa de recompra (alta fidelidad si no churn)
+    churn_anual: [0.5, 0.3, 0.15]   # mejora a medida que product-market fit madura
+    c_u: 400            # costo variable por cliente (infraestructura + soporte)
+    c_min: 2000            # costo mínimo operacional (aunque haya 0 clientes)
+    u_max: 100            # capacidad máxima antes de escalar infraestructura
+    A_base: [3, 4, 5, 5, 6, 7, 7, 8, 9, 10, 11, 12]   # ramp agresivo pero creíble
+
+meta: 3          # clientes nuevos por vendedor por mes
+sup: 5           # vendedores por líder
+rem_v: 1800     # sueldo mensual vendedor (USD)
+rem_l: 2100      # sueldo mensual líder comercial (USD)
+com_v: 0.08      # comisión vendedor sobre ingreso nuevo (8%)
+com_l: 0.04      # comisión líder (4%)
+g_adm: 3000      # gastos admin fijos mensuales (USD)
+RRHH_mensual: [10000, 14000, 18000]   # costo RRHH no comercial por año
+ciclo_op: [0,0,0]              # días ciclo operacional — mejora en el tiempo
+buffer_caja: 0
+tax: 0.125       # tasa impuesto efectiva 12.5%
+
+liquidity_policy:
+  type: none
+
+solver:
+  name: cbc
+  time_limit: 10
+  verbose: false
+
+commercial_productivity_lag: 0
+
+
