@@ -62,6 +62,36 @@ def extract_results(instance: dict[str, Any], solution: dict[str, Any] | dict[st
     df["Ingresos"] = df[[f"I_{name}" for name in names]].sum(axis=1)
     df["Costo_operacional"] = df[[f"Cost_op_{name}" for name in names]].sum(axis=1)
 
+    channels = instance.get("channels", {})
+    if channels.get("any_split"):
+        service_count = len(services)
+        acq_sf = variables.get("A_sf", {})
+        acq_ad = variables.get("A_ad", {})
+        acq_tp = variables.get("A_tp", {})
+        adv_cost = variables.get("advertising_cac_cost", {})
+        ad_invest = variables.get("I_ad", {})
+        sf_tot, ad_tot, tp_tot, advc, iad = [], [], [], [], []
+        for t in instance["T"]:
+            sf_tot.append(sum(_value(acq_sf[(s, t)]) for s in range(service_count)))
+            ad_tot.append(
+                sum(_value(acq_ad[(s, t)]) for s in range(service_count)) if acq_ad else 0.0
+            )
+            tp_tot.append(
+                sum(_value(acq_tp[(s, t)]) for s in range(service_count)) if acq_tp else 0.0
+            )
+            advc.append(_value(adv_cost[t]) if adv_cost else 0.0)
+            iad.append(_value(ad_invest[t]) if ad_invest else 0.0)
+        df["A_salesforce"] = sf_tot
+        df["A_advertising"] = ad_tot
+        df["A_third_party"] = tp_tot
+        df["advertising_cac_cost"] = advc
+        # Named to avoid the "I_" revenue-column prefix used by consistency checks.
+        df["advertising_investment"] = iad
+        total = df["Adq_clientes"]
+        df["share_salesforce"] = np.where(total > 0, df["A_salesforce"] / total, 0.0)
+        df["share_advertising"] = np.where(total > 0, df["A_advertising"] / total, 0.0)
+        df["share_third_party"] = np.where(total > 0, df["A_third_party"] / total, 0.0)
+
     df["Costos_totales_sin_CAC"] = df["Costo_operacional"] + df["G_adm"] + df["RRHH"]
     df["Egresos_totales"] = df["Costo_operacional"] + df["CAC"] + df["G_adm"] + df["RRHH"]
     df["EBITDA_acum"] = df["EBITDA"].cumsum()

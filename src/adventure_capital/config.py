@@ -47,6 +47,20 @@ _DEFAULT_CONFIG: dict[str, Any] = {
         "target_stock_multiplier": 2.0,
         "slack": 0.15,
     },
+    "channels": {
+        "salesforce": {"active": True, "min_share": 0.0, "max_share": 1.0},
+        "advertising": {
+            "active": False,
+            "I_min": 0,
+            "I_max": 0,
+            "A_min": 0,
+            "A_max": 0,
+            "A_ad_cap": 0,
+            "min_share": 0.0,
+            "max_share": 1.0,
+        },
+        "third_party": {"active": False, "min_share": 0.0, "max_share": 1.0},
+    },
     "solver": {"name": "cbc", "time_limit": 120, "verbose": False},
     "commercial_productivity_lag": 0,
 }
@@ -142,3 +156,43 @@ def validate_config(config: dict[str, Any]) -> None:
         slack = ceiling.get("slack", 0.0)
         if slack < 0.0:
             raise ValueError("acquisition_ceiling.slack must be >= 0.")
+
+    channels = config.get("channels")
+    if channels is not None:
+        active_max_share_sum = 0.0
+        any_active = False
+        for name in ("salesforce", "advertising", "third_party"):
+            ch = channels.get(name)
+            if ch is None:
+                continue
+            if not ch.get("active", False):
+                continue
+            any_active = True
+            min_share = ch.get("min_share", 0.0)
+            max_share = ch.get("max_share", 1.0)
+            if not (0.0 <= min_share <= max_share <= 1.0):
+                raise ValueError(
+                    f"channels.{name}: require 0 <= min_share <= max_share <= 1."
+                )
+            active_max_share_sum += max_share
+        if any_active and active_max_share_sum < 1.0:
+            raise ValueError(
+                "Sum of max_share across active channels must be >= 1.0 (mix otherwise infeasible)."
+            )
+
+        advertising = channels.get("advertising", {})
+        if advertising.get("active", False):
+            i_min = advertising.get("I_min", 0)
+            i_max = advertising.get("I_max", 0)
+            a_min = advertising.get("A_min", 0)
+            a_max = advertising.get("A_max", 0)
+            a_ad_cap = advertising.get("A_ad_cap", 0)
+            if i_max <= i_min:
+                raise ValueError("channels.advertising: I_max must be > I_min when active.")
+            if a_max <= a_min:
+                raise ValueError("channels.advertising: A_max must be > A_min when active.")
+            slope = (a_max - a_min) / (i_max - i_min)
+            if slope <= 0:
+                raise ValueError("channels.advertising: implied slope b must be > 0.")
+            if a_ad_cap < 0:
+                raise ValueError("channels.advertising: A_ad_cap must be >= 0.")

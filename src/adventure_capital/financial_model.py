@@ -22,12 +22,21 @@ def build_fixed_period_financial_model(instance: dict[str, Any]) -> pd.DataFrame
     rows: list[dict[str, float]] = []
     previous_cash = float(instance["VC"])
 
+    channels = instance.get("channels", {})
+    sf_active = channels.get("salesforce", {}).get("active", True)
+    ad_active = channels.get("advertising", {}).get("active", False)
+    ad_params = channels.get("advertising", {}) if ad_active else {}
+
     for t in instance["T_base"]:
         year = (t - 1) // 12 + 1
         month_in_year = (t - 1) % 12 + 1
         total_acquisition = sum(instance["A_base"][(s, t)] for s in range(instance["S"]))
-        sellers = math.ceil(total_acquisition / instance["meta"]) if total_acquisition > 0 else 0
-        leaders = math.ceil(sellers / instance["sup"]) if sellers > 0 else 0
+        if sf_active:
+            sellers = math.ceil(total_acquisition / instance["meta"]) if total_acquisition > 0 else 0
+            leaders = math.ceil(sellers / instance["sup"]) if sellers > 0 else 0
+        else:
+            sellers = 0
+            leaders = 0
 
         row: dict[str, float] = {
             "t": t,
@@ -71,7 +80,25 @@ def build_fixed_period_financial_model(instance: dict[str, Any]) -> pd.DataFrame
 
             cac_commissions += (instance["com_v"] + instance["com_l"]) * service["ticket"] * acquisition
 
-        row["CAC"] = instance["rem_v"] * sellers + instance["rem_l"] * leaders + cac_commissions
+        if not sf_active:
+            cac_commissions = 0.0
+
+        advertising_cac_cost = 0.0
+        if ad_active:
+            if not sf_active:
+                # Advertising-only: the exogenous year-1 acquisition flows through the
+                # advertising recta; implied investment = (A_ad_total - a) / b.
+                advertising_cac_cost = max(
+                    (total_acquisition - ad_params["a"]) / ad_params["b"], 0.0
+                )
+            row["advertising_cac_cost"] = advertising_cac_cost
+
+        row["CAC"] = (
+            instance["rem_v"] * sellers
+            + instance["rem_l"] * leaders
+            + cac_commissions
+            + advertising_cac_cost
+        )
 
         service_names = [service["nombre"] for service in services]
         row["Adq_clientes"] = sum(row[f"A_{name}"] for name in service_names)

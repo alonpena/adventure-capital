@@ -88,6 +88,51 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
             log_ceiling[t] = stock_t - prev_stock
             prev_stock = stock_t
 
+    # Acquisition channels (optional). Default: salesforce-only, no split.
+    raw_channels = config.get("channels") or {}
+    sf_cfg = raw_channels.get("salesforce", {"active": True, "min_share": 0.0, "max_share": 1.0})
+    ad_cfg = raw_channels.get("advertising", {"active": False})
+    tp_cfg = raw_channels.get("third_party", {"active": False})
+    ad_active = bool(ad_cfg.get("active", False))
+    tp_active = bool(tp_cfg.get("active", False))
+    channels = {
+        "salesforce": {
+            "active": bool(sf_cfg.get("active", True)),
+            "min_share": float(sf_cfg.get("min_share", 0.0)),
+            "max_share": float(sf_cfg.get("max_share", 1.0)),
+        },
+        "advertising": {
+            "active": ad_active,
+            "min_share": float(ad_cfg.get("min_share", 0.0)),
+            "max_share": float(ad_cfg.get("max_share", 1.0)),
+        },
+        "third_party": {
+            "active": tp_active,
+            "min_share": float(tp_cfg.get("min_share", 0.0)),
+            "max_share": float(tp_cfg.get("max_share", 1.0)),
+        },
+        # A channel split exists only when a non-salesforce channel is active.
+        "any_split": ad_active or tp_active,
+    }
+    if ad_active:
+        i_min = float(ad_cfg["I_min"])
+        i_max = float(ad_cfg["I_max"])
+        a_min = float(ad_cfg["A_min"])
+        a_max = float(ad_cfg["A_max"])
+        b = (a_max - a_min) / (i_max - i_min)
+        a = a_min - b * i_min
+        channels["advertising"].update(
+            {
+                "I_min": i_min,
+                "I_max": i_max,
+                "A_min": a_min,
+                "A_max": a_max,
+                "A_ad_cap": float(ad_cfg["A_ad_cap"]),
+                "a": a,
+                "b": b,
+            }
+        )
+
     return {
         "H": H,
         "T": periods,
@@ -119,4 +164,5 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         "commercial_productivity_lag": config.get("commercial_productivity_lag", 0),
         "log_ceiling": log_ceiling,
         "ceiling_slack": ceiling_slack,
+        "channels": channels,
     }

@@ -28,6 +28,54 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
         for s in range(service_count)
         for t in periods
     }
+
+    # Channel split (Phase 2). A[s,t] = A_sf[s,t] + A_ad[s,t] + A_tp[s,t].
+    # Salesforce variables always exist (mechanical refactor); advertising and
+    # third-party variables exist only when those channels are active.
+    channels = instance.get("channels", {})
+    sf_active = channels.get("salesforce", {}).get("active", True)
+    ad_active = channels.get("advertising", {}).get("active", False)
+    tp_active = channels.get("third_party", {}).get("active", False)
+
+    acq_sf = {
+        (s, t): pulp.LpVariable(f"A_sf_{s}_{t}", lowBound=0)
+        for s in range(service_count)
+        for t in periods
+    }
+    acq_ad = (
+        {
+            (s, t): pulp.LpVariable(f"A_ad_{s}_{t}", lowBound=0)
+            for s in range(service_count)
+            for t in periods
+        }
+        if ad_active
+        else {}
+    )
+    acq_tp = (
+        {
+            (s, t): pulp.LpVariable(f"A_tp_{s}_{t}", lowBound=0)
+            for s in range(service_count)
+            for t in periods
+        }
+        if tp_active
+        else {}
+    )
+    ad_investment = (
+        {t: pulp.LpVariable(f"I_ad_{t}", lowBound=0) for t in periods} if ad_active else {}
+    )
+    advertising_cac_cost = (
+        {t: pulp.LpVariable(f"adv_cac_{t}", lowBound=0) for t in periods} if ad_active else {}
+    )
+
+    def sf_term(s, t):
+        return acq_sf[(s, t)]
+
+    def ad_term(s, t):
+        return acq_ad[(s, t)] if ad_active else 0
+
+    def tp_term(s, t):
+        return acq_tp[(s, t)] if tp_active else 0
+
     sellers = {t: pulp.LpVariable(f"V_{t}", lowBound=0, cat="Integer") for t in periods}
     leaders = {t: pulp.LpVariable(f"L_{t}", lowBound=0, cat="Integer") for t in periods}
     op_steps = {
@@ -90,6 +138,51 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
             acquisition[(s, t)] for s in range(service_count)
         ) <= ceiling_value * (1 + ceiling_slack)
 
+    # Channel split identity and per-channel mechanics (Phase 2).
+    for s in range(service_count):
+        for t in periods:
+            problem += acquisition[(s, t)] == sf_term(s, t) + ad_term(s, t) + tp_term(s, t)
+            if not sf_active:
+                problem += acq_sf[(s, t)] == 0
+
+    if ad_active:
+        ad_params = channels["advertising"]
+        a_coef = ad_params["a"]
+        b_coef = ad_params["b"]
+        i_min = ad_params["I_min"]
+        i_max = ad_params["I_max"]
+        a_ad_cap = ad_params["A_ad_cap"]
+        for t in periods:
+            ad_total_t = pulp.lpSum(acq_ad[(s, t)] for s in range(service_count))
+            # Linear advertising recta holds every period; investment range applies
+            # only to the optimized horizon (year 1 is the exogenous fixed period).
+            problem += ad_total_t == a_coef + b_coef * ad_investment[t]
+            problem += ad_total_t <= a_ad_cap
+            problem += advertising_cac_cost[t] == ad_investment[t]
+            if t >= 13:
+                problem += ad_investment[t] >= i_min
+                problem += ad_investment[t] <= i_max
+
+    # Linear channel share bounds (parameters * variable total; no bilinearities).
+    if channels.get("any_split", ad_active or tp_active):
+        channel_totals = {
+            "salesforce": lambda t: pulp.lpSum(sf_term(s, t) for s in range(service_count)),
+            "advertising": lambda t: pulp.lpSum(ad_term(s, t) for s in range(service_count)),
+            "third_party": lambda t: pulp.lpSum(tp_term(s, t) for s in range(service_count)),
+        }
+        for name, total_fn in channel_totals.items():
+            ch = channels.get(name, {})
+            if not ch.get("active", False):
+                continue
+            min_share = ch.get("min_share", 0.0)
+            max_share = ch.get("max_share", 1.0)
+            for t in periods:
+                a_total_t = pulp.lpSum(acquisition[(s, t)] for s in range(service_count))
+                if min_share > 0.0:
+                    problem += total_fn(t) >= min_share * a_total_t
+                if max_share < 1.0:
+                    problem += total_fn(t) <= max_share * a_total_t
+
     for s in range(service_count):
         for t in periods:
             problem += active_clients[(s, t)] == pulp.lpSum(
@@ -110,7 +203,11 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
             problem += operational_cost[(s, t)] >= services[s]["c_min"] * op_steps[(s, t)]
 
     for t in periods:
-        if t <= 12:
+        if not sf_active:
+            # Advertising-/third-party-only models carry no salesforce.
+            problem += sellers[t] == 0
+            problem += leaders[t] == 0
+        elif t <= 12:
             base_acquisition = sum(instance["A_base"][(s, t)] for s in range(service_count))
             fixed_sellers = math.ceil(base_acquisition / instance["meta"]) if base_acquisition > 0 else 0
             fixed_leaders = math.ceil(fixed_sellers / instance["sup"]) if fixed_sellers > 0 else 0
@@ -119,16 +216,18 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
         else:
             lag = instance.get("commercial_productivity_lag", 0)
             capacity_period = max(1, t - lag)
-            problem += pulp.lpSum(acquisition[(s, t)] for s in range(service_count)) <= instance["meta"] * sellers[capacity_period]
+            # Salesforce capacity binds only salesforce acquisition, not total.
+            problem += pulp.lpSum(sf_term(s, t) for s in range(service_count)) <= instance["meta"] * sellers[capacity_period]
             problem += sellers[t] <= instance["sup"] * leaders[t]
 
         problem += cac[t] == (
             instance["rem_v"] * sellers[t]
             + instance["rem_l"] * leaders[t]
             + pulp.lpSum(
-                (instance["com_v"] + instance["com_l"]) * services[s]["ticket"] * acquisition[(s, t)]
+                (instance["com_v"] + instance["com_l"]) * services[s]["ticket"] * sf_term(s, t)
                 for s in range(service_count)
             )
+            + (advertising_cac_cost[t] if ad_active else 0)
         )
         problem += ebitda[t] == (
             pulp.lpSum(revenue[(s, t)] for s in range(service_count))
@@ -173,6 +272,11 @@ def build_model(instance: dict[str, Any]) -> ModelBundle:
         "CAC": cac,
         "EBITDA": ebitda,
         "Caja": cash,
+        "A_sf": acq_sf,
+        "A_ad": acq_ad,
+        "A_tp": acq_tp,
+        "I_ad": ad_investment,
+        "advertising_cac_cost": advertising_cac_cost,
     }
     return {"problem": problem, "variables": variables}
 

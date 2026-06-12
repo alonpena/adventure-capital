@@ -130,6 +130,58 @@ sum_s A[s,t] <= ceiling[t] * (1 + slack)      for t >= 13
 anywhere from 0 up to the cap. Diagnostic output columns `Log_ceiling[t]` and
 `Log_ceiling_slack[t]` are emitted when the ceiling is active.
 
+## Acquisition channels (optional, Phase 2)
+
+Total per-service acquisition is split across channels while `A[s,t]` stays the
+total used by cohorts, revenue, recurrence, smoothing, and the log ceiling:
+
+```text
+A[s,t] = A_sf[s,t] + A_ad[s,t] + A_tp[s,t]
+```
+
+Channel activation is exogenous (YAML `channels.<name>.active`), never a decision
+variable. Salesforce variables always exist (mechanical refactor); advertising and
+third-party variables exist only when active. With no `channels` block, behavior is
+salesforce-only and identical to before (`A_sf = A`, no channel columns).
+
+Salesforce capacity binds **salesforce** acquisition only:
+
+```text
+sum_s A_sf[s,t] <= meta * V[t - lag]      for t >= 13
+```
+
+When `salesforce.active = false`: `A_sf[s,t] = 0`, `V[t] = L[t] = 0`, no salary CAC.
+
+Advertising is a continuous linear recta (see ADR-0006). With
+`b = (A_max - A_min)/(I_max - I_min)` and `a = A_min - b*I_min`:
+
+```text
+A_ad_total[t] = sum_s A_ad[s,t] = a + b * I_ad[t]      for all t
+A_ad_total[t] <= A_ad_cap
+advertising_cac_cost[t] = I_ad[t]
+I_min <= I_ad[t] <= I_max                              for t >= 13 only
+```
+
+The investment range binds only the optimized horizon; months 1-12 are the exogenous
+Fixed Acquisition Period (the recta still holds there but `I_ad` is unconstrained).
+
+Linear channel share bounds (parameters times the variable total; no bilinearities):
+
+```text
+A_ch_total[t] >= min_share_ch * A_total[t]     (added only when min_share > 0)
+A_ch_total[t] <= max_share_ch * A_total[t]     (added only when max_share < 1)
+```
+
+CAC now reads salesforce acquisition for commissions and adds advertising spend:
+
+```text
+CAC[t] = rem_v*V[t] + rem_l*L[t]
+       + sum_s (com_v + com_l) * ticket[s] * A_sf[s,t]
+       + advertising_cac_cost[t]
+```
+
+Effective channel proportions (`share_*`) are post-solve diagnostics, not variables.
+
 ## Phase 3 post-processing
 
 DCF valuation uses monthly optimization results after solver completion:
