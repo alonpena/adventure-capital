@@ -105,7 +105,13 @@ origin/feature/deterministic-refinement == local feature/deterministic-refinemen
 git rev-list --left-right --count origin/feature/deterministic-refinement...HEAD -> 0 0
 ```
 
-No GitHub pull request was open at handoff time (`gh pr status` showed none).
+GitHub draft PR opened:
+
+```text
+https://github.com/alonpena/adventure-capital/pull/1
+```
+
+PR title: `Deterministic refinement phases 1–5`.
 
 ## Repo hygiene fixed in final handoff commit
 
