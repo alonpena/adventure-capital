@@ -64,6 +64,28 @@ def _run_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_all(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    output_dir = args.output
+    if output_dir is None:
+        stamp = datetime.now().strftime("%y-%d-%m-%H:%M:%S")
+        output_dir = str(Path("runs") / stamp)
+
+    run_pipeline(config, output_dir=output_dir, baseline_only=False)
+    artifacts = build_report_data_package(
+        output_dir,
+        document_path=args.document,
+        blueprint_path=args.blueprint,
+        schema_path=args.schema,
+        instance_path=args.config,
+    )
+    report_path = render_report(output_dir, pdf=args.pdf)
+    print(f"Artifacts written to {output_dir}")
+    print(f"Report data package written to {artifacts['report_data'].parent}")
+    print(f"Report written to {report_path}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="adventure-capital")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -71,6 +93,14 @@ def main() -> int:
     run_parser = subparsers.add_parser("run", help="Run financial planning pipeline")
     run_parser.add_argument("--config", default="configs/base.yaml")
     run_parser.add_argument("--output", default=None)
+
+    all_parser = subparsers.add_parser("all", help="Run full pipeline and render standard report")
+    all_parser.add_argument("--config", default="configs/base.yaml")
+    all_parser.add_argument("--output", default=None)
+    all_parser.add_argument("--document", default="reports/valuation-base.yaml")
+    all_parser.add_argument("--blueprint", default="docs/report-blueprint.md")
+    all_parser.add_argument("--schema", default="reports/schema/valuation-document.schema.yaml")
+    all_parser.add_argument("--pdf", action="store_true", help="Also render report.pdf")
 
     report_parser = subparsers.add_parser("report", help="Build standard valuation report data package")
     report_parser.add_argument("--input", required=True)
@@ -103,6 +133,8 @@ def main() -> int:
         run_pipeline(config, output_dir=output_dir, baseline_only=False)
         print(f"Artifacts written to {output_dir}")
         return 0
+    if args.command == "all":
+        return _run_all(args)
     if args.command == "report":
         return _run_report(args)
     if args.command == "calibrate":
