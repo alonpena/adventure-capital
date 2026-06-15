@@ -81,7 +81,7 @@ If new tracked/untracked files are committed, rerun:
 uv run pytest
 ```
 
-## GitHub state before final push
+## GitHub state
 
 Before final repo-hygiene commit:
 
@@ -91,7 +91,21 @@ local feature/deterministic-refinement  -> 97ff8ad
 local ahead of origin by 2 commits
 ```
 
-The branch should be pushed after committing this handoff and required reproducibility files.
+Final handoff commits:
+
+```text
+bdfc093 chore: document deterministic refinement handoff
+<current HEAD> docs: update deterministic refinement github handoff
+```
+
+After push:
+
+```text
+origin/feature/deterministic-refinement == local feature/deterministic-refinement
+git rev-list --left-right --count origin/feature/deterministic-refinement...HEAD -> 0 0
+```
+
+No GitHub pull request was open at handoff time (`gh pr status` showed none).
 
 ## Repo hygiene fixed in final handoff commit
 
