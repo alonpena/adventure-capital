@@ -88,6 +88,10 @@ _Avoid_: Model config, instance YAML
 The intermediate render-ready data package that normalizes model outputs and **Document YAML** inputs for generating a **Standard Valuation Report**.
 _Avoid_: Work document, final report
 
+**Postprocessed Results View**:
+A derived, non-canonical set of audience-tagged folders (`postprocessed_results/`) that re-present existing outputs for human/Excel readability and future UI navigation. It only copies existing JSON artifacts or selects/renames columns from canonical CSVs; it never recomputes valuation, unit economics, due diligence, or stochastic metrics. Canonical sources of truth remain the flat pipeline outputs, the **Report Data Package**, and the artifacts manifest.
+_Avoid_: Source of truth, recomputed metrics, second valuation
+
 ## Workflow layers
 
 **Due Diligence**:
@@ -111,8 +115,8 @@ The baseline single-scenario MILP that optimizes the growth plan against point-e
 _Avoid_: Stochastic model, point model
 
 **Stochastic Model**:
-The robust-valuation layer that runs after the **Deterministic Model** baseline, optimizing one growth plan across many **Scenarios**.
-_Avoid_: Monte Carlo, simulation
+The expected-value (risk-neutral SAA) valuation layer that runs after the **Deterministic Model** baseline, optimizing one growth plan across many **Scenarios** to maximize **Expected NPV**. It is not robust/worst-case optimization.
+_Avoid_: Robust optimization, worst-case, Monte Carlo, simulation
 
 ## Stochastic optimization
 

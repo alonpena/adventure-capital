@@ -65,6 +65,69 @@ def _load_instance(instance_path: str | Path | None) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+def _optional_artifacts(out: Path) -> dict[str, str]:
+    candidates = {
+        "summary": "summary.json",
+        "model_instance": "model_instance.json",
+        "growth_plan_summary": "growth_plan_summary.json",
+        "valuation_summary": "valuation_summary.json",
+        "formula_trace": "formula_trace.json",
+        "config": "config.yaml",
+        "dashboard": "dashboard.png",
+        "financial_report": "financial_report.md",
+        "calibration_report_json": "calibration_report.json",
+        "calibration_report_markdown": "calibration_report.md",
+        "consistency_report": "consistency_report.json",
+        "due_diligence_report_json": "due_diligence_report.json",
+        "due_diligence_report_markdown": "due_diligence_report.md",
+        "assessment_summary": "assessment_summary.json",
+        "stochastic_scenarios": "stochastic_scenarios.csv",
+        "stochastic_summary": "stochastic_summary.csv",
+        "stochastic_breakeven": "stochastic_breakeven.csv",
+    }
+    return {key: filename for key, filename in candidates.items() if (out / filename).exists()}
+
+
+def _stage_status(out: Path, validation_valid: bool) -> dict[str, str]:
+    return {
+        "instance": "passed" if (out / "model_instance.json").exists() else "missing",
+        "deterministic": "passed" if (out / "optimized_results.csv").exists() else "missing",
+        "valuation": "passed" if (out / "valuation_summary.json").exists() else "missing",
+        "due_diligence": "passed" if (out / "due_diligence_report.json").exists() else "skipped",
+        "stochastic_saa": "passed" if (out / "stochastic_summary.csv").exists() else "skipped",
+        "monte_carlo": "passed" if (out / "stochastic_scenarios.csv").exists() else "skipped",
+        "report_package": "passed" if validation_valid else "failed",
+    }
+
+
+def _artifact_audience() -> dict[str, str]:
+    return {
+        "optimized_results": "audit",
+        "fixed_cashflow": "audit",
+        "dcf_cashflow": "audit",
+        "dcf_annual_summary": "entrepreneur",
+        "multiples_valuation": "entrepreneur",
+        "unit_economics": "entrepreneur",
+        "summary": "entrepreneur",
+        "model_instance": "audit",
+        "growth_plan_summary": "entrepreneur",
+        "valuation_summary": "entrepreneur",
+        "formula_trace": "audit",
+        "dashboard": "entrepreneur",
+        "financial_report": "entrepreneur",
+        "calibration_report_json": "audit",
+        "calibration_report_markdown": "entrepreneur",
+        "due_diligence_report_json": "audit",
+        "due_diligence_report_markdown": "entrepreneur",
+        "assessment_summary": "audit",
+        "stochastic_scenarios": "audit",
+        "stochastic_summary": "entrepreneur",
+        "stochastic_breakeven": "entrepreneur",
+        "report_data": "audit",
+        "artifacts_manifest": "audit",
+    }
+
+
 def build_report_data_package(
     input_dir: str | Path,
     *,
@@ -152,6 +215,15 @@ def build_report_data_package(
         },
     }
 
+    manifest_artifacts = {
+        "report_data": "report_data.json",
+        "artifacts_manifest": "artifacts_manifest.json",
+        **{name.removesuffix(".csv"): name for name in REQUIRED_CORE_ARTIFACTS},
+        **_optional_artifacts(out),
+        **{key: path.name for key, path in derived_paths.items()},
+        **{f"figure_{key}": str(path.relative_to(out)) for key, path in figure_paths.items()},
+    }
+    audience = _artifact_audience()
     manifest = {
         "schema_version": "1.0",
         "created_at": created_at,
@@ -162,14 +234,10 @@ def build_report_data_package(
             "schema": str(schema_path),
             "instance": str(instance_path) if instance_path else None,
         },
-        "artifacts": {
-            "report_data": "report_data.json",
-            "artifacts_manifest": "artifacts_manifest.json",
-            **{name.removesuffix(".csv"): name for name in REQUIRED_CORE_ARTIFACTS},
-            **{key: path.name for key, path in derived_paths.items()},
-            **{f"figure_{key}": str(path.relative_to(out)) for key, path in figure_paths.items()},
-        },
+        "artifacts": manifest_artifacts,
         "checks": validation.to_dict(),
+        "stage_status": _stage_status(out, validation.valid),
+        "audience": {key: audience.get(key, "entrepreneur") for key in manifest_artifacts},
     }
 
     report_data_path = out / "report_data.json"

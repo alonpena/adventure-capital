@@ -8,7 +8,7 @@ evidence:
 
 ``run_assessment`` is the full preliminary flow for report v1:
 
-    due diligence -> if allows_stochastic: stochastic robust valuation
+    due diligence -> if allows_stochastic: stochastic expected-value (SAA) valuation
                   -> tag valuation_mode -> write assessment_summary.json
 
 Never modifies ``pipeline.py`` or ``model.py``. A structural pre-rule failure
@@ -235,7 +235,7 @@ def run_assessment(
     stochastic: dict[str, Any] | None = None
     if run_stochastic and verdict.allows_stochastic:
         stochastic = _run_stochastic(config, out, time_limit=stochastic_time_limit)
-        # The robustness study inherits the DD verdict's valuation mode.
+        # The expected-value (SAA) study inherits the DD verdict's valuation mode.
         stochastic["valuation_mode"] = verdict.valuation_mode
     elif not verdict.allows_stochastic:
         stochastic = {"ran": False, "reason": "rejected_for_stochastic", "valuation_mode": "none"}
@@ -426,9 +426,15 @@ def run_assessment(
         err_text.append("No warnings or errors detected in the run. All checks passed.")
     (out / "error_log.txt").write_text("\n".join(err_text), encoding="utf-8")
 
+    # Derived Postprocessed Results View (ADR 0007): re-present flat artifacts as
+    # audience-tagged folders. Idempotent; reads canonical files from disk.
+    from adventure_capital.postprocess import build_postprocessed_view
+    postprocessed = build_postprocessed_view(out)
+
     return {
         "due_diligence": dd_result,
         "verdict": verdict,
         "stochastic": stochastic,
         "assessment_summary": str(summary_path),
+        "postprocessed": postprocessed,
     }

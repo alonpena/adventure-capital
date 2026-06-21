@@ -131,6 +131,9 @@ def run_pipeline(
 
         result["artifacts"] = generate_report(result, output_dir)
 
+        from adventure_capital.postprocess import build_postprocessed_view
+        result["postprocessed"] = build_postprocessed_view(output_dir)
+
         from adventure_capital.standard_report.consistency import check_consistency
         doc_path_for_check = document_path if document_path else config_path
         report = check_consistency(output_dir, doc_path_for_check)
