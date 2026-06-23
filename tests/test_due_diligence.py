@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 
 from adventure_capital.config import default_config
 from adventure_capital.due_diligence.report import (
@@ -60,7 +59,7 @@ def test_aggregate_verdict_precedence() -> None:
 
 
 def test_decision_fields_per_verdict() -> None:
-    # minor -> diagnostic-ish warning mode, still allowed; major -> diagnostic.
+    # ADR 0009 gate: minor runs M4 in warning mode; major blocks M4.
     v_minor = build_verdict([Finding("DD07", "runway", MINOR, False, "neg cash")])
     assert v_minor.verdict == REQUIRES_MINOR_ADJUSTMENT
     assert v_minor.allows_stochastic is True
@@ -70,8 +69,8 @@ def test_decision_fields_per_verdict() -> None:
 
     v_major = build_verdict([Finding("DD10", "revenue_growth", MAJOR, False, "SME-like")])
     assert v_major.verdict == REQUIRES_MAJOR_ADJUSTMENT
-    assert v_major.allows_stochastic is True
-    assert v_major.valuation_mode == "diagnostic"
+    assert v_major.allows_stochastic is False
+    assert v_major.valuation_mode == "none"
     assert v_major.adjustment_level == "major"
 
     v_struct = build_verdict([Finding("DD03", "financing_present", STRUCTURAL, False, "no VC")])
@@ -80,6 +79,32 @@ def test_decision_fields_per_verdict() -> None:
     assert v_struct.valuation_mode == "none"
     assert v_struct.adjustment_level == "structural"
     assert v_struct.blocking_reasons == ["no VC"]
+
+
+def test_m4_gate_policy_all_verdicts() -> None:
+    # Canonical M4 (ADR 0009) runs only for passed / passed_with_warnings /
+    # requires_minor_adjustment; major + structural block it.
+    v_passed = build_verdict([])
+    assert v_passed.verdict == PASSED
+    assert v_passed.allows_stochastic is True
+    assert v_passed.valuation_mode == "final"
+
+    v_warn = build_verdict([Finding("DDW", "soft", WARNING, False, "")])
+    assert v_warn.verdict == PASSED_WITH_WARNINGS
+    assert v_warn.allows_stochastic is True
+    assert v_warn.valuation_mode == "final"
+
+    v_minor = build_verdict([Finding("DD07", "runway", MINOR, False, "")])
+    assert v_minor.allows_stochastic is True
+    assert v_minor.valuation_mode == "warning"
+
+    v_major = build_verdict([Finding("DD10", "growth", MAJOR, False, "")])
+    assert v_major.allows_stochastic is False
+    assert v_major.valuation_mode == "none"
+
+    v_struct = build_verdict([Finding("DD03", "financing", STRUCTURAL, False, "")])
+    assert v_struct.allows_stochastic is False
+    assert v_struct.valuation_mode == "none"
 
 
 def test_negative_cash_does_not_block() -> None:
@@ -121,8 +146,10 @@ def test_full_workflow_on_base_config(tmp_path: Path) -> None:
     assert (tmp_path / "optimized_results.csv").exists()
     assert (tmp_path / "calibration_report.json").exists()
     assert verdict.calibration_verdict in {"PASS", "WARN", "FAIL"}
-    # Only structural rejection blocks; financial risk stays diagnostic.
-    assert verdict.allows_stochastic == (verdict.verdict != REJECTED_FOR_STOCHASTIC)
+    # ADR 0009 gate: only passed / passed_with_warnings / requires_minor_adjustment run M4.
+    assert verdict.allows_stochastic == (
+        verdict.verdict in {PASSED, PASSED_WITH_WARNINGS, REQUIRES_MINOR_ADJUSTMENT}
+    )
     # Liquidity diagnostic populated.
     diag = verdict.liquidity_diagnostic
     assert {"min_cash", "max_funding_gap", "breakeven_month", "cash_recovers"}.issubset(diag)
@@ -147,3 +174,10 @@ def test_run_assessment_chains_stochastic(tmp_path: Path) -> None:
         assert result["stochastic"]["valuation_mode"] == verdict.valuation_mode
     else:
         assert result["stochastic"]["ran"] is False
+        assert result["stochastic"]["valuation_mode"] == "none"
+        expected_reason = {
+            REQUIRES_MAJOR_ADJUSTMENT: "requires_major_adjustment_recalibration_required",
+            REJECTED_FOR_STOCHASTIC: "rejected_for_stochastic",
+        }.get(verdict.verdict)
+        if expected_reason is not None:
+            assert result["stochastic"]["reason"] == expected_reason

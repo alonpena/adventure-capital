@@ -3,8 +3,9 @@
 Due Diligence is an iterative assess -> recommend -> rerun workflow. The verdict
 carries decision fields the consultant/orchestrator acts on:
 
-    allows_stochastic           run robust valuation? (only structural blocks)
-    valuation_mode              final | warning | diagnostic | none
+    allows_stochastic           run canonical M4? (passed / passed_with_warnings /
+                                requires_minor_adjustment only)
+    valuation_mode              final | warning | none
     adjustment_level            none | minor | major | structural
     blocking_reasons            structural reasons that block the run
     adjustment_recommendations  what to recalibrate before re-running
@@ -36,13 +37,20 @@ REQUIRES_MAJOR_ADJUSTMENT = "requires_major_adjustment"
 REJECTED_FOR_STOCHASTIC = "rejected_for_stochastic"
 
 # verdict -> (valuation_mode, adjustment_level, rerun_recommended)
+# Canonical M4 (ADR 0009) runs only for passed / passed_with_warnings /
+# requires_minor_adjustment. Major and structural block the run (mode "none").
 _VERDICT_POLICY: dict[str, tuple[str, str, bool]] = {
     PASSED: ("final", "none", False),
     PASSED_WITH_WARNINGS: ("final", "none", False),
     REQUIRES_MINOR_ADJUSTMENT: ("warning", "minor", True),
-    REQUIRES_MAJOR_ADJUSTMENT: ("diagnostic", "major", True),
+    REQUIRES_MAJOR_ADJUSTMENT: ("none", "major", True),
     REJECTED_FOR_STOCHASTIC: ("none", "structural", True),
 }
+
+# Verdicts that allow the canonical M4 stochastic run (ADR 0009 gate).
+_ALLOWS_STOCHASTIC = frozenset(
+    {PASSED, PASSED_WITH_WARNINGS, REQUIRES_MINOR_ADJUSTMENT}
+)
 
 
 def aggregate_verdict(findings: list[Finding]) -> str:
@@ -70,8 +78,9 @@ class DueDiligenceVerdict:
 
     @property
     def allows_stochastic(self) -> bool:
-        # Blocked only by structural rejection; financial risk stays diagnostic.
-        return self.verdict != REJECTED_FOR_STOCHASTIC
+        # Canonical M4 gate (ADR 0009): major adjustment and structural rejection
+        # both block the run; minor adjustment runs in warning mode.
+        return self.verdict in _ALLOWS_STOCHASTIC
 
     @property
     def valuation_mode(self) -> str:
@@ -240,9 +249,9 @@ def _markdown_report(verdict: DueDiligenceVerdict) -> str:
         ]
     elif verdict.verdict == REQUIRES_MAJOR_ADJUSTMENT:
         lines += [
-            "El caso aún no cumple criterios de escala venture. La valoración estocástica puede "
-            "correr de forma **diagnóstica** (no apta para decisión de inversión). Recalibrar los "
-            "supuestos señalados y re-ejecutar.",
+            "El caso aún no cumple criterios de escala venture. La valoración estocástica canónica "
+            "(M4) **no corre** en este estado. Recalibrar los supuestos señalados y re-ejecutar "
+            "para habilitar la valoración.",
         ]
     elif verdict.verdict == REQUIRES_MINOR_ADJUSTMENT:
         lines += [

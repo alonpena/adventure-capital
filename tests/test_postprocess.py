@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from adventure_capital.config import default_config
 from adventure_capital.pipeline import run_pipeline

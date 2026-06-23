@@ -8,8 +8,11 @@ evidence:
 
 ``run_assessment`` is the full preliminary flow for report v1:
 
-    due diligence -> if allows_stochastic: stochastic expected-value (SAA) valuation
+    due diligence -> if allows_stochastic: canonical M4 SAA + CVaR valuation
                   -> tag valuation_mode -> write assessment_summary.json
+
+    Canonical M4 (ADR 0009) runs only for passed / passed_with_warnings /
+    requires_minor_adjustment; major adjustment and structural rejection block it.
 
 Never modifies ``pipeline.py`` or ``model.py``. A structural pre-rule failure
 short-circuits the model run (it would be uninterpretable); a rejection report is
@@ -25,6 +28,8 @@ import yaml
 
 from adventure_capital.calibration.report import run_calibration, write_calibration_report
 from adventure_capital.due_diligence.report import (
+    REJECTED_FOR_STOCHASTIC,
+    REQUIRES_MAJOR_ADJUSTMENT,
     DueDiligenceVerdict,
     build_verdict,
     write_due_diligence_report,
@@ -225,8 +230,9 @@ def run_assessment(
 
     Writes ``assessment_summary.json`` linking the deterministic baseline, the DD
     verdict + decision fields, and the stochastic result (tagged with the verdict's
-    ``valuation_mode``). The stochastic run is skipped when the verdict is
-    structurally rejected or when ``run_stochastic`` is False.
+    ``valuation_mode``). The canonical M4 run is skipped when the verdict
+    requires major adjustment, is structurally rejected, or when
+    ``run_stochastic`` is False.
     """
     import json
 
@@ -240,7 +246,12 @@ def run_assessment(
         # The expected-value (SAA) study inherits the DD verdict's valuation mode.
         stochastic["valuation_mode"] = verdict.valuation_mode
     elif not verdict.allows_stochastic:
-        stochastic = {"ran": False, "reason": "rejected_for_stochastic", "valuation_mode": "none"}
+        # Canonical M4 is blocked: distinguish major-adjustment from structural.
+        block_reason = {
+            REQUIRES_MAJOR_ADJUSTMENT: "requires_major_adjustment_recalibration_required",
+            REJECTED_FOR_STOCHASTIC: "rejected_for_stochastic",
+        }.get(verdict.verdict, verdict.verdict)
+        stochastic = {"ran": False, "reason": block_reason, "valuation_mode": "none"}
 
     assessment = {
         "verdict": verdict.verdict,

@@ -119,7 +119,8 @@ def test_due_diligence_receives_financing_gap_alert(tmp_path):
     result = run_due_diligence(config, output_dir=tmp_path)
     verdict = result["verdict"]
 
-    assert verdict.allows_stochastic is True
+    # The financing gap is a minor (fixable) signal, never a structural block.
+    assert verdict.verdict != "rejected_for_stochastic"
     dd11 = next(f for f in verdict.findings if f.id == "DD11")
     assert dd11.severity_class == "minor"
     assert "additional financing" in dd11.message
