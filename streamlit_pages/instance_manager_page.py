@@ -161,6 +161,70 @@ def render(st) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# YAML loader — directly populates widget session state
+# --------------------------------------------------------------------------- #
+
+
+def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
+    """Set every form widget's session_state value from a loaded YAML dict.
+
+    This is the most reliable approach in Streamlit: widget keys (``f_H``,
+    ``f_VC``, …) are set directly in ``st.session_state`` so they take effect
+    on the next render without relying on the ``value=`` parameter or key
+    deletion tricks.
+    """
+    # Scalar scalar_map: (session_state_key, yaml_key, cast_fn)
+    scalar_map = [
+        ("f_H", "H", int),
+        ("f_VC", "VC", float),
+        ("f_beta", "beta", float),
+        ("f_gmax", "g_max_suavizado", float),
+        ("f_meta", "meta", float),
+        ("f_sup", "sup", float),
+        ("f_remv", "rem_v", float),
+        ("f_reml", "rem_l", float),
+        ("f_comv", "com_v", float),
+        ("f_coml", "com_l", float),
+        ("f_gadm", "g_adm", float),
+        ("f_tax", "tax", float),
+        ("f_lag", "commercial_productivity_lag", int),
+    ]
+    for ses_key, yaml_key, cast in scalar_map:
+        if yaml_key in loaded:
+            try:
+                st.session_state[ses_key] = cast(loaded[yaml_key])
+            except (TypeError, ValueError):
+                pass  # skip invalid values
+
+    # Comma-separated lists
+    if "RRHH_mensual" in loaded:
+        st.session_state["f_rrhh"] = ", ".join(str(x) for x in loaded["RRHH_mensual"])
+    if "ciclo_op" in loaded:
+        st.session_state["f_ciclo"] = ", ".join(str(x) for x in loaded["ciclo_op"])
+
+    # Liquidity policy
+    liq = loaded.get("liquidity_policy", {})
+    if isinstance(liq, dict):
+        liq_type = liq.get("type", "none")
+        st.session_state["f_liq"] = liq_type
+        if liq_type == "minimum_cash" and "value" in liq:
+            st.session_state["f_liq_value"] = float(liq["value"])
+
+    # Solver
+    solver = loaded.get("solver", {})
+    if isinstance(solver, dict) and "time_limit" in solver:
+        st.session_state["f_time"] = int(solver["time_limit"])
+
+    # Services (complex structure, not individual fields)
+    st.session_state["services"] = loaded.get(
+        "servicios", st.session_state.get("services", base["servicios"])
+    )
+
+    # Keep the raw dict for _dv() to read from (for any field not covered above)
+    st.session_state["loaded_scalars"] = loaded
+
+
+# --------------------------------------------------------------------------- #
 # Create tab
 # --------------------------------------------------------------------------- #
 
@@ -171,24 +235,15 @@ def _render_create_tab(st, base: dict) -> None:
     if uploaded is not None:
         loaded: dict = yaml.safe_load(uploaded.getvalue().decode("utf-8")) or {}
         if st.button("Aplicar YAML cargado"):
-            # Clear all form widget keys so they re-initialize from _dv() on rerun.
-            form_keys = [
-                "f_H", "f_VC", "f_beta", "f_gmax", "f_meta", "f_sup",
-                "f_remv", "f_reml", "f_comv", "f_coml", "f_gadm", "f_tax",
-                "f_rrhh", "f_ciclo", "f_lag", "f_liq", "f_liq_value", "f_time",
-            ]
-            for k in form_keys:
-                st.session_state.pop(k, None)
-            st.session_state["services"] = loaded.get(
-                "servicios", st.session_state.get("services", base["servicios"])
-            )
-            st.session_state["loaded_scalars"] = loaded
+            # Set each widget's session_state value directly from the YAML keys.
+            # This is more reliable than deleting keys + relying on value= param,
+            # because Streamlit preserves widget component state across reruns.
+            _apply_loaded_yaml(st, loaded, base)
             st.rerun()
 
-    loaded = st.session_state.get("loaded_scalars", {})
-
     def _dv(key: str, fallback: Any) -> Any:
-        return loaded.get(key, fallback)
+        scalars = st.session_state.get("loaded_scalars", {})
+        return scalars.get(key, fallback)
 
     # ── General params ──
     st.markdown("#### Parámetros generales")
