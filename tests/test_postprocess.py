@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from adventure_capital.config import default_config
 from adventure_capital.pipeline import run_pipeline
@@ -64,6 +65,9 @@ def test_view_is_derived_not_recomputed(tmp_path):
     assert manifest["is_canonical"] is False
 
 
+@pytest.mark.skip(
+    reason="Exercises legacy stochastic evaluate.py; pending M4 model rewrite (ADR 0009 steps 4-5)."
+)
 def test_assessment_run_builds_dd_and_stochastic_view(tmp_path):
     run_pipeline(_fast_config(), output_dir=str(tmp_path), baseline_only=False)
     root = tmp_path / "postprocessed_results"

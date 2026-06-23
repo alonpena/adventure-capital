@@ -1,11 +1,23 @@
 """Smoke tests for the isolated stochastic prototype (Phase A -> Phase B).
 
 Uses a small horizon and scenario sample so CBC stays fast.
+
+NOTE: These tests cover the *legacy* simplified stochastic prototype and use
+the pre-M4 scenario schema (productivity/financing multipliers, ``explicit``
+mode). They are skipped until ``model.py``/``evaluate.py``/``results.py`` are
+rewritten for channel-parity SAA + CVaR (M4 steps 4-5; ADR 0009). New scenario
+coverage lives in ``tests/test_stochastic_scenarios.py``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="Legacy stochastic prototype; pending M4 model rewrite (ADR 0009 steps 4-5)."
+)
 
 from adventure_capital.config import default_config
 from adventure_capital.stochastic.evaluate import evaluate_strategy

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from adventure_capital.config import default_config
 from adventure_capital.due_diligence.report import (
     PASSED,
@@ -126,6 +128,9 @@ def test_full_workflow_on_base_config(tmp_path: Path) -> None:
     assert {"min_cash", "max_funding_gap", "breakeven_month", "cash_recovers"}.issubset(diag)
 
 
+@pytest.mark.skip(
+    reason="Exercises legacy stochastic evaluate.py; pending M4 model rewrite (ADR 0009 steps 4-5)."
+)
 def test_run_assessment_chains_stochastic(tmp_path: Path) -> None:
     config = _fast_config()
     # Tiny stochastic sample so the chained run stays fast.

@@ -1,59 +1,51 @@
-"""Scenario generation for the stochastic extension.
+"""Scenario generation for the canonical M4 stochastic PCA.
 
-Two modes (config-selectable, default ``saa``):
+Scenarios are drawn by Latin Hypercube Sampling (LHS) over the unit hypercube
+and mapped to multipliers through a native triangular inverse-CDF. No SciPy.
 
-- ``saa``: draw ``scenario_count`` scenarios by sampling each uncertain
-  multiplier from a triangular distribution. Equal probability ``1/N``.
-- ``explicit``: business-facing named scenarios with explicit multipliers and
-  probabilities, for interpretability and manual stress tests.
+Each :class:`Scenario` carries multipliers relative to the deterministic base
+config (1.0 = no change):
 
-A :class:`Scenario` carries only multipliers/values relative to a base config;
-``apply_scenario`` produces the concrete per-scenario config. Distributions are
-configurable modeling assumptions, not empirically calibrated truth.
+- ``churn_multiplier``        — one global churn scaler;
+- ``salesforce_efficiency``   — per-channel acquisition efficiency;
+- ``advertising_efficiency``  — per-channel acquisition efficiency;
+- ``third_party_efficiency``  — per-channel acquisition efficiency;
+- ``wacc_multiplier``         — scales the base discount rate.
+
+There is intentionally **no financing multiplier**: VC is fixed across
+scenarios (ADR 0009). Distributions are modeling assumptions, not calibrated
+truth. See ``src/adventure_capital/stochastic/defaults.py`` and the M4 plan.
 """
 
 from __future__ import annotations
 
+import math
 import random
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
-# Defaults used when the ``stochastic`` config block is absent or partial.
-DEFAULT_DISTRIBUTIONS: dict[str, dict[str, float]] = {
-    "churn_multiplier": {"min": 0.8, "mode": 1.0, "max": 1.3},
-    "productivity_multiplier": {"min": 0.5, "mode": 1.0, "max": 1.2},
-    "financing_multiplier": {"min": 0.7, "mode": 1.0, "max": 1.3},
-    "wacc_relative": {"min": 0.6, "mode": 1.0, "max": 1.5},
-}
+from adventure_capital.stochastic.defaults import (
+    M4_DEFAULTS,
+    SCENARIO_DIMENSIONS,
+)
 
-DEFAULT_NAMED_SCENARIOS: list[dict[str, Any]] = [
-    {"name": "base", "probability": 0.40},
-    {"name": "commercial_downside", "probability": 0.15, "productivity_multiplier": 0.6},
-    {"name": "retention_stress", "probability": 0.15, "churn_multiplier": 1.3},
-    {"name": "funding_stress", "probability": 0.15, "financing_multiplier": 0.7},
-    {"name": "upside", "probability": 0.15, "churn_multiplier": 0.85, "productivity_multiplier": 1.2},
-]
-
-# WACC is truncated to a sane band regardless of sampled relative factor.
+# WACC is truncated to a sane band regardless of the sampled multiplier.
 _WACC_MIN = 0.05
 _WACC_MAX = 0.90
 
 
 @dataclass
 class Scenario:
-    """One realized draw of the uncertain parameters.
-
-    Multipliers are relative to the base config (1.0 = no change). ``wacc_value``
-    is an absolute annual discount rate; ``None`` means "keep base beta".
-    """
+    """One realized draw of the uncertain parameters."""
 
     name: str
     probability: float
     churn_multiplier: float = 1.0
-    productivity_multiplier: float = 1.0
-    financing_multiplier: float = 1.0
-    wacc_value: float | None = None
+    salesforce_efficiency: float = 1.0
+    advertising_efficiency: float = 1.0
+    third_party_efficiency: float = 1.0
+    wacc_multiplier: float = 1.0
     meta: dict[str, Any] = field(default_factory=dict)
 
     def as_row(self) -> dict[str, Any]:
@@ -61,119 +53,125 @@ class Scenario:
             "scenario": self.name,
             "probability": self.probability,
             "churn_multiplier": self.churn_multiplier,
-            "productivity_multiplier": self.productivity_multiplier,
-            "financing_multiplier": self.financing_multiplier,
-            "wacc_value": self.wacc_value,
+            "salesforce_efficiency": self.salesforce_efficiency,
+            "advertising_efficiency": self.advertising_efficiency,
+            "third_party_efficiency": self.third_party_efficiency,
+            "wacc_multiplier": self.wacc_multiplier,
         }
 
 
-def _stochastic_block(config: dict[str, Any]) -> dict[str, Any]:
-    return config.get("stochastic", {}) or {}
+def triangular_icdf(p: float, low: float, mode: float, high: float) -> float:
+    """Inverse CDF of the triangular distribution at quantile ``p`` in [0, 1].
+
+    Native implementation (no SciPy):
+
+        F_c = (c - a) / (b - a)
+        if p < F_c:  x = a + sqrt(p * (b - a) * (c - a))
+        else:        x = b - sqrt((1 - p) * (b - a) * (b - c))
+
+    where ``a = low``, ``c = mode``, ``b = high``.
+    """
+    if not (low <= mode <= high):
+        raise ValueError(f"Require low <= mode <= high, got {low}, {mode}, {high}.")
+    if not (high > low):
+        raise ValueError(f"Require high > low, got low={low}, high={high}.")
+    if not (0.0 <= p <= 1.0):
+        raise ValueError(f"Quantile p must be in [0, 1], got {p}.")
+
+    span = high - low
+    f_c = (mode - low) / span
+    if p < f_c:
+        return low + math.sqrt(p * span * (mode - low))
+    return high - math.sqrt((1.0 - p) * span * (high - mode))
+
+
+def latin_hypercube(n: int, d: int, rng: random.Random) -> list[list[float]]:
+    """Return an ``n x d`` Latin Hypercube sample in [0, 1).
+
+    Each column is stratified into ``n`` equal bins (one sample per bin), with
+    the bin order independently permuted per dimension and a uniform jitter
+    inside each bin.
+    """
+    if n <= 0:
+        raise ValueError("n must be > 0.")
+    if d <= 0:
+        raise ValueError("d must be > 0.")
+
+    columns: list[list[float]] = []
+    for _ in range(d):
+        perm = list(range(n))
+        rng.shuffle(perm)
+        columns.append([(perm[i] + rng.random()) / n for i in range(n)])
+
+    return [[columns[j][i] for j in range(d)] for i in range(n)]
 
 
 def _distributions(config: dict[str, Any]) -> dict[str, dict[str, float]]:
-    configured = _stochastic_block(config).get("distributions", {}) or {}
-    merged = deepcopy(DEFAULT_DISTRIBUTIONS)
+    """Merge configured distribution overrides onto the M4 defaults."""
+    configured = (config.get("stochastic", {}) or {}).get("distributions", {}) or {}
+    merged = deepcopy(M4_DEFAULTS["distributions"])
     for key, value in configured.items():
         merged[key] = {**merged.get(key, {}), **value}
     return merged
 
 
-def _triangular(rng: random.Random, spec: dict[str, float]) -> float:
-    low, mode, high = float(spec["min"]), float(spec["mode"]), float(spec["max"])
-    # random.triangular requires low <= high; mode is clamped into the range.
-    return rng.triangular(low, high, min(max(mode, low), high))
-
-
-def generate_scenarios(config: dict[str, Any], *, mode: str | None = None) -> list[Scenario]:
-    """Build the Phase-A scenario sample for ``config``.
-
-    ``mode`` overrides ``stochastic.scenario_generation.mode`` when provided.
-    """
-    block = _stochastic_block(config)
-    gen = block.get("scenario_generation", {}) or {}
-    resolved_mode = (mode or gen.get("mode", "saa")).lower()
-
-    if resolved_mode == "explicit":
-        return _explicit_scenarios(config)
-    if resolved_mode == "saa":
-        count = int(gen.get("scenario_count", 100))
-        seed = int(gen.get("seed", 12345))
-        return _saa_scenarios(config, count=count, seed=seed)
-    raise ValueError(f"Unsupported scenario_generation.mode: {resolved_mode}")
-
-
-def _saa_scenarios(config: dict[str, Any], *, count: int, seed: int) -> list[Scenario]:
+def _build_scenarios(
+    config: dict[str, Any], *, count: int, seed: int, prefix: str
+) -> list[Scenario]:
     if count <= 0:
-        raise ValueError("scenario_count must be > 0.")
+        raise ValueError("scenario count must be > 0.")
     rng = random.Random(seed)
     dists = _distributions(config)
-    base_beta = float(config["beta"])
+    dims = SCENARIO_DIMENSIONS
+    sample = latin_hypercube(count, len(dims), rng)
     probability = 1.0 / count
 
     scenarios: list[Scenario] = []
-    for k in range(count):
-        churn = _triangular(rng, dists["churn_multiplier"])
-        productivity = _triangular(rng, dists["productivity_multiplier"])
-        financing = _triangular(rng, dists["financing_multiplier"])
-        wacc_rel = _triangular(rng, dists["wacc_relative"])
-        wacc = min(max(base_beta * wacc_rel, _WACC_MIN), _WACC_MAX)
+    for k, row in enumerate(sample):
+        values: dict[str, float] = {}
+        for col, dim in enumerate(dims):
+            spec = dists[dim]
+            values[dim] = triangular_icdf(
+                row[col], float(spec["min"]), float(spec["mode"]), float(spec["max"])
+            )
         scenarios.append(
             Scenario(
-                name=f"saa_{k:04d}",
+                name=f"{prefix}_{k:04d}",
                 probability=probability,
-                churn_multiplier=churn,
-                productivity_multiplier=productivity,
-                financing_multiplier=financing,
-                wacc_value=wacc,
+                churn_multiplier=values["churn_multiplier"],
+                salesforce_efficiency=values["salesforce_efficiency"],
+                advertising_efficiency=values["advertising_efficiency"],
+                third_party_efficiency=values["third_party_efficiency"],
+                wacc_multiplier=values["wacc_multiplier"],
             )
         )
     return scenarios
 
 
-def _explicit_scenarios(config: dict[str, Any]) -> list[Scenario]:
-    named = _stochastic_block(config).get("named_scenarios") or DEFAULT_NAMED_SCENARIOS
-    base_beta = float(config["beta"])
-    total_prob = sum(float(item.get("probability", 0.0)) for item in named)
-    if total_prob <= 0:
-        raise ValueError("named_scenarios probabilities must sum to > 0.")
-
-    scenarios: list[Scenario] = []
-    for item in named:
-        wacc_mult = item.get("wacc_multiplier")
-        wacc_value = (
-            min(max(base_beta * float(wacc_mult), _WACC_MIN), _WACC_MAX)
-            if wacc_mult is not None
-            else None
-        )
-        scenarios.append(
-            Scenario(
-                name=str(item["name"]),
-                probability=float(item.get("probability", 0.0)) / total_prob,
-                churn_multiplier=float(item.get("churn_multiplier", 1.0)),
-                productivity_multiplier=float(item.get("productivity_multiplier", 1.0)),
-                financing_multiplier=float(item.get("financing_multiplier", 1.0)),
-                wacc_value=wacc_value,
-            )
-        )
-    return scenarios
+def generate_scenarios(config: dict[str, Any]) -> list[Scenario]:
+    """Build the SAA first-stage scenario sample (LHS)."""
+    block = config.get("stochastic", {}) or {}
+    count = int(block.get("saa_scenario_count", M4_DEFAULTS["saa_scenario_count"]))
+    seed = int(block.get("seed_saa", M4_DEFAULTS["seed_saa"]))
+    return _build_scenarios(config, count=count, seed=seed, prefix="saa")
 
 
 def generate_evaluation_scenarios(config: dict[str, Any]) -> list[Scenario]:
-    """Build the larger Phase-B ex-post sample (always SAA sampling)."""
-    block = _stochastic_block(config)
-    eval_cfg = block.get("evaluation", {}) or {}
-    count = int(eval_cfg.get("n_scenarios", 1000))
-    seed = int(eval_cfg.get("seed", 999))
-    return _saa_scenarios(config, count=count, seed=seed)
+    """Build the larger ex-post evaluation sample (LHS, independent seed)."""
+    block = config.get("stochastic", {}) or {}
+    count = int(
+        block.get("evaluation_scenario_count", M4_DEFAULTS["evaluation_scenario_count"])
+    )
+    seed = int(block.get("seed_eval", M4_DEFAULTS["seed_eval"]))
+    return _build_scenarios(config, count=count, seed=seed, prefix="eval")
 
 
 def apply_scenario(config: dict[str, Any], scenario: Scenario) -> dict[str, Any]:
-    """Return a deep-copied config with the scenario's overrides applied.
+    """Return a deep-copied config with scenario churn/WACC applied.
 
-    Churn multiplier scales each service's annual churn (clamped to [0,1]).
-    ``meta`` and ``VC`` are scaled by their multipliers; ``beta`` is replaced by
-    the scenario's absolute WACC value when present.
+    Channel efficiency multipliers are consumed directly by the model when
+    realizing acquisition; they are not folded into the config here. VC is
+    fixed across scenarios (no financing multiplier).
     """
     scenario_config = deepcopy(config)
 
@@ -183,11 +181,8 @@ def apply_scenario(config: dict[str, Any], scenario: Scenario) -> dict[str, Any]
             for value in service["churn_anual"]
         ]
 
-    scenario_config["meta"] = max(
-        1e-9, float(scenario_config["meta"]) * scenario.productivity_multiplier
+    base_beta = float(scenario_config["beta"])
+    scenario_config["beta"] = min(
+        max(base_beta * scenario.wacc_multiplier, _WACC_MIN), _WACC_MAX
     )
-    scenario_config["VC"] = float(scenario_config["VC"]) * scenario.financing_multiplier
-    if scenario.wacc_value is not None:
-        scenario_config["beta"] = float(scenario.wacc_value)
-
     return scenario_config
