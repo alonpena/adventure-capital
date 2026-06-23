@@ -171,7 +171,17 @@ def _render_create_tab(st, base: dict) -> None:
     if uploaded is not None:
         loaded: dict = yaml.safe_load(uploaded.getvalue().decode("utf-8")) or {}
         if st.button("Aplicar YAML cargado"):
-            st.session_state["services"] = loaded.get("servicios", st.session_state.get("services", base["servicios"]))
+            # Clear all form widget keys so they re-initialize from _dv() on rerun.
+            form_keys = [
+                "f_H", "f_VC", "f_beta", "f_gmax", "f_meta", "f_sup",
+                "f_remv", "f_reml", "f_comv", "f_coml", "f_gadm", "f_tax",
+                "f_rrhh", "f_ciclo", "f_lag", "f_liq", "f_liq_value", "f_time",
+            ]
+            for k in form_keys:
+                st.session_state.pop(k, None)
+            st.session_state["services"] = loaded.get(
+                "servicios", st.session_state.get("services", base["servicios"])
+            )
             st.session_state["loaded_scalars"] = loaded
             st.rerun()
 
