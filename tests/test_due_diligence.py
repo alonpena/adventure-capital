@@ -128,15 +128,14 @@ def test_full_workflow_on_base_config(tmp_path: Path) -> None:
     assert {"min_cash", "max_funding_gap", "breakeven_month", "cash_recovers"}.issubset(diag)
 
 
-@pytest.mark.skip(
-    reason="Exercises legacy stochastic evaluate.py; pending M4 model rewrite (ADR 0009 steps 4-5)."
-)
 def test_run_assessment_chains_stochastic(tmp_path: Path) -> None:
     config = _fast_config()
     # Tiny stochastic sample so the chained run stays fast.
     config["stochastic"] = {
-        "scenario_generation": {"mode": "saa", "scenario_count": 5, "seed": 7},
-        "evaluation": {"n_scenarios": 30, "seed": 99},
+        "saa_scenario_count": 5,
+        "seed_saa": 7,
+        "evaluation_scenario_count": 30,
+        "seed_eval": 99,
     }
     result = run_assessment(config, output_dir=tmp_path, stochastic_time_limit=60)
 

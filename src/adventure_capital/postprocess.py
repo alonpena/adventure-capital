@@ -215,21 +215,24 @@ def _stochastic_method_status() -> dict[str, Any]:
     return {
         "schema_version": SCHEMA_VERSION,
         "method": "sample_average_approximation",
-        "objective": "risk_neutral_expected_npv",
+        "objective": "cvar_van",
         "is_robust_optimization": False,
-        "scenario_generation": "triangular_random_sampling",
-        "lhs_implemented": False,
-        "lhs_status": "specified_only",
+        "scenario_generation": "latin_hypercube_triangular_icdf",
+        "lhs_implemented": True,
+        "lhs_status": "implemented",
         "saa_implemented": True,
+        "ex_post_evaluation": "ex_post_lhs",
         "monte_carlo_ex_post_implemented": True,
         "known_parity_gaps_vs_deterministic": [
-            "commercial_channels",
-            "advertising_recta",
-            "third_party_cac",
-            "acquisition_ceiling",
+            "first_year_channel_mix",
+            "commercial_recourse",
             "due_diligence_vc_proxy_probabilities",
         ],
-        "note": "Ex-post recourse is closed-form (no MILP re-solve); not worst-case/robust.",
+        "note": (
+            "First-stage SAA over LHS scenarios with CVaR(VAN) objective; ex-post "
+            "evaluation uses an out-of-sample LHS sample (separate seed, larger N). "
+            "Ex-post recourse is closed-form (no MILP re-solve); not worst-case/robust."
+        ),
     }
 
 

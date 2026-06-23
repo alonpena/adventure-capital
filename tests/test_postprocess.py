@@ -65,9 +65,6 @@ def test_view_is_derived_not_recomputed(tmp_path):
     assert manifest["is_canonical"] is False
 
 
-@pytest.mark.skip(
-    reason="Exercises legacy stochastic evaluate.py; pending M4 model rewrite (ADR 0009 steps 4-5)."
-)
 def test_assessment_run_builds_dd_and_stochastic_view(tmp_path):
     run_pipeline(_fast_config(), output_dir=str(tmp_path), baseline_only=False)
     root = tmp_path / "postprocessed_results"
@@ -88,8 +85,9 @@ def test_assessment_run_builds_dd_and_stochastic_view(tmp_path):
     if stoch.is_dir():
         status = _load_json(stoch / "stochastic_method_status.json")
         assert status["is_robust_optimization"] is False
-        assert status["lhs_implemented"] is False
+        assert status["lhs_implemented"] is True
         assert status["method"] == "sample_average_approximation"
+        assert status["objective"] == "cvar_van"
 
 
 def test_method_status_does_not_overclaim(tmp_path):
@@ -97,6 +95,6 @@ def test_method_status_does_not_overclaim(tmp_path):
 
     status = _stochastic_method_status()
     assert status["is_robust_optimization"] is False
-    assert status["lhs_implemented"] is False
+    assert status["lhs_implemented"] is True
     assert status["saa_implemented"] is True
     assert "robust" not in status["method"]

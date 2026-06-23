@@ -1,23 +1,14 @@
-"""Smoke tests for the isolated stochastic prototype (Phase A -> Phase B).
+"""End-to-end smoke test for the M4 stochastic flow.
 
-Uses a small horizon and scenario sample so CBC stays fast.
-
-NOTE: These tests cover the *legacy* simplified stochastic prototype and use
-the pre-M4 scenario schema (productivity/financing multipliers, ``explicit``
-mode). They are skipped until ``model.py``/``evaluate.py``/``results.py`` are
-rewritten for channel-parity SAA + CVaR (M4 steps 4-5; ADR 0009). New scenario
-coverage lives in ``tests/test_stochastic_scenarios.py``.
+SAA first-stage solve -> ex-post LHS evaluation -> summary -> artifacts.
+Uses a small horizon and scenario samples so CBC stays fast. Scenario-layer
+and model-internal coverage live in ``test_stochastic_scenarios.py`` and
+``test_stochastic_model.py``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-
-import pytest
-
-pytestmark = pytest.mark.skip(
-    reason="Legacy stochastic prototype; pending M4 model rewrite (ADR 0009 steps 4-5)."
-)
 
 from adventure_capital.config import default_config
 from adventure_capital.stochastic.evaluate import evaluate_strategy
@@ -33,54 +24,45 @@ def _smoke_config() -> dict:
     config = default_config()
     config["H"] = 14
     config["stochastic"] = {
-        "terminal_multiple": 1.0,
-        "scenario_generation": {"mode": "saa", "scenario_count": 8, "seed": 7},
-        "evaluation": {"n_scenarios": 50, "seed": 99},
+        "saa_scenario_count": 6,
+        "seed_saa": 7,
+        "evaluation_scenario_count": 40,
+        "seed_eval": 99,
     }
     return config
 
 
-def test_saa_scenarios_are_reproducible() -> None:
-    config = _smoke_config()
-    first = generate_scenarios(config)
-    second = generate_scenarios(config)
-    assert len(first) == 8
-    assert [s.churn_multiplier for s in first] == [s.churn_multiplier for s in second]
-    assert abs(sum(s.probability for s in first) - 1.0) < 1e-9
-
-
-def test_explicit_scenarios_normalize_probabilities() -> None:
-    config = _smoke_config()
-    scenarios = generate_scenarios(config, mode="explicit")
-    assert {s.name for s in scenarios} >= {"base", "retention_stress", "funding_stress"}
-    assert abs(sum(s.probability for s in scenarios) - 1.0) < 1e-9
-
-
-def test_phase_a_then_phase_b(tmp_path: Path) -> None:
+def test_saa_then_ex_post_lhs(tmp_path: Path) -> None:
     config = _smoke_config()
 
     scenarios = generate_scenarios(config)
     bundle = build_saa_model(config, scenarios)
-    solution = solve_saa_model(bundle, time_limit=60)
+    solution = solve_saa_model(bundle, time_limit=90)
     assert solution["status"] == "Optimal"
-    assert solution["expected_objective"] is not None
+    assert solution["cvar_van"] is not None
+    assert solution["expected_van"] is not None
 
     strategy = solution["strategy"]
-    # First-stage acquisition is committed for every service-period.
-    assert all(value >= -1e-6 for value in strategy["A"].values())
+    # First-stage plan is committed and non-negative for every service-period.
+    assert all(value >= -1e-6 for value in strategy["A_plan"].values())
 
     eval_scenarios = generate_evaluation_scenarios(config)
+    assert len(eval_scenarios) == 40
     evaluation = evaluate_strategy(config, strategy, eval_scenarios)
-    assert len(evaluation) == 50
-    assert {"VAN", "funding_gap", "breakeven_month"}.issubset(evaluation.columns)
+    assert len(evaluation) == 40
+    assert {"VAN", "funding_gap", "breakeven_month", "runway_month",
+            "final_active_clients"}.issubset(evaluation.columns)
 
-    summary = summarize_distribution(evaluation)
-    assert summary["n_scenarios"] == 50
+    summary = summarize_distribution(evaluation, cvar_alpha=solution["cvar_alpha"])
+    assert summary["n_scenarios"] == 40
     assert summary["van_p10"] <= summary["van_p50"] <= summary["van_p90"]
+    assert summary["cvar_5"] <= summary["expected_van"] + 1e-6
     assert 0.0 <= summary["prob_van_negative"] <= 1.0
     assert summary["max_funding_gap"] >= summary["expected_funding_gap"] >= 0.0
+    # Milestone probabilities are present for the backend-static client counts.
+    for milestone in (500, 1000, 2000):
+        assert 0.0 <= summary[f"prob_hit_final_active_clients_{milestone}"] <= 1.0
 
-    artifacts = write_outputs(evaluation, summary, tmp_path)
-    assert Path(artifacts["scenarios"]).exists()
-    assert Path(artifacts["summary"]).exists()
-    assert Path(artifacts["breakeven"]).exists()
+    artifacts = write_outputs(evaluation, summary, tmp_path, solution=solution)
+    for key in ("scenarios", "summary", "diagnostics", "unit_economics", "saa_solution"):
+        assert Path(artifacts[key]).exists()

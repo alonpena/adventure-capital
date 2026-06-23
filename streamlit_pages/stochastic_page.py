@@ -63,8 +63,8 @@ def render(st) -> None:
         with d5:
             C.kpi(st, "Prob. VAN negativo", C.pct(diag.get("prob_van_negative")))
         with d6:
-            C.kpi(st, "Prob. brecha de fondos", C.pct(diag.get("prob_funding_gap")),
-                  tone="alert" if (diag.get("prob_funding_gap") or 0) > 0.5 else "")
+            C.kpi(st, "Prob. caja bajo piso", C.pct(diag.get("prob_cash_below_floor")),
+                  tone="alert" if (diag.get("prob_cash_below_floor") or 0) > 0.5 else "")
         with d7:
             C.kpi(st, "Brecha de fondos esperada", C.money(diag.get("expected_funding_gap")))
 

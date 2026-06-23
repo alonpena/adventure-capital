@@ -200,12 +200,14 @@ def _run_stochastic(config: dict[str, Any], output_dir: Path, *, time_limit: int
 
     eval_scenarios = generate_evaluation_scenarios(config)
     evaluation = evaluate_strategy(config, solution["strategy"], eval_scenarios)
-    summary = summarize_distribution(evaluation)
-    artifacts = write_outputs(evaluation, summary, output_dir)
+    summary = summarize_distribution(evaluation, cvar_alpha=solution["cvar_alpha"])
+    artifacts = write_outputs(evaluation, summary, output_dir, solution=solution)
     return {
         "ran": True,
         "status": solution["status"],
-        "expected_objective": solution["expected_objective"],
+        "objective": solution["objective"],
+        "cvar_van": solution["cvar_van"],
+        "expected_van": solution["expected_van"],
         "summary": summary,
         "artifacts": artifacts,
     }
@@ -358,36 +360,39 @@ def run_assessment(
         stoch_text.extend([
             f"Status: {stochastic.get('status')}",
             f"Valuation Mode: {stochastic.get('valuation_mode')}",
-            f"Expected Objective (discounted EBITDA): {stochastic.get('expected_objective', 0.0):,.2f}",
+            f"Objective: {stochastic.get('objective')}",
+            f"CVaR(VAN): {stochastic.get('cvar_van', 0.0):,.2f}",
+            f"Expected VAN: {stochastic.get('expected_van', 0.0):,.2f}",
         ])
         sum_dict = stochastic.get("summary") or {}
         stoch_text.extend([
-            f"Number of Scenarios: {sum_dict.get('n_scenarios', 0)}",
-            f"Expected VAN: {sum_dict.get('expected_van', 0.0):,.2f}",
+            f"Number of Scenarios: {sum_dict.get('n_scenarios', 0)} (ex-post LHS)",
+            f"CVaR alpha: {sum_dict.get('cvar_alpha')}",
             "",
             "-----------------------------------------",
             "VAN Percentiles",
             "-----------------------------------------",
+            f"P5: {sum_dict.get('van_p5', 0.0):,.2f}",
             f"P10: {sum_dict.get('van_p10', 0.0):,.2f}",
             f"P50: {sum_dict.get('van_p50', 0.0):,.2f}",
             f"P90: {sum_dict.get('van_p90', 0.0):,.2f}",
-            f"Min: {sum_dict.get('van_min', 0.0):,.2f}",
-            f"Max: {sum_dict.get('van_max', 0.0):,.2f}",
-            f"Std Dev: {sum_dict.get('van_std', 0.0):,.2f}",
+            f"CVaR 5%: {sum_dict.get('cvar_5', 0.0):,.2f}",
             "",
             "-----------------------------------------",
             "Risk & Liquidity Diagnostics",
             "-----------------------------------------",
             f"Probability of Negative VAN: {sum_dict.get('prob_van_negative', 0.0):.2%}",
-            f"Probability of Funding Gap: {sum_dict.get('prob_funding_gap', 0.0):.2%}",
+            f"Probability of Cash Below Floor: {sum_dict.get('prob_cash_below_floor', 0.0):.2%}",
             f"Expected Funding Gap: {sum_dict.get('expected_funding_gap', 0.0):,.2f}",
             f"Max Funding Gap: {sum_dict.get('max_funding_gap', 0.0):,.2f}",
+            f"Median Runway Month (P50): {sum_dict.get('runway_month_p50')}",
             "",
             "-----------------------------------------",
-            "Breakeven Trajectory",
+            "Breakeven & Customers",
             "-----------------------------------------",
             f"Median Breakeven Month (P50): {sum_dict.get('breakeven_month_p50')}",
-            f"Probability of No Breakeven: {sum_dict.get('prob_no_breakeven', 0.0):.2%}"
+            f"Probability of No Breakeven: {sum_dict.get('prob_no_breakeven', 0.0):.2%}",
+            f"Final Active Clients P50: {sum_dict.get('final_active_clients_p50', 0.0):,.0f}",
         ])
     else:
         reason = stochastic.get("reason", "unknown") if stochastic else "rejected_by_due_diligence"
