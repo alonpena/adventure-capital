@@ -69,7 +69,12 @@ def _service_form(st, idx: int, service: dict) -> dict:
 
 
 def _channels_form(st, base: dict) -> dict:
-    channels = deepcopy(base["channels"])
+    # If the user loaded a YAML with channel settings, use those as defaults
+    # instead of the base config. This lets optional channels (advertising,
+    # third_party) that are inactive in base.yaml appear checked when the
+    # loaded YAML has them active.
+    source = st.session_state.get("yaml_channels", base["channels"])
+    channels = deepcopy(source)
     st.markdown("#### Canales comerciales")
 
     sf = channels["salesforce"]
@@ -219,6 +224,10 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
     st.session_state["services"] = loaded.get(
         "servicios", st.session_state.get("services", base["servicios"])
     )
+
+    # Channels (checkboxes + nested sub-forms)
+    if "channels" in loaded:
+        st.session_state["yaml_channels"] = loaded["channels"]
 
     # Keep the raw dict for _dv() to read from (for any field not covered above)
     st.session_state["loaded_scalars"] = loaded
