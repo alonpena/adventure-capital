@@ -1,0 +1,26 @@
+{
+  "verdict": "rejected_for_stochastic",
+  "allows_stochastic": false,
+  "valuation_mode": "none",
+  "adjustment_level": "structural",
+  "rerun_recommended": true,
+  "calibration_verdict": null,
+  "blocking_reasons": [
+    "Falta input esencial: `VC` <= 0 (sin capital de trabajo inicial para ejecutar el plan)."
+  ],
+  "adjustment_recommendations": [
+    {
+      "id": "DD03",
+      "severity_class": "structural",
+      "recommendation": "Definir un `VC` (capital de trabajo inicial) > 0."
+    }
+  ],
+  "liquidity_diagnostic": {},
+  "ran_model": false,
+  "stochastic": {
+    "ran": false,
+    "reason": "rejected_for_stochastic",
+    "valuation_mode": "none"
+  },
+  "due_diligence_report": "benchmark_v1/godemos/due_diligence_report.md"
+}

@@ -1,0 +1,13 @@
+id,name,severity_class,passed,message
+DD01,instance_valid,ok,True,Config válido y completo.
+DD02,unit_margin_positive,ok,True,Todos los servicios tienen margen unitario positivo.
+DD03,financing_present,ok,True,"Financiamiento inicial VC=114,471."
+DD04,churn_valid,ok,True,"Churn anual dentro de [0,1]."
+DD05,churn_severity,ok,True,Churn anual máximo 22% en rango aceptable.
+DD06,breakeven_within_horizon,ok,True,Breakeven en el mes 17.
+DD09,ebitda_regime_by_year3,ok,True,"EBITDA año 3 positivo (1,778,094)."
+DD10,revenue_growth,ok,True,Crecimiento de ingresos 16.19× en el horizonte.
+DD07,runway,ok,True,La caja nunca cae por debajo de cero.
+DD08,funding_gap_severity,ok,True,Brecha de financiamiento moderada (0).
+C08,ltv_cac,warning,False,"LTV/CAC 111.1× fuera de banda [1.0, 20.0]. Artefacto de fórmula — usar ARPU ponderado y margen por servicio."
+C09,mix_concentration,warning,False,100% de la adquisición se concentra en 'Sesiones_Blended'. Considerar simplificar el mix.

@@ -1,0 +1,48 @@
+{
+  "all_passed": true,
+  "tolerance_pct": 0.005,
+  "checks": [
+    {
+      "name": "revenue_monthly_eq_annual",
+      "passed": true,
+      "lhs": 5123494.47,
+      "rhs": 5123494.47,
+      "diff_pct": 0.0,
+      "skipped": false
+    },
+    {
+      "name": "revenue_decomposition_by_service",
+      "passed": true,
+      "lhs": 5123494.47,
+      "rhs": 5123494.47,
+      "diff_pct": 0.0,
+      "skipped": false
+    },
+    {
+      "name": "ebitda_definition",
+      "passed": true,
+      "lhs": 2827683.85,
+      "rhs": 2827683.85,
+      "diff_pct": 0.0,
+      "skipped": false
+    },
+    {
+      "name": "cash_accumulation",
+      "passed": true,
+      "lhs": 2974533.8,
+      "rhs": 2974533.85,
+      "diff_pct": 0.0,
+      "skipped": false,
+      "note": "Caja final comparada con VC + suma de EBITDA"
+    },
+    {
+      "name": "gp_consistency_ue_vs_pnl",
+      "passed": true,
+      "lhs": 0.7,
+      "rhs": 0.7,
+      "diff_pct": 0.0,
+      "skipped": false,
+      "note": "Consistencia entre GP unit economics y margen bruto P&L"
+    }
+  ]
+}

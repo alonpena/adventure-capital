@@ -1,0 +1,87 @@
+# beloop.yaml — SaaS B2B (Simple + Pro + Enterprise plans)
+# Fuente: Modelamiento Beloop (Excel de Alejandro Maureira)
+# Moneda: USD (CLP 900 = 1 USD) | Horizonte: 36 meses
+#
+# SIMPLIFICACIONES DOCUMENTADAS:
+# - 3 planes SaaS (Simple/Pro/Enterprise) colapsados a 2 servicios
+#   Service 1: SaaS_Recurrente (Simple+Pro, 89% de clientes)
+#   Service 2: SaaS_Enterprise (11% de clientes, 0 churn, ticket mayor)
+# - Plan downgrades (Enterprise→Pro a 12 meses, Pro→Simple a 12 meses)
+#   NO modelados — efecto capturado parcialmente en churn agregado
+# - Revenue compuesto de: Setup + Licencias + Asesorías, colapsado a ARPU mensual
+# - Cifras originales en CLP M$ convertidas a USD a tasa 900
+#
+# TARGETS DE VALIDACIÓN CRUZADA (Excel original):
+#   VAN (post-money): 1,923 MUS$ (~USD 1,923,139)
+#   EBITDA yr1:    440 MUS$ (CLP M$ 395,593 / 900)
+#   EBITDA yr3:    2,388 MUS$
+#   Revenue yr1:   828 MUS$ (CLP M$ 744,884 / 900)
+#   Revenue yr3:   4,058 MUS$
+#   Capital:       243 MUS$ (CLP M$ 218,735 / 900)
+#   Tolerancia:    ±20%
+
+H: 36
+VC: 243000         # capital de trabajo (M$ 218,735 CLP / 900)
+beta: 0.35         # estandarizado (Excel usa CAPM + castigo 10%)
+g_max_suavizado: 0.25
+
+servicios:
+  # ────────────────────────────────────────────────────────
+  # Servicio 1: SaaS Recurrente (Simple + Pro)
+  # ~89% de los clientes, churn 2.2% mensual yr1
+  # Revenue: setup + licencias anuales + asesorías
+  # Ticket ponderado Simple/Pro: ~$650/mes (licencia + asesorías)
+  # ────────────────────────────────────────────────────────
+  - nombre: SaaS_Recurrente
+    ticket: 650            # ARPU mensual ponderado Simple($350) + Pro($900)
+    frecuencia: 1          # mensual (SaaS subscription)
+    alpha: 0.85            # recompra mensual (ARR yr1 = 8.3% but grows)
+    churn_anual: [0.24, 0.09, 0.06]  # derivado de monthly 2.2%/0.8%/0.5%
+    c_u: 28                # costo unitario (setup CLP 25K = $28 por servicio)
+    c_min: 2000            # costo mínimo mensual operación SaaS
+    u_max: 100             # clientes máximos por escalón de capacidad
+    A_base: [2, 2, 3, 3, 4, 4, 4, 5, 5, 6, 6, 7]  # Simple plan acquisition
+
+  # ────────────────────────────────────────────────────────
+  # Servicio 2: SaaS Enterprise
+  # ~11% de clientes, 0 churn, ticket alto
+  # Licencia CLP 2M/año + setup + asesorías premium
+  # ────────────────────────────────────────────────────────
+  - nombre: SaaS_Enterprise
+    ticket: 2200           # ARPU mensual Enterprise (licencia $185 + asesorías + setup amortizado)
+    frecuencia: 1          # mensual
+    alpha: 0.95            # alta retención Enterprise (0% churn)
+    churn_anual: [0.0, 0.0, 0.0]  # Enterprise churn = 0 (dato directo Excel)
+    c_u: 50                # costo unitario mayor (soporte dedicado)
+    c_min: 3000            # costo mínimo Enterprise
+    u_max: 30              # capacidad limitada por equipo de implementación
+    A_base: [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1]  # Enterprise acquisition (lento)
+
+# ────────────────────────────────────────────────────────
+# Estructura comercial
+# ────────────────────────────────────────────────────────
+meta: 5            # clientes/vendedor/mes (dato directo Excel)
+sup: 5             # vendedores por supervisor
+rem_v: 1111        # CLP 1,000,000 / 900
+rem_l: 2222        # CLP 2,000,000 / 900
+com_v: 0.08        # comisión vendedor (estimado SaaS B2B)
+com_l: 0.04        # comisión líder
+g_adm: 3500        # gastos admin estimados (hosting, legal, contabilidad)
+RRHH_mensual: [6860, 25273, 37373]  # M$ 82,322→303,273→448,473 CLP/yr / 900 / 12
+
+# ────────────────────────────────────────────────────────
+# Capital de trabajo y valorización
+# ────────────────────────────────────────────────────────
+ciclo_op: [180, 120, 90]
+buffer_caja: 0
+tax: 0.125
+
+liquidity_policy:
+  type: none
+
+solver:
+  name: cbc
+  time_limit: 120
+  verbose: false
+
+commercial_productivity_lag: 0

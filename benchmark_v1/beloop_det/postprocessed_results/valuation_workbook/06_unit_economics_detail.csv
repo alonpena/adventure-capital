@@ -1,0 +1,16 @@
+Unit Economic,Definición,Fórmula / Fuente,Valor,Unidad
+Adquisición,Clientes nuevos captados en el horizonte,Σ Adquisición mensual,2058.2756461999998,# clientes
+MoM Growth,Crecimiento mensual equivalente de adquisición,(Σ Adq. año 1 / base)^(1/11) - 1,0.3508540151233972,%
+CHURN,Porcentaje de clientes perdidos en un año,Parámetro promedio año 1,0.115,%
+CAC,Costo de adquisición por cliente,Σ CAC / Σ Adquisición,562.0049326899529,USD/cliente
+Ticket promedio,Precio promedio por servicio,Parámetro configurado,3450.0,USD
+Recurrencia mensual,Veces que compra cada cliente al mes,1 / frecuencia promedio,1.0,veces/mes
+ARR,Porcentaje de ingresos recurrentes sobre total,Ingresos recurrentes / Total ingresos,0.8692618784060515,%
+Gross Profit (GP),Margen bruto operacional,1 - Costos operacionales / Ingresos,0.979664183385735,%
+ARPU,Ingreso promedio por usuario,Ingresos totales / clientes activos promedio * horizonte,1648.5331430599538,USD/cliente
+Cash Burn Rate,Dinero consumido por día,Σ EBITDA negativo / 360,52.861123055555545,USD/día
+Bootstrapping,Capital de trabajo hasta punto de equilibrio,"max(VC, CBR × ciclo operacional)",243039.0,USD
+LTV,Valor anual estimado que genera cada cliente (suma de líneas),Σ_servicio (ticket × frecuencia anual × margen) / churn anual,72463.82608695651,USD/cliente
+LTV(2),Valor por cliente medido por VAN,VAN / Σ adquisición,5319.896626710611,USD/cliente
+LTV/CAC,Eficiencia del capital de adquisición,LTV / CAC,128.9380606325272,ratio
+Clientes monetizados,Clientes que compran recurrentemente,Adquisición × ARR,1789.1805544932413,# clientes

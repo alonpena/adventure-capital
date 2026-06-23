@@ -1,0 +1,71 @@
+=========================================
+DUE DILIGENCE VERDICT SUMMARY
+=========================================
+Verdict: passed_with_warnings
+Allows Stochastic: True
+Valuation Mode: final
+Adjustment Level: none
+Rerun Recommended: False
+Calibration Verdict: WARN
+
+-----------------------------------------
+Liquidity Trajectory Diagnostic
+-----------------------------------------
+Minimum Cash: 57,824.50
+Minimum Cash Month: 9
+Maximum Funding Gap: 0.00
+Maximum Funding Gap Month: None
+Financing Gap Alert: 
+Breakeven Month: 17
+Cash Went Negative: False
+Cash Recovers: False
+Final Cash: 2,153,250.40
+
+-----------------------------------------
+Blocking Reasons
+-----------------------------------------
+None
+
+-----------------------------------------
+Adjustment Recommendations
+-----------------------------------------
+None
+
+-----------------------------------------
+Findings Details
+-----------------------------------------
+[DD01] instance_valid (ok) - PASSED
+  Message: Config válido y completo.
+
+[DD02] unit_margin_positive (ok) - PASSED
+  Message: Todos los servicios tienen margen unitario positivo.
+
+[DD03] financing_present (ok) - PASSED
+  Message: Financiamiento inicial VC=114,471.
+
+[DD04] churn_valid (ok) - PASSED
+  Message: Churn anual dentro de [0,1].
+
+[DD05] churn_severity (ok) - PASSED
+  Message: Churn anual máximo 22% en rango aceptable.
+
+[DD06] breakeven_within_horizon (ok) - PASSED
+  Message: Breakeven en el mes 17.
+
+[DD09] ebitda_regime_by_year3 (ok) - PASSED
+  Message: EBITDA año 3 positivo (1,778,094).
+
+[DD10] revenue_growth (ok) - PASSED
+  Message: Crecimiento de ingresos 16.19× en el horizonte.
+
+[DD07] runway (ok) - PASSED
+  Message: La caja nunca cae por debajo de cero.
+
+[DD08] funding_gap_severity (ok) - PASSED
+  Message: Brecha de financiamiento moderada (0).
+
+[C08] ltv_cac (warning) - FAILED
+  Message: LTV/CAC 111.1× fuera de banda [1.0, 20.0]. Artefacto de fórmula — usar ARPU ponderado y margen por servicio.
+
+[C09] mix_concentration (warning) - FAILED
+  Message: 100% de la adquisición se concentra en 'Sesiones_Blended'. Considerar simplificar el mix.

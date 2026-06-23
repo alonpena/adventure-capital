@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "levers": [
+    {
+      "finding_id": "DD03",
+      "current_value": 0.0,
+      "lever": "VC",
+      "suggested_direction": "increase",
+      "impact_area": "financing"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "levers": [
+    {
+      "finding_id": "C07",
+      "current_value": null,
+      "lever": null,
+      "suggested_direction": null,
+      "impact_area": "unmapped"
+    },
+    {
+      "finding_id": "C08",
+      "current_value": null,
+      "lever": "meta | commission rates",
+      "suggested_direction": "adjust",
+      "impact_area": "acquisition_cost"
+    },
+    {
+      "finding_id": "C09",
+      "current_value": null,
+      "lever": "A_base | acquisition ceiling slack",
+      "suggested_direction": "increase",
+      "impact_area": "growth"
+    }
+  ]
+}

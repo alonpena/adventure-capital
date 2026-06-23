@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-06-23T07:33:02.704346+00:00",
+  "is_canonical": false,
+  "derived_from": "flat pipeline outputs (see ADR 0007)",
+  "folders": {
+    "accelerated_growth_plan": "postprocessed_results/accelerated_growth_plan",
+    "valuation_workbook": "postprocessed_results/valuation_workbook"
+  }
+}

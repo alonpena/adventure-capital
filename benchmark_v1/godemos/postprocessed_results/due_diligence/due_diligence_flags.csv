@@ -1,0 +1,6 @@
+id,name,severity_class,passed,message
+DD01,instance_valid,ok,True,Config válido y completo.
+DD02,unit_margin_positive,ok,True,Todos los servicios tienen margen unitario positivo.
+DD03,financing_present,structural,False,Falta input esencial: `VC` <= 0 (sin capital de trabajo inicial para ejecutar el plan).
+DD04,churn_valid,ok,True,"Churn anual dentro de [0,1]."
+DD05,churn_severity,ok,True,Churn anual máximo 35% en rango aceptable.

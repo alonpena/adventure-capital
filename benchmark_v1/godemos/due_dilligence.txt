@@ -1,0 +1,38 @@
+=========================================
+DUE DILIGENCE VERDICT SUMMARY
+=========================================
+Verdict: rejected_for_stochastic
+Allows Stochastic: False
+Valuation Mode: none
+Adjustment Level: structural
+Rerun Recommended: True
+Calibration Verdict: None
+
+-----------------------------------------
+Blocking Reasons
+-----------------------------------------
+- Falta input esencial: `VC` <= 0 (sin capital de trabajo inicial para ejecutar el plan).
+
+-----------------------------------------
+Adjustment Recommendations
+-----------------------------------------
+- {'id': 'DD03', 'severity_class': 'structural', 'recommendation': 'Definir un `VC` (capital de trabajo inicial) > 0.'}
+
+-----------------------------------------
+Findings Details
+-----------------------------------------
+[DD01] instance_valid (ok) - PASSED
+  Message: Config válido y completo.
+
+[DD02] unit_margin_positive (ok) - PASSED
+  Message: Todos los servicios tienen margen unitario positivo.
+
+[DD03] financing_present (structural) - FAILED
+  Message: Falta input esencial: `VC` <= 0 (sin capital de trabajo inicial para ejecutar el plan).
+  Recommendation: Definir un `VC` (capital de trabajo inicial) > 0.
+
+[DD04] churn_valid (ok) - PASSED
+  Message: Churn anual dentro de [0,1].
+
+[DD05] churn_severity (ok) - PASSED
+  Message: Churn anual máximo 35% en rango aceptable.

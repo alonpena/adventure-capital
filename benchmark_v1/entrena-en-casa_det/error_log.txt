@@ -1,0 +1,12 @@
+=========================================
+PIPELINE WARNINGS & ERRORS LOG
+=========================================
+Failing checks and warnings found: 2
+
+1. [C08] ltv_cac (Severity: warning)
+   Message: LTV/CAC 111.1× fuera de banda [1.0, 20.0]. Artefacto de fórmula — usar ARPU ponderado y margen por servicio.
+   Source: calibration
+
+2. [C09] mix_concentration (Severity: warning)
+   Message: 100% de la adquisición se concentra en 'Sesiones_Blended'. Considerar simplificar el mix.
+   Source: calibration

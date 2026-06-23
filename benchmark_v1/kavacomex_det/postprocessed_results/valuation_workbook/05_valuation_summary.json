@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-06-23T07:33:02.482500+00:00",
+  "method": "dcf",
+  "vc_invested": 146850.0,
+  "van": 1198713.3202637038,
+  "vp_flujos": 1345563.3202637038,
+  "vr_nominal": 0.0,
+  "vr_pv": 0.0,
+  "valor_desecho_nominal": 0.0,
+  "valor_desecho_vp": 0.0,
+  "beta_anual": 0.25595,
+  "beta_mensual": 0.0191724979646275,
+  "tax": 0.125,
+  "terminal_value_method": "none",
+  "ebitda_ultimo_mes": 385090.24,
+  "ebitda_anualizado": 4621082.88,
+  "multiples_reference": {
+    "status": "implemented_reference",
+    "methodological_note": "Configurable multiples; not market-calibrated comparables unless evidence is supplied.",
+    "valor_por_ingresos": 6155811.9819,
+    "valor_por_ebitda": 7611206.159999999,
+    "mult_ingresos": 1.5,
+    "mult_ebitda": 3.0
+  },
+  "unit_economics": {
+    "Adquisición": 2391.1755851999997,
+    "MoM Growth": 0.4204524225190909,
+    "CHURN": 0.1,
+    "CAC": 170.68234065540761,
+    "Ticket promedio": 203.85,
+    "Recurrencia mensual": 1.0,
+    "ARR": 0.842354116292144,
+    "Gross Profit (GP)": 0.7043324284925526,
+    "ARPU": 265.291823400886,
+    "Cash Burn Rate": 314.1213598833333,
+    "Bootstrapping": 146850.0,
+    "LTV": 36684.0,
+    "LTV(2)": 501.30710922403574,
+    "LTV/CAC": 214.92557378306478,
+    "Clientes monetizados": 2014.2165969704959
+  },
+  "formula_refs": [
+    "DCF-001",
+    "DCF-002",
+    "DCF-003",
+    "UE-001",
+    "UE-002",
+    "UE-003"
+  ]
+}

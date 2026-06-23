@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "layers": {
+    "input_variables": {
+      "company": "Empresa Demo SpA",
+      "sensitivity_method": "calculation",
+      "investment_total": 100000
+    },
+    "operating_flows": {
+      "total_acquisition": 1492.318292,
+      "total_services_sold": 11140.958523000001,
+      "active_clients_final": 1403.9997
+    },
+    "financial_results": {
+      "total_revenue": 2652662.2279,
+      "total_ebitda": 2038779.4093799999,
+      "final_cash": 2153250.4,
+      "last_year_ebitda": 1778093.956
+    },
+    "valuation": {
+      "ltv_cac": 111.14289893659796,
+      "cac": 111.6842300288577,
+      "ltv": 12412.90909090909
+    }
+  }
+}

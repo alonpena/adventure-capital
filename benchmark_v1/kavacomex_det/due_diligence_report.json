@@ -1,0 +1,177 @@
+{
+  "schema_version": "2.0",
+  "created_at": "2026-06-23T07:33:02.724624+00:00",
+  "verdict": "passed_with_warnings",
+  "allows_stochastic": true,
+  "valuation_mode": "final",
+  "adjustment_level": "none",
+  "rerun_recommended": false,
+  "blocking_reasons": [],
+  "adjustment_recommendations": [],
+  "calibration_verdict": "WARN",
+  "liquidity_diagnostic": {
+    "min_cash": 33766.311,
+    "min_cash_month": 12,
+    "working_capital_floor": 0.0,
+    "max_funding_gap": 0.0,
+    "max_funding_gap_month": null,
+    "breakeven_month": 20,
+    "cash_went_negative": false,
+    "cash_recovers": false,
+    "final_cash": 2974533.8
+  },
+  "summary": {
+    "total_findings": 12,
+    "failing": 2,
+    "structural": 0,
+    "major": 0,
+    "minor": 0,
+    "warnings": 2
+  },
+  "findings": [
+    {
+      "id": "DD01",
+      "name": "instance_valid",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "Config válido y completo.",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "DD02",
+      "name": "unit_margin_positive",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "Todos los servicios tienen margen unitario positivo.",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "DD03",
+      "name": "financing_present",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "Financiamiento inicial VC=146,850.",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "DD04",
+      "name": "churn_valid",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "Churn anual dentro de [0,1].",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "DD05",
+      "name": "churn_severity",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "Churn anual máximo 10% en rango aceptable.",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "DD06",
+      "name": "breakeven_within_horizon",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "Breakeven en el mes 20.",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "DD09",
+      "name": "ebitda_regime_by_year3",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "EBITDA año 3 positivo (2,537,069).",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "DD10",
+      "name": "revenue_growth",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "Crecimiento de ingresos 36.17× en el horizonte.",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "DD07",
+      "name": "runway",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "La caja nunca cae por debajo de cero.",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "DD08",
+      "name": "funding_gap_severity",
+      "severity_class": "ok",
+      "passed": true,
+      "message": "Brecha de financiamiento moderada (0).",
+      "evidence": {},
+      "recommendation": "",
+      "source": "due_diligence"
+    },
+    {
+      "id": "C08",
+      "name": "ltv_cac",
+      "severity_class": "warning",
+      "passed": false,
+      "message": "LTV/CAC 214.9× fuera de banda [1.0, 20.0]. Artefacto de fórmula — usar ARPU ponderado y margen por servicio.",
+      "evidence": {
+        "value": {
+          "ltv_cac": 214.9255737830648
+        },
+        "threshold": {
+          "min_ratio": 1.0,
+          "max_ratio": 20.0
+        }
+      },
+      "recommendation": "",
+      "source": "calibration"
+    },
+    {
+      "id": "C09",
+      "name": "mix_concentration",
+      "severity_class": "warning",
+      "passed": false,
+      "message": "94% de la adquisición se concentra en 'Vino_Blended'. Considerar simplificar el mix.",
+      "evidence": {
+        "value": {
+          "top_service": "Vino_Blended",
+          "top_pct": 0.9352704430582189,
+          "totals": {
+            "A_Vino_Blended": 2236.395849,
+            "A_Licencias_Software": 154.77973620000003
+          }
+        },
+        "threshold": {
+          "max_concentration": 0.85
+        }
+      },
+      "recommendation": "",
+      "source": "calibration"
+    }
+  ],
+  "inputs": {
+    "output_dir": "benchmark_v1/kavacomex_det",
+    "config": "benchmark_v1/kavacomex_det/config.yaml"
+  }
+}

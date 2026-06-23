@@ -1,0 +1,103 @@
+# kavacomex.yaml — Distribución de vinos (HORECA/Retail/Distribuidores) + SaaS
+# Fuente: Modelamiento Financiero KavaComex 2026 (Excel de Alejandro Maureira)
+# Moneda: USD (MUS$ directamente) | Horizonte: 36 meses
+#
+# SIMPLIFICACIONES DOCUMENTADAS (CASO MÁS COMPLEJO):
+# - 3 canales de vino (HORECA $12.5/bot, Retail $10.5/bot, Distribuidor $9/bot)
+#   colapsados a servicio único con ticket ponderado mensual
+# - Cadena logística completa (Chile→Miami→FL/MA) NO modelada —
+#   costos logísticos capturados en c_u agregado ($3.68/botella promedio)
+# - Software licenses tratadas como servicio separado (SaaS recurrente)
+# - Freelance sellers (1→2 a mes 26) con comisión 20% + bonos → simplificado
+# - Cajas A(6 bot)/B(12 bot)/muestras colapsados a volumen unitario
+# - Stock/bodegaje/lead times NO modelados (fuera del alcance MILP actual)
+#
+# GAPS ESTRUCTURALES:
+# - Logística tiene costo de capital circulante (contenedores) no capturado
+# - Margen por canal varía significativamente — modelo asume margen promedio
+# - Bonificaciones por calidad de vendedor NO representables en YAML
+#
+# TARGETS DE VALIDACIÓN CRUZADA (Excel original):
+#   VAN:           1,789 MUS$ (~USD 1,789,000)
+#   Revenue yr1:   135 MUS$ (wine + software)
+#   Revenue yr3:   2,361 MUS$
+#   Capital:       20.2 MUS$ (capital de trabajo)
+#   Churn:         10% anual (todos los canales)
+#   Tolerancia:    ±20% (puede ser >20% por simplificación logística)
+
+H: 36
+VC: 147000         # capital de trabajo + inversión logística (146.8 MUS$ del resumen)
+beta: 0.35         # estandarizado
+g_max_suavizado: 0.25
+
+servicios:
+  # ────────────────────────────────────────────────────────
+  # Servicio 1: Distribución de Vino (3 canales colapsados)
+  # HORECA: 78 clientes/yr, $12.5/bot, ~94% del volumen
+  # Retail: 2 clientes/yr, $10.5/bot, ~2% del volumen
+  # Distribuidores: 3 clientes/yr, $9/bot, ~4% del volumen
+  # Revenue yr1 wine: ~$135K, avg ~80 clients
+  # ARPU mensual ≈ $135K / 80 / 12 ≈ $141
+  # ────────────────────────────────────────────────────────
+  - nombre: Distribucion_Vinos
+    ticket: 140            # ARPU mensual ponderado (3 canales × precio × volumen)
+    frecuencia: 1          # mensual (reposición continua de inventario)
+    alpha: 0.76            # tasa de recurrencia (76.5% yr1, sube a 93% yr2)
+    churn_anual: [0.10, 0.10, 0.10]  # 10% anual todos los canales (dato directo)
+    c_u: 97                # costo unitario mensual por cliente (logística $3.68/bot × ~316 bot/yr/12)
+    c_min: 5000            # costo fijo logístico mínimo (bodega, transporte base)
+    u_max: 50              # clientes máximos por escalón de capacidad logística
+    A_base: [1, 2, 3, 5, 5, 7, 7, 9, 9, 10, 11, 14]  # HORECA+Retail+Distrib sumados
+
+  # ────────────────────────────────────────────────────────
+  # Servicio 2: Licencias de Software
+  # 12 licencias/año, precio no visible directo en MD
+  # Revenue estimado como complemento marginal (~5% del total)
+  # ────────────────────────────────────────────────────────
+  - nombre: Licencias_Software
+    ticket: 50             # estimado licencia mensual SaaS complementario
+    frecuencia: 1          # mensual (SaaS)
+    alpha: 0.95            # alta retención software
+    churn_anual: [0.10, 0.10, 0.10]  # 10% anual (dato directo)
+    c_u: 5                 # costo unitario mínimo (digital)
+    c_min: 200             # costo mínimo hosting/mantenimiento
+    u_max: 200             # escalabilidad SaaS
+    A_base: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]  # flat 1/mes
+
+# ────────────────────────────────────────────────────────
+# Estructura comercial
+# Excel: 1 vendedor freelance, meta 20 clientes/mes
+# Comisión 20% sobre ventas nuevas + bonos calidad (no modelados)
+# Vendedor 2 ingresa mes 26
+# ────────────────────────────────────────────────────────
+meta: 20           # clientes/vendedor/mes (dato directo Excel)
+sup: 99            # sin supervisores
+rem_v: 1111        # CLP 1,000,000 / 900 (vendedor freelance)
+rem_l: 1500        # placeholder
+com_v: 0.20        # 20% comisión sobre ingreso nuevo (dato directo Excel)
+com_l: 0.05        # placeholder
+
+# ────────────────────────────────────────────────────────
+# Gastos fijos
+# Excel: G_adm ~23K MUS$/año = ~$1,922/mes
+# RRHH: [92.2K, 105.7K, 105.7K] MUS$/año
+# ────────────────────────────────────────────────────────
+g_adm: 1922        # gastos admin (23K MUS$/yr / 12)
+RRHH_mensual: [7681, 8811, 8811]  # [92.2K, 105.7K, 105.7K] MUS$/yr / 12
+
+# ────────────────────────────────────────────────────────
+# Capital de trabajo y valorización
+# ────────────────────────────────────────────────────────
+ciclo_op: [180, 120, 90]   # estimado (no visible en grep, usando estándar)
+buffer_caja: 0
+tax: 0.125
+
+liquidity_policy:
+  type: none
+
+solver:
+  name: cbc
+  time_limit: 120
+  verbose: false
+
+commercial_productivity_lag: 0

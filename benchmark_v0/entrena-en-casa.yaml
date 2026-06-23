@@ -1,0 +1,79 @@
+# entrena-en-casa.yaml — Servicio de entrenamiento personal (sesiones presenciales)
+# Fuente: Modelamiento Financiero Entrena en Casa 2026 (Excel de Alejandro Maureira)
+# Moneda: USD (CLP 900 = 1 USD) | Horizonte: 36 meses
+#
+# SIMPLIFICACIONES DOCUMENTADAS:
+# - 4 tipos de sesión (Individual, Duo, Grupal, Empresa) colapsados a servicio único
+#   con ticket = ARPU mensual efectivo ($143) y frecuencia mensual
+# - Ticket por sesión real: CLP 2,379 (~$2.64 USD) × ~6 sesiones/mes = $143/mes
+# - Churn por tipo (0.021/0.007/0.002/0) colapsado a weighted avg mensual ≈ 0.014
+# - Base actual: 13 clientes (6 Ind + 2 Duo + 5 Grupal + 0 Empresa)
+# - 100% presencial (online = 0% en todas las modalidades)
+# - Precios con +5% anual y +20% premio Santiago (60% clientes) NO modelados
+#
+# TARGETS DE VALIDACIÓN CRUZADA (Excel original):
+#   VAN:           1,413 MUS$ (~USD 1,412,848)
+#   EBITDA yr1:    -17.8 MUS$ (negativo — breakeven en año 2)
+#   EBITDA yr3:    942 MUS$
+#   Revenue yr1:   173 MUS$
+#   Revenue yr3:   1,141 MUS$
+#   Capital:       114.5 MUS$ inversión inicial
+#   Tolerancia:    ±20%
+
+H: 36
+VC: 114000         # capital de trabajo inicial (114.471 MUS$ del Excel)
+beta: 0.35         # estandarizado (Excel usa 0.2264 con beta 0.76 Healthcare)
+g_max_suavizado: 0.25
+
+servicios:
+  # ────────────────────────────────────────────────────────
+  # Servicio único: Sesiones de Entrenamiento (agregado)
+  # Revenue yr1 ≈ 173 MUS$, clientes promedio ≈ 101
+  # ARPU mensual = 173K / 101 / 12 ≈ $143
+  # Compuesto de: Individual (56%), Duo (26%), Grupal (9%), Empresa (8%)
+  # Cada cliente toma ~9.69 sesiones/mes en paquetes de 8/12/24
+  # ────────────────────────────────────────────────────────
+  - nombre: Sesiones_Entrenamiento
+    ticket: 143            # ARPU mensual efectivo (pondera 4 tipos × frecuencia × ticket)
+    frecuencia: 1          # mensual (paquetes de sesiones renovados cada mes)
+    alpha: 0.87            # alto: fitness clientela recurrente (ARR yr1 = 86.7%)
+    churn_anual: [0.22, 0.15, 0.07]  # derivado de churn mensual ponderado ~1.4%/1.08%/0.5%
+    c_u: 10                # costo por sesión presencial ($10.53 Excel)
+    c_min: 8000            # costo mínimo mensual (entrenadores base ~$10.5K/mes → $126K/yr)
+    u_max: 500             # sesiones máximas por escalón de capacidad
+    A_base: [20, 5, 5, 6, 7, 6, 5, 4, 7, 12, 10, 9]  # total agregado año 1
+
+# ────────────────────────────────────────────────────────
+# Estructura comercial
+# Excel: 1 vendedor, meta nominal 1000 (no es restricción real)
+# El crecimiento es orgánico + referidos, no fuerza de venta intensiva
+# ────────────────────────────────────────────────────────
+meta: 20           # clientes/vendedor/mes (ajustado: 1 seller para ~8 clientes/mes)
+sup: 99            # sin supervisores
+rem_v: 1123        # sueldo bruto vendedor (CLP 1,010,335 / 900)
+rem_l: 1500        # placeholder
+com_v: 0.01        # 1% comisión (dato directo Excel)
+com_l: 0.01        # placeholder
+
+# ────────────────────────────────────────────────────────
+# Gastos fijos
+# ────────────────────────────────────────────────────────
+g_adm: 711         # CLP 640,000 / 900 (hosting, contabilidad, movilización)
+RRHH_mensual: [3361, 3361, 3361]  # CLP 2.5M bruto + leyes sociales / 900
+
+# ────────────────────────────────────────────────────────
+# Capital de trabajo y valorización
+# ────────────────────────────────────────────────────────
+ciclo_op: [180, 120, 90]
+buffer_caja: 0
+tax: 0.125
+
+liquidity_policy:
+  type: none
+
+solver:
+  name: cbc
+  time_limit: 120
+  verbose: false
+
+commercial_productivity_lag: 0

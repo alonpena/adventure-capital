@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-06-23T07:33:01.206967+00:00",
+  "solver_status": "Optimal",
+  "objective_value": 12794454.577038515,
+  "total_acquisition": 2058.2756461999998,
+  "total_revenue": 28552185.0936,
+  "total_ebitda": 25776782.128000006,
+  "final_cash": 26019821.0,
+  "minimum_cash": 224009.0,
+  "max_sellers": 45.0,
+  "max_leaders": 9.0,
+  "enabled_channels": [
+    "salesforce"
+  ],
+  "breakeven_month": 6
+}

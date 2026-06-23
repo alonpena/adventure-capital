@@ -1,0 +1,141 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-06-23T07:33:02.482623+00:00",
+  "formulas": [
+    {
+      "id": "DCF-001",
+      "name": "Impuesto",
+      "expression": "max(EBITDA * tax, 0)",
+      "source_fields": [
+        "optimized_results.EBITDA",
+        "startup.yaml.tax"
+      ],
+      "output_fields": [
+        "dcf_cashflow.Impuesto"
+      ],
+      "assumptions": [
+        "Tax applies only when EBITDA is positive."
+      ],
+      "limitations": [
+        "No deferred tax assets are modeled."
+      ],
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "DCF-002",
+      "name": "FC_neto",
+      "expression": "EBITDA - Impuesto",
+      "source_fields": [
+        "dcf_cashflow.EBITDA",
+        "dcf_cashflow.Impuesto"
+      ],
+      "output_fields": [
+        "dcf_cashflow.FC_neto"
+      ],
+      "assumptions": [
+        "EBITDA is used as operating cashflow proxy."
+      ],
+      "limitations": [
+        "Working-capital timing beyond modeled cash balance is simplified."
+      ],
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "DCF-003",
+      "name": "VAN",
+      "expression": "-VC + sum_t(FC_neto_t / (1 + beta_mensual)^t) + terminal_value_pv",
+      "source_fields": [
+        "startup.yaml.VC",
+        "dcf_cashflow.FC_neto",
+        "startup.yaml.beta"
+      ],
+      "output_fields": [
+        "valuation_summary.van",
+        "summary.json.van"
+      ],
+      "assumptions": [
+        "Annual WACC is converted to monthly discount factor."
+      ],
+      "limitations": [
+        "Terminal value depends on configured method; default may be none."
+      ],
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "UE-001",
+      "name": "Annual LTV",
+      "expression": "sum_s(ticket_s * (12 / frecuencia_s) * (1 - c_u_s / ticket_s) / churn_anual_s[0])",
+      "source_fields": [
+        "startup.yaml.servicios"
+      ],
+      "output_fields": [
+        "unit_economics.LTV"
+      ],
+      "assumptions": [
+        "Annual, service-summed; first-year churn used."
+      ],
+      "limitations": [
+        "Not cohort-specific by acquisition month."
+      ],
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "UE-002",
+      "name": "CAC per customer",
+      "expression": "sum(total_acquisition_cost) / sum(new_customers)",
+      "source_fields": [
+        "optimized_results.total_acquisition_cost",
+        "optimized_results.new_customers"
+      ],
+      "output_fields": [
+        "unit_economics.CAC"
+      ],
+      "assumptions": [
+        "CAC component columns reconcile to CAC alias."
+      ],
+      "limitations": [
+        "Ratio is horizon aggregate, not cohort-level CAC."
+      ],
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "UE-003",
+      "name": "LTV/CAC",
+      "expression": "Annual LTV / cumulative CAC per user",
+      "source_fields": [
+        "unit_economics.LTV",
+        "optimized_results.cumulative_cac_per_user"
+      ],
+      "output_fields": [
+        "unit_economics.LTV/CAC"
+      ],
+      "assumptions": [
+        "Uses cumulative CAC when available."
+      ],
+      "limitations": [
+        "High values may reflect calibration artifact and require DD interpretation."
+      ],
+      "implementation_status": "implemented"
+    },
+    {
+      "id": "MULT-001",
+      "name": "Multiples reference",
+      "expression": "reference_year_metric * configured_multiple",
+      "source_fields": [
+        "dcf_annual_summary",
+        "startup.yaml.mult_ingresos",
+        "startup.yaml.mult_ebitda"
+      ],
+      "output_fields": [
+        "multiples_valuation.Valorización"
+      ],
+      "assumptions": [
+        "Multiples are configurable references."
+      ],
+      "limitations": [
+        "Not market-calibrated comparable-company analysis unless external evidence is supplied."
+      ],
+      "implementation_status": "methodological_reference"
+    }
+  ]
+}
