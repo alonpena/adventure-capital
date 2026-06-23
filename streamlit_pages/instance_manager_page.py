@@ -110,29 +110,33 @@ def _channels_form(st, base: dict) -> dict:
 
 
 def _build_config(st, base: dict) -> dict:
-    config = deepcopy(base)
+    # Start from the merged config (base + loaded YAML extra fields) so that
+    # fields without dedicated form widgets (empresa, target_market,
+    # working_capital, acquisition_ceiling, …) are preserved from the YAML.
+    config = deepcopy(st.session_state.get("merged_config", base))
 
-    config["H"] = int(st.session_state.get("f_H", base["H"]))
-    config["VC"] = float(st.session_state.get("f_VC", base["VC"]))
-    config["beta"] = float(st.session_state.get("f_beta", base["beta"]))
-    config["g_max_suavizado"] = float(st.session_state.get("f_gmax", base["g_max_suavizado"]))
-    config["meta"] = float(st.session_state.get("f_meta", base["meta"]))
-    config["sup"] = float(st.session_state.get("f_sup", base["sup"]))
-    config["rem_v"] = float(st.session_state.get("f_remv", base["rem_v"]))
-    config["rem_l"] = float(st.session_state.get("f_reml", base["rem_l"]))
-    config["com_v"] = float(st.session_state.get("f_comv", base["com_v"]))
-    config["com_l"] = float(st.session_state.get("f_coml", base["com_l"]))
-    config["g_adm"] = float(st.session_state.get("f_gadm", base["g_adm"]))
-    config["tax"] = float(st.session_state.get("f_tax", base["tax"]))
+    # Override with session-state values from form widgets
+    config["H"] = int(st.session_state.get("f_H", config.get("H", base["H"])))
+    config["VC"] = float(st.session_state.get("f_VC", config.get("VC", base["VC"])))
+    config["beta"] = float(st.session_state.get("f_beta", config.get("beta", base["beta"])))
+    config["g_max_suavizado"] = float(st.session_state.get("f_gmax", config.get("g_max_suavizado", base["g_max_suavizado"])))
+    config["meta"] = float(st.session_state.get("f_meta", config.get("meta", base["meta"])))
+    config["sup"] = float(st.session_state.get("f_sup", config.get("sup", base["sup"])))
+    config["rem_v"] = float(st.session_state.get("f_remv", config.get("rem_v", base["rem_v"])))
+    config["rem_l"] = float(st.session_state.get("f_reml", config.get("rem_l", base["rem_l"])))
+    config["com_v"] = float(st.session_state.get("f_comv", config.get("com_v", base["com_v"])))
+    config["com_l"] = float(st.session_state.get("f_coml", config.get("com_l", base["com_l"])))
+    config["g_adm"] = float(st.session_state.get("f_gadm", config.get("g_adm", base["g_adm"])))
+    config["tax"] = float(st.session_state.get("f_tax", config.get("tax", base["tax"])))
     config["RRHH_mensual"] = [float(x.strip()) for x in st.session_state.get("f_rrhh", "").split(",") if x.strip()]
     config["ciclo_op"] = [float(x.strip()) for x in st.session_state.get("f_ciclo", "").split(",") if x.strip()]
-    config["commercial_productivity_lag"] = int(st.session_state.get("f_lag", base["commercial_productivity_lag"]))
-    config["servicios"] = deepcopy(st.session_state.get("services", base["servicios"]))
-    config["channels"] = st.session_state.get("f_channels", base["channels"])
-    config["liquidity_policy"] = {"type": st.session_state.get("f_liq", "none")}
+    config["commercial_productivity_lag"] = int(st.session_state.get("f_lag", config.get("commercial_productivity_lag", base["commercial_productivity_lag"])))
+    config["servicios"] = deepcopy(st.session_state.get("services", config.get("servicios", base["servicios"])))
+    config["channels"] = st.session_state.get("f_channels", config.get("channels", base["channels"]))
+    config["liquidity_policy"] = {"type": st.session_state.get("f_liq", config.get("liquidity_policy", {}).get("type", "none"))}
     if st.session_state.get("f_liq") == "minimum_cash":
         config["liquidity_policy"]["value"] = float(st.session_state.get("f_liq_value", 0.0))
-    config["solver"] = {"name": "cbc", "time_limit": int(st.session_state.get("f_time", base["solver"]["time_limit"])), "verbose": False}
+    config["solver"] = {"name": "cbc", "time_limit": int(st.session_state.get("f_time", config.get("solver", {}).get("time_limit", base["solver"]["time_limit"]))), "verbose": False}
     return config
 
 
@@ -229,8 +233,34 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
     if "channels" in loaded:
         st.session_state["yaml_channels"] = loaded["channels"]
 
+    # Build and store the full merged config (base + loaded YAML extra fields).
+    # This preserves fields that don't have form widgets (empresa, target_market,
+    # working_capital, acquisition_ceiling, …) so _build_config can use them.
+    merged = _deep_merge(deepcopy(base), loaded)
+    # But SERVICES and CHANNELS are handled by their own form widgets, so we
+    # respect those form values rather than the raw loaded YAML.
+    merged["servicios"] = st.session_state.get("services", base["servicios"])
+    if "channels" in loaded:
+        merged["channels"] = loaded["channels"]
+    st.session_state["merged_config"] = merged
+
     # Keep the raw dict for _dv() to read from (for any field not covered above)
     st.session_state["loaded_scalars"] = loaded
+
+
+def _deep_merge(base: dict, overlay: dict) -> dict:
+    """Recursively merge ``overlay`` into ``base``, returning a new dict.
+
+    For keys that exist in both, nested dicts are merged recursively;
+    non-dict values in ``overlay`` replace ``base`` values.
+    """
+    result = deepcopy(base)
+    for key, value in overlay.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = deepcopy(value)
+    return result
 
 
 # --------------------------------------------------------------------------- #
