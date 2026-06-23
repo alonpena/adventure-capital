@@ -107,6 +107,8 @@ def write_outputs(
     output_dir: str | Path,
     *,
     solution: dict[str, Any] | None = None,
+    saa_scenario_count: int | None = None,
+    evaluation_scenario_count: int | None = None,
 ) -> dict[str, str]:
     """Write the ex-post LHS distribution, summary, and diagnostics artifacts.
 
@@ -154,6 +156,19 @@ def write_outputs(
 
     if solution is not None:
         saa_path = out / "saa_solution.json"
+        # ``n_scenarios`` in the summary is the ex-post evaluation count, not the
+        # SAA optimization count. Keep ``scenario_count`` meaning the SAA count
+        # for back-compat and surface both counts explicitly.
+        eval_count = (
+            int(evaluation_scenario_count)
+            if evaluation_scenario_count is not None
+            else int(summary.get("n_scenarios", 0))
+        )
+        saa_count = (
+            int(saa_scenario_count)
+            if saa_scenario_count is not None
+            else int(M4_DEFAULTS["saa_scenario_count"])
+        )
         saa = {
             "schema_version": "2.0",
             "status": solution.get("status"),
@@ -161,7 +176,9 @@ def write_outputs(
             "cvar_alpha": solution.get("cvar_alpha"),
             "cvar_van": solution.get("cvar_van"),
             "expected_van": solution.get("expected_van"),
-            "scenario_count": int(summary.get("n_scenarios", 0)),
+            "scenario_count": saa_count,
+            "saa_scenario_count": saa_count,
+            "evaluation_scenario_count": eval_count,
             "strategy": {
                 "V": solution["strategy"]["V"],
                 "L": solution["strategy"]["L"],

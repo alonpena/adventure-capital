@@ -24,6 +24,10 @@ M4_DEFAULTS: dict[str, Any] = {
     "cvar_alpha": 0.05,
     "saa_scenario_count": 100,
     "evaluation_scenario_count": 1000,
+    # Operational default for the CBC time limit (seconds). The canonical
+    # mixed-channel M4 needs several minutes to reach Optimal; the legacy 120s
+    # returned ``Not Solved``. Override via CLI ``--stochastic-time-limit``.
+    "solver_time_limit": 420,
     "seed_saa": 12345,
     "seed_eval": 999,
     "distributions": {

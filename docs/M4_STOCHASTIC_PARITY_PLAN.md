@@ -35,6 +35,7 @@ M4_DEFAULTS = {
     "evaluation_scenario_count": 1000,
     "seed_saa": 12345,
     "seed_eval": 999,
+    "solver_time_limit": 420,
     "distributions": {
         "churn_multiplier": {"min": 0.8, "mode": 1.0, "max": 1.3},
         "salesforce_efficiency": {"min": 0.6, "mode": 1.0, "max": 1.2},
@@ -47,7 +48,7 @@ M4_DEFAULTS = {
 }
 ```
 
-If production later needs engineering overrides, accept an optional internal path/flag outside the user-facing startup form.
+If production later needs engineering overrides, accept an optional internal path/flag outside the user-facing startup form. CLI may expose `--stochastic-time-limit` as an operational control, defaulting to the backend M4 solver time limit (recommended 420s), because canonical mixed-channel SAA is materially slower than the deterministic MILP.
 
 ## Probability sampling
 
@@ -269,6 +270,8 @@ Minimum `saa_solution.json` fields:
   "cvar_van": 0.0,
   "expected_van": 0.0,
   "scenario_count": 100,
+  "saa_scenario_count": 100,
+  "evaluation_scenario_count": 1000,
   "strategy": {
     "V": {},
     "L": {},

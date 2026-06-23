@@ -206,7 +206,14 @@ def _run_stochastic(config: dict[str, Any], output_dir: Path, *, time_limit: int
     eval_scenarios = generate_evaluation_scenarios(config)
     evaluation = evaluate_strategy(config, solution["strategy"], eval_scenarios)
     summary = summarize_distribution(evaluation, cvar_alpha=solution["cvar_alpha"])
-    artifacts = write_outputs(evaluation, summary, output_dir, solution=solution)
+    artifacts = write_outputs(
+        evaluation,
+        summary,
+        output_dir,
+        solution=solution,
+        saa_scenario_count=len(scenarios),
+        evaluation_scenario_count=len(eval_scenarios),
+    )
     return {
         "ran": True,
         "status": solution["status"],
@@ -223,7 +230,7 @@ def run_assessment(
     *,
     output_dir: str | Path,
     run_stochastic: bool = True,
-    stochastic_time_limit: int = 120,
+    stochastic_time_limit: int | None = None,
     **dd_kwargs: Any,
 ) -> dict[str, Any]:
     """Full preliminary flow: due diligence -> (if allowed) stochastic valuation.
@@ -235,6 +242,14 @@ def run_assessment(
     ``run_stochastic`` is False.
     """
     import json
+
+    from adventure_capital.stochastic.defaults import M4_DEFAULTS
+
+    if stochastic_time_limit is None:
+        block = config.get("stochastic", {}) or {}
+        stochastic_time_limit = int(
+            block.get("solver_time_limit", M4_DEFAULTS["solver_time_limit"])
+        )
 
     out = Path(output_dir)
     dd_result = run_due_diligence(config, output_dir=out, **dd_kwargs)

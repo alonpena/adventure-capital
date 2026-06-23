@@ -30,6 +30,12 @@ Junio, 2026
 
 **Churn:** Tasa de pérdida de clientes en un período determinado.
 
+**CVaR (Conditional Value at Risk):** Métrica de riesgo de cola que resume el valor esperado en los peores escenarios de la distribución; en M4 se usa sobre el VAN al 5% como objetivo conservador.
+
+**Adquisición realizada:** Adquisición efectivamente observada en cada escenario estocástico tras aplicar los multiplicadores de eficiencia comercial al plan comprometido por canal.
+
+**Ventana de comisión de terceros:** Número limitado de períodos durante los cuales el canal de terceros recibe comisión sobre ingresos atribuibles a cohortes originadas por ese canal, incluyendo ventas iniciales y recurrentes dentro de la ventana.
+
 **Cohorte de servicio:** Conjunto de clientes adquiridos para un servicio específico en un período de planificación, cuya supervivencia y recompra se modelan a lo largo del horizonte.
 
 **Due Diligence:** Flujo iterativo de evaluación, recomendación y recalibración que envuelve al modelo determinista, emitiendo un veredicto y determinando la elegibilidad para la valorización estocástica.
@@ -38,11 +44,11 @@ Junio, 2026
 
 **Gross Profit (GP):** Margen bruto generado por la diferencia entre ingresos y costos variables del servicio o producto.
 
-**LHS (Latin Hypercube Sampling):** Técnica de muestreo estratificado especificada como trabajo futuro para la generación de escenarios; no implementada en la versión actual.
+**LHS (Latin Hypercube Sampling):** Técnica de muestreo estratificado utilizada para construir escenarios del módulo estocástico, tanto en la optimización SAA como en la evaluación ex-post fuera de muestra.
 
 **LTV (Lifetime Value):** Valor total esperado que un cliente generará durante toda su relación con la empresa.
 
-**Monte Carlo ex-post:** Evaluación de una estrategia fija sobre una muestra amplia de escenarios mediante recursión de forma cerrada, sin re-resolver el modelo de optimización.
+**Evaluación ex-post LHS:** Evaluación de una estrategia fija sobre una muestra amplia fuera de muestra generada por hipercubo latino, mediante recursión de forma cerrada y sin re-resolver el modelo de optimización.
 
 **Múltiplos de Mercado:** Método de valorización basado en indicadores comparables; en este sistema constituye una metodología de referencia, no calibrada a comparables de mercado.
 
@@ -50,7 +56,7 @@ Junio, 2026
 
 **Recta publicitaria:** Relación lineal continua entre la inversión publicitaria y la adquisición atribuible (*A_ad = a + b·I_ad*).
 
-**SAA (Sample Average Approximation):** Aproximación por promedio de muestra; método de optimización estocástica neutral al riesgo que maximiza el valor actual neto esperado sobre un conjunto de escenarios.
+**SAA (Sample Average Approximation):** Aproximación por promedio de muestra que resuelve una versión discreta del problema estocástico sobre escenarios. En el módulo M4 canónico se usa con un objetivo conservador basado en CVaR del VAN.
 
 **Tasa de Descuento:** Parámetro utilizado en el DCF que refleja el riesgo asociado a los flujos y a la incertidumbre del modelo de negocio.
 
@@ -89,9 +95,9 @@ Junio, 2026
 
 El proyecto tiene por objetivo diseñar e implementar un sistema integrado que permita a Adventure Capital, consultora financiera especializada en startups, estandarizar y automatizar las etapas de planificación del crecimiento acelerado, valorización financiera y generación de informes, reduciendo la variabilidad de los tiempos de ejecución y la dependencia del trabajo manual del mandante. El diagnóstico evidenció una operación artesanal, con tiempos por caso entre 16 y 55 horas y una capacidad mensual restringida a entre 6 y 10 startups, configurando un cuello de botella estructural que limita la escalabilidad y la rentabilidad del servicio.
 
-La metodología transforma la planilla financiera del mandante en una canalización modular en Python, con control de versiones, que encadena la normalización de la instancia, un modelo determinista de optimización lineal entera mixta para el plan de crecimiento, una capa de *due diligence* basada en reglas que gobierna la elegibilidad del análisis estocástico, un módulo de valorización por flujos de caja descontados y *unit economics*, una extensión estocástica por aproximación por promedio de muestra con evaluación *ex-post* por Monte Carlo, y un generador de informe en formato HTML y PDF. Sobre esta base se incorporó un refinamiento determinista en cinco fases, una capa de artefactos postprocesados como vista derivada auditable, y una interfaz de exploración (*MVP*) que lee dichos artefactos sin recomputar la lógica del modelo.
+La metodología transforma la planilla financiera del mandante en una canalización modular en Python, con control de versiones, que encadena la normalización de la instancia, un modelo determinista de optimización lineal entera mixta para el plan de crecimiento, una capa de *due diligence* basada en reglas que gobierna la elegibilidad del análisis estocástico, un módulo de valorización por flujos de caja descontados y *unit economics*, una extensión estocástica canónica por SAA con muestreo LHS y objetivo CVaR del VAN, y un generador de informe en formato HTML. Sobre esta base se incorporó un refinamiento determinista en cinco fases, una capa de artefactos postprocesados como vista derivada auditable, y una interfaz de exploración (*MVP*) que lee dichos artefactos sin recomputar la lógica del modelo.
 
-Los resultados, verificados sobre el caso canónico de dos servicios, muestran una optimización con estado óptimo, ingresos acumulados por USD 6,41 millones, EBITDA acumulado por USD 3,17 millones, un valor actual neto por flujos descontados de USD 1,16 millones sobre un capital de trabajo de USD 110 mil, y un veredicto de *due diligence* de aprobado con advertencias que habilita el análisis estocástico en modo final. La extensión estocástica entrega un valor actual neto esperado de USD 1,88 millones sobre mil escenarios, con probabilidad nula de valor negativo. El sistema avanza así desde una metodología manual hacia un flujo reproducible, trazable y extensible; la medición empírica del impacto operacional con casos reales del mandante queda como etapa pendiente.
+Los resultados, verificados sobre el caso canónico base, muestran una optimización con estado óptimo, ingresos acumulados por USD 3,00 millones, EBITDA acumulado por USD 1,69 millones, un VAN DCF de USD 0,53 millones sobre un capital de trabajo de USD 100 mil, y un veredicto de *due diligence* de ajuste menor que habilita M4 en modo advertencia. La evaluación estocástica canónica, sobre mil escenarios LHS fuera de muestra, entrega un VAN esperado de USD 1,54 millones, una mediana de USD 1,54 millones, un CVaR 5% de USD 0,83 millones y probabilidad nula de VAN negativo, aunque con presión de liquidez en la totalidad de los escenarios evaluados. El sistema avanza así desde una metodología manual hacia un flujo reproducible, trazable y extensible; la medición empírica del impacto operacional con casos reales del mandante queda como etapa pendiente.
 
 *Palabras-clave:* valorización de startups, optimización entera mixta, programación estocástica, unit economics, due diligence.
 
@@ -147,11 +153,11 @@ La canalización encadena las etapas de la metodología en un flujo extremo a ex
 startup.yaml → instancia normalizada (model_instance.json)
   → optimización determinista (MILP) → plan de crecimiento acelerado (artefactos)
   → valorización + unit economics (workbook) → due diligence (veredicto)
-  → si la DD lo permite: optimización estocástica (SAA) → evaluación ex-post (Monte Carlo)
-  → artefactos postprocesados → informe HTML/PDF → interfaz de exploración
+  → si la DD lo permite: optimización estocástica (SAA + CVaR) → evaluación ex-post LHS
+  → artefactos postprocesados → informe HTML → interfaz de exploración
 ```
 
-El modelo determinista constituye la línea base; la *due diligence* es la capa de interpretación y elegibilidad; la extensión estocástica se invoca únicamente cuando el veredicto no es estructuralmente rechazado.
+El modelo determinista constituye la línea base; la *due diligence* es la capa de interpretación y elegibilidad; la extensión estocástica canónica se invoca cuando el veredicto es aprobado, aprobado con advertencias o requiere solo ajuste menor. Los casos con ajuste mayor o rechazo estructural vuelven al YAML para recalibración antes de M4.
 
 El diseño preserva un conjunto de invariantes que garantizan la consistencia metodológica: el piso de caja es una restricción dura y no una penalización del objetivo; la publicidad se modela como recta lineal continua; los ratios de CAC se calculan como aritmética posterior a la optimización y no como variables del solver; la infactibilidad se enruta como diagnóstico de brecha de financiamiento; la adquisición del primer año es inmutable; la mezcla de canales se expresa como cotas de proporción a nivel de empresa; la inflación del ratio LTV/CAC se señala como artefacto conocido y no se corrige silenciosamente; y la interfaz y el reporte leen artefactos sin recomputar la lógica del modelo.
 
@@ -161,7 +167,7 @@ La metodología se descompone en flujos fundamentales con variables exógenas, d
 
 ## 3.3 Capa de Due Diligence basada en reglas
 
-La capa de *due diligence* implementa un proceso iterativo de evaluación, recomendación y recalibración que envuelve al modelo determinista. Cada regla recibe una clase de severidad y, en caso de falla, emite un mensaje y una recomendación. La taxonomía considera cinco niveles: *estructural* (bloquea la valorización estocástica), *mayor* (permite ejecución en modo diagnóstico), *menor* (permite ejecución en modo advertencia), *advertencia* (permite ejecución en modo final) y *aprobado*. El veredicto agregado se construye con criterio del peor caso observado, y se acompaña de campos de decisión: si el análisis estocástico está habilitado, el modo de valorización, el nivel de ajuste, las razones bloqueantes y las recomendaciones de recalibración.
+La capa de *due diligence* implementa un proceso iterativo de evaluación, recomendación y recalibración que envuelve al modelo determinista. Cada regla recibe una clase de severidad y, en caso de falla, emite un mensaje y una recomendación. La taxonomía considera cinco niveles: *estructural* (rechaza la valorización estocástica), *mayor* (exige recalibración antes de ejecutar M4 canónico), *menor* (permite M4 en modo advertencia), *advertencia* (permite M4 en modo final, conservando las alertas) y *aprobado*. El veredicto agregado se construye con criterio del peor caso observado, y se acompaña de campos de decisión: si el análisis estocástico está habilitado, el modo de valorización, el nivel de ajuste, las razones bloqueantes y las recomendaciones de recalibración.
 
 Las reglas se organizan en pre-reglas sobre la instancia cruda (validez de la configuración, margen unitario positivo, presencia de financiamiento, validez y severidad del *churn*), reglas de síntesis sobre los resultados del modelo (alcance del *breakeven*, presión sobre el *runway*, severidad de la brecha de financiamiento, régimen de EBITDA al tercer año y crecimiento de ingresos) y verificaciones técnicas de calibración reutilizadas como evidencia. La arquitectura admite la incorporación incremental de reglas, ya que cada una es una función pura sobre la configuración o los resultados.
 
@@ -191,13 +197,15 @@ Complementariamente, se calcula la valorización por múltiplos de ingresos y de
 
 La tabla de *unit economics* articula la lectura comercial y financiera del plan (CAC, ticket, recurrencia, ARPU, LTV, LTV/CAC, *burn rate*, capital de trabajo y valor por DCF), con trazabilidad explícita entre cada métrica, su fórmula y su fuente mediante un artefacto de traza de fórmulas.
 
-## 3.7 Extensión estocástica
+## 3.7 Extensión estocástica canónica
 
-El modelo determinista resuelve un único escenario con parámetros puntuales. Para evaluar el comportamiento del plan bajo incertidumbre se implementó una extensión estocástica con dos componentes. El primero corresponde a una optimización por **aproximación por promedio de muestra (SAA)**, que optimiza una decisión de primera etapa (adquisición, vendedores y líderes) común a todos los escenarios, maximizando el valor actual neto esperado. El segundo corresponde a una **evaluación ex-post por Monte Carlo**, que fija la estrategia de primera etapa y la evalúa sobre una muestra amplia mediante recursión de forma cerrada, sin re-resolver el modelo.
+El modelo determinista resuelve un único escenario con parámetros puntuales. Para evaluar el comportamiento del plan bajo incertidumbre se implementó un módulo estocástico canónico (M4) como problema SAA de dos etapas con muestreo por hipercubo latino (LHS). A diferencia del prototipo neutral al riesgo inicial, el módulo actualizado replica las estrategias comerciales del determinista —fuerza de ventas, publicidad y comisión vía terceros— y optimiza un plan de primera etapa antes de observar la realización de las eficiencias comerciales.
 
-Es necesario precisar el estado y los límites del método, conforme lo declara el propio artefacto de estado (*stochastic_method_status.json*): se trata de **SAA con muestreo triangular implementado, mientras que el muestreo por hipercubo latino (LHS) se encuentra especificado como trabajo futuro**. El objetivo es el valor actual neto esperado, es decir, una valorización **neutral al riesgo y no una optimización robusta** (el artefacto registra `is_robust_optimization = false` y `lhs_implemented = false`). Las cuatro fuentes de incertidumbre modeladas son multiplicadores de *churn*, de productividad comercial, de financiamiento y de tasa de descuento, cada una representada por una distribución triangular configurable.
+Las decisiones de primera etapa corresponden al plan comprometido: vendedores, líderes, inversión publicitaria y adquisición planificada por canal. En cada escenario, la adquisición realizada se obtiene aplicando multiplicadores de eficiencia a dicho plan, por lo que la base activa de clientes, los ingresos, el CAC, el EBITDA, la caja y el VAN varían por escenario. El modelo no permite *recourse* comercial dentro del escenario: si una estrategia rinde menos por saturación o menor eficiencia, el impacto se refleja en la distribución de resultados y es castigado por el objetivo.
 
-Asimismo, se declaran las brechas de paridad conocidas entre la evaluación estocástica y el modelo determinista refinado: la recursión *ex-post* no replica aún los canales comerciales, la recta publicitaria, el costo de terceros, el techo de adquisición ni las probabilidades *proxy* de *venture capital* de la *due diligence*. En consecuencia, los resultados estocásticos no deben interpretarse con paridad completa respecto del determinista.
+El objetivo de optimización es conservador: maximiza el CVaR al 5% del VAN, con un término de desempate marginal por VAN esperado. El VAN de cada escenario se calcula con impuestos lineales, ticket de financiamiento fijo, piso de liquidez indexado a −VC y valor terminal lineal; se evitan formulaciones no lineales o con truncamientos binarios dentro del solver. Tras resolver el SAA, la estrategia de primera etapa queda fija y se evalúa sobre una muestra LHS fuera de muestra de mayor tamaño, generando la distribución de VAN, clientes activos finales, *breakeven*, *runway*, brecha de financiamiento y métricas de *unit economics*.
+
+El diseño mantiene límites explícitos: los primeros doce meses del plan consensuado permanecen fijos desde `A_base`; la incertidumbre de adquisición opera desde las proyecciones posteriores; la optimización robusta de peor caso y el *recourse* comercial quedan fuera de alcance. Esta decisión prioriza una formulación trazable y resoluble que captura el riesgo de cola sin transformar el problema en una política dinámica multi-etapa.
 
 ## 3.8 Capa de artefactos postprocesados
 
@@ -211,7 +219,7 @@ Se desarrolló una interfaz local de exploración construida sobre Streamlit, co
 
 ## 3.10 Resultados obtenidos con el caso canónico
 
-Para validar funcionalmente el sistema integrado se ejecutó el caso canónico, una instancia de dos servicios (consultoría estratégica de alto ticket y baja frecuencia, y talleres de formación de menor ticket y mayor frecuencia) sobre un horizonte de 36 meses con un capital de trabajo de USD 110 mil y una tasa de descuento anual de 35%. Esta ejecución verifica el flujo completo y reemplaza la instancia de servicio único utilizada en la entrega anterior por un caso multi-servicio más representativo. Los resultados no sustituyen la validación con casos reales del mandante, pero evidencian salidas coherentes, interpretables y auditables.
+Para validar funcionalmente el sistema integrado se ejecutó el caso canónico base, una instancia de un servicio sobre un horizonte de 36 meses con un capital de trabajo de USD 100 mil y una tasa de descuento anual de 35%. Esta ejecución verifica el flujo completo M1-M4 y se complementó con una auditoría de configuración mixta de canales para comprobar la paridad comercial del M4. Los resultados no sustituyen la validación con casos reales del mandante, pero evidencian salidas coherentes, interpretables y auditables.
 
 **Tabla 3.1 — Resultados generales del escenario determinista.** Fuente: elaboración propia a partir de los artefactos del caso canónico.
 
@@ -219,20 +227,20 @@ Para validar funcionalmente el sistema integrado se ejecutó el caso canónico, 
 | --- | --- | --- |
 | Estado del solver | Óptimo | El plan se resuelve a optimalidad. |
 | Horizonte de evaluación | 36 meses | Tres años de crecimiento. |
-| Ingresos acumulados | USD 6,41 MM | Trayectoria de ingresos escalable. |
-| EBITDA acumulado | USD 3,17 MM | Rentabilidad operacional acumulada. |
-| Caja final | USD 3,28 MM | Holgura de caja al cierre del horizonte. |
-| Caja mínima | USD 2.620 | Presión de liquidez acotada durante la aceleración. |
-| Adquisición total | 2.170 clientes | Fuerte crecimiento comercial requerido. |
-| Mes de *breakeven* | Mes 18 | Cruce a EBITDA acumulado positivo. |
+| Ingresos acumulados | USD 3,00 MM | Trayectoria de ingresos escalable. |
+| EBITDA acumulado | USD 1,69 MM | Rentabilidad operacional acumulada. |
+| Caja final | USD 1,79 MM | Holgura de caja al cierre del horizonte. |
+| Caja mínima | USD −18 M | Presión de liquidez intermedia durante la aceleración. |
+| Adquisición total | 1.621 clientes | Fuerte crecimiento comercial requerido. |
+| Mes de *breakeven* | Mes 23 | Cruce a EBITDA acumulado positivo. |
 
 **Tabla 3.2 — Evolución anual del desempeño.** Fuente: elaboración propia.
 
 | Año | Adquisición | Ingresos | EBITDA | Caja fin de año | Lectura |
 | --- | --- | --- | --- | --- | --- |
-| Año 1 | 141 clientes | USD 264 M | USD −98 M | USD 12 M | Etapa de inversión inicial. |
-| Año 2 | 543 clientes | USD 1,38 MM | USD 544 M | USD 556 M | Cruce hacia rentabilidad operacional. |
-| Año 3 | 1.486 clientes | USD 4,76 MM | USD 2,72 MM | USD 3,28 MM | Consolidación y captura de escala. |
+| Año 1 | 69 clientes | USD 83 M | USD −112 M | USD −12 M | Etapa de inversión inicial con presión de caja. |
+| Año 2 | 316 clientes | USD 526 M | USD 187 M | USD 175 M | Cruce hacia rentabilidad operacional. |
+| Año 3 | 1.236 clientes | USD 2,40 MM | USD 1,62 MM | USD 1,79 MM | Consolidación y captura de escala. |
 
 La trayectoria es consistente con una startup en aceleración: un primer año de inversión con EBITDA negativo, seguido por el crecimiento de la base de clientes y la recurrencia que permiten alcanzar EBITDA positivo y holgura de caja.
 
@@ -240,10 +248,10 @@ La trayectoria es consistente con una startup en aceleración: un primer año de
 
 | Método | Base utilizada | Múltiplo / criterio | Valorización |
 | --- | --- | --- | --- |
-| Flujos descontados (VP de flujos) | Flujos operacionales descontados | Tasa de descuento 35% | USD 1,27 MM |
-| VAN neto | Flujos descontados menos capital inicial | VC inicial USD 110 M | USD 1,16 MM |
-| Múltiplo de ingresos | Referencia, no calibrado a mercado | 1,5× | USD 7,15 MM |
-| Múltiplo de EBITDA | Referencia, no calibrado a mercado | 3,0× | USD 8,16 MM |
+| Flujos descontados (VP de flujos) | Flujos operacionales descontados | Tasa de descuento 35% | USD 0,63 MM |
+| VAN neto | Flujos descontados menos capital inicial | VC inicial USD 100 M | USD 0,53 MM |
+| Múltiplo de ingresos | Referencia, no calibrado a mercado | 1,5× | USD 3,60 MM |
+| Múltiplo de EBITDA | Referencia, no calibrado a mercado | 3,0× | USD 4,85 MM |
 
 La diferencia entre el flujo de caja descontado y los múltiplos no constituye una inconsistencia, sino una brecha metodológica: el DCF entrega una lectura estructural conservadora, mientras que los múltiplos ofrecen una referencia asociada al potencial de escalamiento que, en este sistema, no está calibrada a comparables de mercado.
 
@@ -251,39 +259,42 @@ La diferencia entre el flujo de caja descontado y los múltiplos no constituye u
 
 | Métrica | Resultado | Interpretación |
 | --- | --- | --- |
-| CAC | USD 807 / cliente | Costo promedio de adquisición bajo el plan. |
-| Ticket promedio | USD 1.975 | Base de monetización por servicio. |
-| Gross profit | 87,2% | Margen elevado, propio de servicios intensivos en personas. |
-| ARPU | USD 351,7 | Ingreso por usuario. |
-| LTV | USD 17.622 | Valor estimado por cliente. |
-| LTV/CAC | 21,84× | Ratio fuera de banda, marcado como artefacto de fórmula (C08). |
+| CAC | USD 359 / cliente | Costo promedio de adquisición bajo el plan. |
+| Ticket promedio | USD 700 | Base de monetización por servicio. |
+| Gross profit | 95,4% | Margen elevado; calibración lo marca como potencial subestimación de costos. |
+| ARPU | USD 250,3 | Ingreso por usuario. |
+| LTV | USD 5.360 | Valor estimado por cliente. |
+| LTV/CAC | 14,93× | Ratio dentro de banda, aunque sensible a supuestos de margen y churn. |
 
 **Tabla 3.5 — Veredicto de due diligence.** Fuente: elaboración propia.
 
 | Campo | Valor |
 | --- | --- |
-| Veredicto | Aprobado con advertencias |
+| Veredicto | Requiere ajuste menor |
 | Permite análisis estocástico | Sí |
-| Modo de valorización | Final |
-| Única alerta activa | C08 (LTV/CAC 21,8× fuera de banda) |
+| Modo de valorización | Advertencia |
+| Alertas activas | Runway/caja bajo piso, gross profit alto y concentración de mix |
 
-La instancia se clasifica como aprobada con advertencias: no existen bloqueos estructurales, por lo que el análisis continúa, y la única alerta activa corresponde al ratio LTV/CAC, señalado como artefacto de fórmula derivado del denominador de *churn* anual y el alto margen bruto, no como una señal comercial fuerte.
+La instancia se clasifica como ajuste menor: no existen bloqueos estructurales ni fallas mayores de elegibilidad, por lo que M4 puede ejecutarse, pero el resultado se interpreta en modo advertencia. Las alertas principales se relacionan con presión de caja intermedia, margen bruto fuera de banda y concentración del mix, lo que recomienda revisar capital de trabajo y supuestos de costo antes de presentar el caso como decisión final.
 
-**Tabla 3.6 — Resultados del análisis estocástico (ex-post, mil escenarios).** Fuente: elaboración propia.
+**Tabla 3.6 — Resultados del análisis estocástico (evaluación ex-post LHS, mil escenarios).** Fuente: elaboración propia.
 
 | Indicador | Resultado | Interpretación |
 | --- | --- | --- |
 | Escenarios evaluados | 1.000 | Evaluación amplia bajo incertidumbre. |
-| VAN esperado | USD 1,88 MM | Valor positivo esperado. |
-| Percentil 10 del VAN | USD 1,51 MM | Aun en escenarios adversos el valor permanece positivo. |
-| Mediana del VAN | USD 1,87 MM | Resultado central. |
-| Percentil 90 del VAN | USD 2,27 MM | Potencial favorable. |
+| VAN esperado | USD 1,54 MM | Valor positivo esperado. |
+| CVaR 5% del VAN | USD 0,83 MM | Valor esperado de cola en escenarios adversos. |
+| Percentil 10 del VAN | USD 1,06 MM | Aun en escenarios adversos el valor permanece positivo. |
+| Mediana del VAN | USD 1,54 MM | Resultado central. |
+| Percentil 90 del VAN | USD 2,03 MM | Potencial favorable. |
 | Probabilidad de VAN negativo | 0% | El plan no destruye valor en los escenarios evaluados. |
-| Probabilidad de financiamiento adicional | 100% | El plan requiere capital adicional en todos los escenarios. |
-| Brecha esperada de financiamiento | USD 108 M | Magnitud promedio del capital adicional. |
-| *Breakeven* mediano | Mes 20 | Equilibrio hacia el segundo año. |
+| Clientes activos finales medianos | 1.359 | Base viva esperada al cierre del horizonte. |
+| Probabilidad de alcanzar 1.000 clientes activos finales | 96,7% | Alta probabilidad de superar el hito intermedio. |
+| Probabilidad de caja bajo piso | 100% | El plan requiere gestión explícita de liquidez. |
+| Brecha esperada de financiamiento | USD 20,8 M | Magnitud promedio del capital adicional requerido. |
+| *Breakeven* mediano | Mes 23 | Equilibrio hacia el segundo año. |
 
-El análisis estocástico permite una conclusión más rica que la determinista: la estrategia es robusta en la generación de valor, manteniendo un VAN positivo en todos los escenarios evaluados, pero no es robusta en liquidez, ya que requiere financiamiento adicional en la totalidad de ellos. El plan resulta atractivo en valor pero debe acompañarse de una estrategia explícita de capital de trabajo. Se reitera que esta lectura corresponde a una valorización esperada neutral al riesgo, no a una optimización robusta.
+El análisis estocástico permite una conclusión más rica que la determinista: el plan mantiene valor positivo incluso en escenarios de cola, reflejado en un CVaR 5% positivo, pero presenta presión de liquidez generalizada. La lectura final es favorable en valorización y adquisición de clientes, aunque debe acompañarse de una estrategia explícita de capital de trabajo antes de presentarse como caso sin advertencias.
 
 ## 3.11 Estado de implementación por módulo
 
@@ -298,14 +309,15 @@ El análisis estocástico permite una conclusión más rica que la determinista:
 | Múltiplos | Implementado como referencia, no calibrado a mercado | `valuation_summary.json` |
 | Unit economics | Implementado (*breakeven*/*payback* no persistidos) | `unit_economics.py` |
 | Due diligence (reglas, veredicto, palancas) | Implementado | `due_diligence/rules.py` |
-| Estocástico SAA (muestreo triangular) | Implementado | `scenarios.py` |
-| Monte Carlo ex-post | Implementado | `evaluate.py` |
-| Muestreo LHS | Especificado | `stochastic_method_status.json` (`lhs_implemented = false`) |
-| Optimización robusta | No iniciado | `is_robust_optimization = false` |
-| Paridad estocástica vs. determinista | Parcial | brechas declaradas en el artefacto de estado |
+| Estocástico SAA con LHS | Implementado | `stochastic/scenarios.py`; LHS e ICDF triangular |
+| M4 con paridad de canales | Implementado | `stochastic/model.py`; fuerza de ventas, publicidad y terceros |
+| Objetivo CVaR del VAN | Implementado | `stochastic/model.py`; `cvar_van` |
+| Evaluación ex-post LHS | Implementado | `stochastic/evaluate.py`; 1.000 escenarios fuera de muestra |
+| Artefactos estocásticos M4 | Implementado | `saa_solution.json`, `stochastic_summary.csv`, `stochastic_diagnostics.json` |
+| Optimización robusta de peor caso | Fuera de alcance | CVaR implementado como objetivo averso al riesgo, no worst-case |
 | Capa de artefactos postprocesados | Implementado | `postprocess.py`; ADR 0007 |
 | Paquete de reporte y manifiesto | Implementado | `standard_report/package.py` |
-| Informe HTML/PDF | Implementado | `report.html`, `report.pdf` |
+| Informe HTML | Implementado parcialmente / en estabilización | Existe generación HTML; se está simplificando M5 para leer artefactos canónicos M1-M4 |
 | Interfaz de exploración (MVP) | Implementado (local) | `app.py`, `streamlit_pages/` |
 | Calibración de comparables de mercado | No iniciado | fuera de alcance declarado |
 | Validación con casos reales | No iniciado | pendiente (ver §IV) |
@@ -314,10 +326,10 @@ El análisis estocástico permite una conclusión más rica que la determinista:
 
 Se distingue de forma explícita lo implementado de lo especificado:
 
-- **Implementado y verificado:** el modelo determinista refinado en cinco fases; el DCF con valor terminal configurable y los *unit economics* anualizados; la *due diligence* con veredicto y enrutamiento del análisis estocástico; la SAA con muestreo triangular y la evaluación *ex-post* por Monte Carlo; la capa de artefactos postprocesados y el informe HTML/PDF; y la interfaz de exploración local que lee artefactos sin recomputar.
-- **Especificado (no implementado):** el muestreo por hipercubo latino (LHS); la matriz ampliada de distribuciones; los esquemas de validación JSON de los artefactos; el modo de techo explícito o por servicio; y la persistencia y *render* de las métricas de *breakeven*, *payback* y *runway*.
-- **Brechas y artefactos conocidos (señalados, no corregidos):** la paridad incompleta de la evaluación estocástica respecto del determinista; el artefacto C08 del ratio LTV/CAC; los múltiplos no calibrados a mercado; y el canal de terceros cableado pero sin configuración publicada.
-- **Fuera de alcance:** la optimización robusta o aversa al riesgo; un servicio multiusuario completo; la calibración automática de comparables; y la validación con casos reales del mandante. ⚠️ **SIN EVIDENCIA EN REPO** de validación contra casos reales.
+- **Implementado y verificado:** el modelo determinista refinado en cinco fases; el DCF con valor terminal configurable y los *unit economics* anualizados; la *due diligence* con veredicto y gate M4; el M4 canónico con LHS, paridad de canales, adquisición realizada variable por escenario, CVaR del VAN y evaluación ex-post LHS; la capa de artefactos postprocesados; y la interfaz de exploración local que lee artefactos sin recomputar.
+- **En estabilización operativa:** el CLI de instancias/ejecuciones y el informe HTML simple que consolida M1-M4 desde artefactos canónicos. La ejecución M4 mixta requiere tiempos de solver mayores que el determinista, por lo que el flujo operativo debe exponer un límite de tiempo específico.
+- **Brechas y artefactos conocidos:** los múltiplos no están calibrados contra comparables de mercado; el alto margen bruto del caso canónico sugiere revisar costos operacionales; la primera anualidad consensuada no se descompone aún por canal en M4; y la validación con casos reales del mandante sigue pendiente.
+- **Fuera de alcance:** la optimización robusta de peor caso, el *recourse* comercial multi-etapa, un servicio multiusuario completo, la calibración automática de comparables y la validación empírica con casos reales. ⚠️ **SIN EVIDENCIA EN REPO** de validación contra casos reales.
 
 ---
 
@@ -325,11 +337,11 @@ Se distingue de forma explícita lo implementado de lo especificado:
 
 El proyecto cumple el objetivo general de diseñar, implementar y validar funcionalmente un sistema integrado que permite a Adventure Capital estandarizar y automatizar las etapas de planificación del crecimiento acelerado, valorización financiera y generación de informes, migrando desde un entorno de planillas y *notebooks* hacia una arquitectura modular de software gestionada en un repositorio, con artefactos canónicos como interfaz estable entre fases.
 
-Respecto del cumplimiento de los objetivos específicos: la **formalización del flujo financiero y de datos** se considera cumplida, con instancias declarativas en YAML, validación de la estructura y un manifiesto de artefactos. La **capa de evaluación previa** se considera cumplida, con un motor de reglas extensible que emite un veredicto de cinco niveles y campos de decisión. El **plan de crecimiento acelerado óptimo** se considera cumplido y, además, refinado en cinco fases que incorporan techo de adquisición, separación de canales con recta publicitaria, trazabilidad del CAC, piso de caja con diagnóstico de brecha y *unit economics* anualizado. El **módulo de valorización y unit economics** se considera cumplido, con DCF posterior a la optimización, valor terminal configurable y múltiplos de referencia explícitamente no calibrados a mercado. La **extensión estocástica** se considera cumplida en su estado actual —SAA con muestreo triangular y evaluación *ex-post* por Monte Carlo—, dejando constancia de que se trata de una valorización esperada neutral al riesgo y no de una optimización robusta, y de que el LHS queda especificado como trabajo futuro. La **generación automática del informe** se considera cumplida, con salida en HTML y PDF. La **validación y documentación** se considera cumplida a nivel funcional, mediante pruebas automatizadas, registros de decisiones de arquitectura y documentación de etapas; la validación empírica con casos reales permanece pendiente.
+Respecto del cumplimiento de los objetivos específicos: la **formalización del flujo financiero y de datos** se considera cumplida, con instancias declarativas en YAML, validación de la estructura y un manifiesto de artefactos. La **capa de evaluación previa** se considera cumplida, con un motor de reglas extensible que emite un veredicto de cinco niveles y campos de decisión. El **plan de crecimiento acelerado óptimo** se considera cumplido y, además, refinado en cinco fases que incorporan techo de adquisición, separación de canales con recta publicitaria, trazabilidad del CAC, piso de caja con diagnóstico de brecha y *unit economics* anualizado. El **módulo de valorización y unit economics** se considera cumplido, con DCF posterior a la optimización, valor terminal configurable y múltiplos de referencia explícitamente no calibrados a mercado. La **extensión estocástica** se considera cumplida como M4 canónico, con SAA, muestreo LHS, paridad de canales comerciales, adquisición realizada variable por escenario, evaluación ex-post LHS y objetivo conservador CVaR del VAN. La **generación automática del informe** se considera parcialmente cumplida: existe una salida HTML funcional y se encuentra en estabilización una versión simple de M5 que lee directamente los artefactos canónicos M1-M4. La **validación y documentación** se considera cumplida a nivel funcional, mediante pruebas automatizadas, registros de decisiones de arquitectura y documentación de etapas; la validación empírica con casos reales permanece pendiente.
 
 En cuanto a la aplicación de la metodología, la separación entre cálculo y presentación —materializada en la capa de artefactos como vista derivada no canónica y en la interfaz que lee dichos artefactos sin recomputar— resultó decisiva para garantizar trazabilidad y auditabilidad. Igualmente relevante fue la disciplina de no sobre-afirmar: las limitaciones, las brechas de paridad y los artefactos conocidos se declaran de forma explícita, condición necesaria para que el sistema sea defendible ante un comité académico y ante inversionistas.
 
-Como **trabajo futuro** se propone: cerrar la paridad de la evaluación estocástica respecto del modelo determinista refinado; implementar el muestreo por hipercubo latino y la matriz de distribuciones especificada; incorporar esquemas de validación de artefactos; persistir y mostrar las métricas de *breakeven*, *payback* y *runway*; calibrar los múltiplos contra comparables de mercado; evolucionar la interfaz hacia un servicio una vez estabilizado el contrato de artefactos; y, de manera prioritaria, ejecutar la validación con casos reales de la cartera del mandante para medir la reducción de tiempos, la disminución de la variabilidad y el aumento de la capacidad mensual.
+Como **trabajo futuro** se propone: estabilizar el flujo operativo de instancias y ejecuciones por CLI y luego por interfaz; extender M4 hacia *recourse* comercial acotado si la evidencia del mandante lo justifica; incorporar esquemas de validación de artefactos; calibrar los múltiplos contra comparables de mercado; descomponer el plan consensuado del primer año por canal si el proceso de levantamiento de datos lo permite; evolucionar la interfaz hacia un servicio una vez estabilizado el contrato de artefactos; y, de manera prioritaria, ejecutar la validación con casos reales de la cartera del mandante para medir la reducción de tiempos, la disminución de la variabilidad y el aumento de la capacidad mensual.
 
 > **Nota sobre documentos obligatorios complementarios.** ⚠️ La rúbrica exige adjuntar, como documentos PDF separados de este informe: (i) la Declaración de Uso de IA para esta entrega, (ii) la Declaración de Contribución al trabajo realizado firmada y (iii) el Acta de Corrección de Informe Final. La omisión de cualquiera de ellos implica que el informe no será revisado y se obtendrá la nota mínima. Estos documentos deben prepararse manualmente y no forman parte del presente archivo.
 
