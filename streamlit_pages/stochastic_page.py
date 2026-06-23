@@ -31,8 +31,7 @@ def render(st) -> None:
     with s2:
         C.kpi(st, "Objetivo", str(status.get("objective", "—")))
     with s3:
-        C.kpi(st, "Optimización robusta", "No" if status.get("is_robust_optimization") is False else "—",
-              tone="" )
+        C.kpi(st, "Optimización robusta", "No" if status.get("is_robust_optimization") is False else "—")
     C.note(st, status.get("note", ""))
     b1, b2, b3 = st.columns(3)
     with b1:
@@ -69,14 +68,15 @@ def render(st) -> None:
         with d7:
             C.kpi(st, "Brecha de fondos esperada", C.money(diag.get("expected_funding_gap")))
 
-    scenarios = C.read_csv(folder / "stochastic_scenarios.csv")
-    if scenarios is not None and "VAN" in scenarios.columns:
-        st.subheader("Distribución de VAN (ex-post)")
-        fig = go.Figure()
-        fig.add_trace(go.Histogram(x=scenarios["VAN"], marker_color=ACCENT, nbinsx=40))
-        fig.update_layout(height=320, margin=dict(t=10), xaxis_title="VAN", yaxis_title="Escenarios", plot_bgcolor="white")
-        st.plotly_chart(fig, use_container_width=True)
+    scenarios_path = folder / "stochastic_scenarios.csv"
+    if scenarios_path.exists():
+        scenarios = C.read_csv(scenarios_path)
+        if scenarios is not None and "VAN" in scenarios.columns:
+            st.subheader("Distribución de VAN (ex-post)")
+            fig = go.Figure()
+            fig.add_trace(go.Histogram(x=scenarios["VAN"], marker_color=ACCENT, nbinsx=40))
+            fig.update_layout(height=320, margin=dict(t=10), xaxis_title="VAN", yaxis_title="Escenarios", plot_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander("Escenarios (detalle)"):
-        if scenarios is not None:
+        with st.expander("Escenarios (detalle)"):
             st.dataframe(scenarios, use_container_width=True, hide_index=True)

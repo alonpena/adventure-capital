@@ -61,9 +61,7 @@ def render(st) -> None:
     st.subheader("Trazabilidad de fórmulas")
     trace = C.read_json(folder / "07_formula_trace.json") or {}
     for formula in trace.get("formulas", []):
-        tone = {"implemented": "ok", "proxy": "warn", "methodological_reference": "muted"}.get(
-            formula.get("implementation_status", ""), "muted"
-        )
+        tone = C.IMPL_STATUS_TONE.get(formula.get("implementation_status", ""), "muted")
         with st.expander(f"{formula.get('id')} — {formula.get('name')}"):
             C.badge(st, formula.get("implementation_status", "—"), tone)
             st.code(formula.get("expression", ""))

@@ -26,14 +26,14 @@ Worst failing finding wins (precedence top to bottom):
 | Severity class | Verdict | `allows_stochastic` | `valuation_mode` | `adjustment_level` |
 |---|---|---|---|---|
 | `structural` | `rejected_for_stochastic` | false | `none` | `structural` |
-| `major` | `requires_major_adjustment` | true | `diagnostic` | `major` |
+| `major` | `requires_major_adjustment` | false for canonical M4 | `none` | `major` |
 | `minor` | `requires_minor_adjustment` | true | `warning` | `minor` |
 | `warning` | `passed_with_warnings` | true | `final` | `none` |
 | (none) | `passed` | true | `final` | `none` |
 
 - **`structural`** — instance cannot be meaningfully modeled (only this blocks).
-- **`major`** — not yet venture-scale eligible (insufficient growth, no credible EBITDA regime by year 3, scaling-incompatible retention). Stochastic runs **diagnostically** (not investment-ready).
-- **`minor`** — fixable business/liquidity risk (negative cash, funding gap, low runway). Stochastic runs as **preliminary/warning**.
+- **`major`** — not yet venture-scale eligible (insufficient growth, no credible EBITDA regime by year 3, scaling-incompatible retention). Canonical M4 is blocked until the YAML is recalibrated.
+- **`minor`** — fixable business/liquidity risk (negative cash, funding gap, low runway). Canonical M4 may run as preliminary/warning.
 
 The verdict also carries `blocking_reasons`, `adjustment_recommendations` (what to recalibrate), and `rerun_recommended`. A report is **always** produced — explaining what failed, why it matters, which parameters to recalibrate, and what would make the instance acceptable. Liquidity (negative cash / funding gap) is reported as a diagnostic, never a structural block.
 

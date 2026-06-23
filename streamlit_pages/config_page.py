@@ -17,9 +17,9 @@ from adventure_capital.config import default_config, validate_config
 from streamlit_pages import components as C
 
 
-def _seed_services(st) -> None:
+def _seed_services(st, base: dict) -> None:
     if "services" not in st.session_state:
-        st.session_state["services"] = deepcopy(default_config()["servicios"])
+        st.session_state["services"] = deepcopy(base["servicios"])
 
 
 def _service_form(st, idx: int, service: dict) -> dict:
@@ -119,7 +119,8 @@ def _build_config(st) -> dict:
 def render(st) -> None:
     st.title("Configuración del caso")
     st.caption("Configura la startup, genera el YAML y ejecuta el pipeline. Las páginas de resultados leen los artefactos generados.")
-    _seed_services(st)
+    base = default_config()
+    _seed_services(st, base)
 
     # --- optional YAML upload --------------------------------------------
     uploaded = st.file_uploader("Cargar YAML existente (opcional)", type=["yaml", "yml"])
@@ -130,7 +131,6 @@ def render(st) -> None:
         st.success("YAML cargado. Revisa y ajusta los campos abajo.")
 
     loaded = st.session_state.get("loaded_scalars", {})
-    base = default_config()
 
     def _dv(key, default):
         return loaded.get(key, default)

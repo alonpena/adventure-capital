@@ -1,6 +1,8 @@
 # Stochasticity via two-stage stochastic program, staged on top of deterministic model
 
-The target methodology is a two-stage stochastic program: choose one here-and-now growth plan that maximizes expected NPV across scenarios of uncertain parameters, with scenario-dependent outcomes (clients, revenue, EBITDA, cash, valuation, funding gap) as recourse. This replaces the earlier idea of a post-hoc Monte Carlo layer: the optimizer itself must be uncertainty-aware, not just measured after the fact.
+The target methodology is a two-stage stochastic program: choose one here-and-now growth plan across scenarios of uncertain parameters, with scenario-dependent outcomes (clients, revenue, EBITDA, cash, valuation, funding gap) as recourse. This replaces the earlier idea of a post-hoc Monte Carlo layer: the optimizer itself must be uncertainty-aware, not just measured after the fact.
+
+> Refined by ADR 0009: the accepted M4 target now requires deterministic channel parity, backend-static LHS triangular distributions, scenario-dependent realized acquisition/active clients, and conservative `CVaR_5%(VAN)` objective instead of expected NPV as the primary objective.
 
 The deterministic MILP is NOT removed. It stays as the baseline and due-diligence gate: a case is first evaluated ex ante with the deterministic model to produce the first report / due-diligence assessment. Only if the case passes (or is accepted as worth analyzing) does the stochastic extension run.
 

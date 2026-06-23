@@ -4,16 +4,6 @@ from __future__ import annotations
 
 from streamlit_pages import components as C
 
-_VERDICT_TONE = {
-    "passed": "ok",
-    "passed_with_warnings": "warn",
-    "requires_minor_adjustment": "warn",
-    "requires_major_adjustment": "bad",
-    "rejected_for_stochastic": "bad",
-}
-
-_SEVERITY_TONE = {"ok": "ok", "warning": "warn", "minor": "warn", "major": "bad", "structural": "bad"}
-
 
 def render(st) -> None:
     st.title("Due Diligence")
@@ -30,7 +20,7 @@ def render(st) -> None:
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown("**Veredicto**")
-        C.badge(st, verdict, _VERDICT_TONE.get(verdict, "muted"))
+        C.badge(st, verdict, C.VERDICT_TONE.get(verdict, "muted"))
     with c2:
         C.kpi(st, "Permite estocástico", "Sí" if assessment.get("allows_stochastic") else "No",
               tone="success" if assessment.get("allows_stochastic") else "alert")
@@ -49,7 +39,7 @@ def render(st) -> None:
         st.subheader("Hallazgos con alerta")
         for f in failing:
             with st.expander(f"[{f.get('id')}] {f.get('name')}"):
-                C.badge(st, f.get("severity_class", "—"), _SEVERITY_TONE.get(f.get("severity_class"), "muted"))
+                C.badge(st, f.get("severity_class", "—"), C.SEVERITY_TONE.get(f.get("severity_class"), "muted"))
                 st.write(f.get("message", ""))
 
     st.subheader("Palancas recomendadas")

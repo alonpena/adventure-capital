@@ -7,6 +7,8 @@ outputs/*
 /.DS_Store
 /src/adventure_capital/.DS_Store
 /src/.DS_Store
+**/.DS_Store
+/configs/legacy/
 /.antigravitycli
 /vim-xd.txt
 /runs

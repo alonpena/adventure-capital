@@ -52,7 +52,7 @@ def render(st) -> None:
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=revenue["t"], y=revenue["Ingresos"], name="Ingresos", line=dict(color=ACCENT)))
         fig.add_trace(go.Scatter(x=cash["t"], y=cash["EBITDA"], name="EBITDA", line=dict(color=SUCCESS)))
-        fig.update_layout(height=340, margin=dict(t=10), xaxis_title="Mes", yaxis_title="USD", plot_bgcolor="white")
+        fig.update_layout(height=340, margin=dict(t=10), xaxis_title="Mes", yaxis_title="USD", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig, use_container_width=True)
 
     if cash is not None:
@@ -60,20 +60,18 @@ def render(st) -> None:
         fig2 = go.Figure()
         fig2.add_trace(go.Scatter(x=cash["t"], y=cash["Caja"], name="Caja", line=dict(color=ACCENT), fill="tozeroy"))
         fig2.add_hline(y=0, line_color=ALERT, line_width=1)
-        fig2.update_layout(height=300, margin=dict(t=10), xaxis_title="Mes", yaxis_title="USD", plot_bgcolor="white")
+        fig2.update_layout(height=300, margin=dict(t=10), xaxis_title="Mes", yaxis_title="USD", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig2, use_container_width=True)
 
     if customers is not None:
         st.subheader("Flujo de clientes")
         st.dataframe(customers, use_container_width=True, hide_index=True)
 
-    with st.expander("Flujo de ingresos (detalle)"):
-        if revenue is not None:
-            st.dataframe(revenue, use_container_width=True, hide_index=True)
-    with st.expander("Caja y capital de trabajo (detalle)"):
-        if cash is not None:
-            st.dataframe(cash, use_container_width=True, hide_index=True)
-    with st.expander("Costos y CAC"):
-        costs = C.read_csv(folder / "06_costs_and_cac.csv")
-        if costs is not None:
-            st.dataframe(costs, use_container_width=True, hide_index=True)
+    def _detail(label: str, df) -> None:
+        with st.expander(label):
+            if df is not None:
+                st.dataframe(df, use_container_width=True, hide_index=True)
+
+    _detail("Flujo de ingresos (detalle)", revenue)
+    _detail("Caja y capital de trabajo (detalle)", cash)
+    _detail("Costos y CAC", C.read_csv(folder / "06_costs_and_cac.csv"))

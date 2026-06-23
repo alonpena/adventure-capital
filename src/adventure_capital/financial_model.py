@@ -123,9 +123,11 @@ def build_fixed_period_financial_model(instance: dict[str, Any]) -> pd.DataFrame
     df["period_cac_per_user"] = np.where(
         df["new_customers"] > 0, df["total_acquisition_cost"] / df["new_customers"].where(df["new_customers"] > 0, 1.0), np.nan
     )
+    cum_nc = df["new_customers"].cumsum()
+    cum_cac = df["total_acquisition_cost"].cumsum()
     df["cumulative_cac_per_user"] = np.where(
-        df["new_customers"].cumsum() > 0,
-        df["total_acquisition_cost"].cumsum() / df["new_customers"].cumsum().where(df["new_customers"].cumsum() > 0, 1.0),
+        cum_nc > 0,
+        cum_cac / cum_nc.where(cum_nc > 0, 1.0),
         np.nan,
     )
     df["EBITDA_acum"] = df["EBITDA"].cumsum()

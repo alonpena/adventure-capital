@@ -12,8 +12,33 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import streamlit as _st
 
 POSTPROCESSED = "postprocessed_results"
+
+# --- shared tone maps (used by multiple pages) ----------------------------
+
+VERDICT_TONE: dict[str, str] = {
+    "passed": "ok",
+    "passed_with_warnings": "warn",
+    "requires_minor_adjustment": "warn",
+    "requires_major_adjustment": "bad",
+    "rejected_for_stochastic": "bad",
+}
+
+SEVERITY_TONE: dict[str, str] = {
+    "ok": "ok",
+    "warning": "warn",
+    "minor": "warn",
+    "major": "bad",
+    "structural": "bad",
+}
+
+IMPL_STATUS_TONE: dict[str, str] = {
+    "implemented": "ok",
+    "proxy": "warn",
+    "methodological_reference": "muted",
+}
 
 
 # --- artifact access -------------------------------------------------------
@@ -28,12 +53,14 @@ def view_root(st) -> Path | None:
     return out / POSTPROCESSED if out else None
 
 
+@_st.cache_data(show_spinner=False)
 def read_json(path: Path) -> dict[str, Any] | None:
     if path and path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
     return None
 
 
+@_st.cache_data(show_spinner=False)
 def read_csv(path: Path) -> pd.DataFrame | None:
     if path and path.exists():
         return pd.read_csv(path)

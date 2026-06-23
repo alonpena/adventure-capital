@@ -60,10 +60,10 @@ Due diligence then classifies the run:
 | `passed` | yes | final valuation mode |
 | `passed_with_warnings` | yes | final valuation mode with warnings |
 | `requires_minor_adjustment` | yes | warning/preliminary mode |
-| `requires_major_adjustment` | yes | diagnostic mode, not investment-ready |
+| `requires_major_adjustment` | no for canonical M4 | recalibrate YAML before stochastic PCA |
 | `rejected_for_stochastic` | no | no stochastic valuation; fix structural blockers |
 
-Only structural rejection blocks stochastic. Liquidity, runway, funding gap, LTV/CAC, and revenue-growth issues are evidence and interpretation fields, not capital-gap penalties inside the base stochastic objective.
+After ADR 0009, canonical channel-parity CVaR M4 runs only for `passed`, `passed_with_warnings`, or `requires_minor_adjustment`. Major venture-scale failures must return to YAML recalibration first. Liquidity, runway, funding gap, LTV/CAC, and revenue-growth issues remain evidence and interpretation fields, not capital-gap penalties inside the stochastic objective.
 
 ## 4. Commercial channels across stages
 

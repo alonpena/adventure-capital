@@ -1,6 +1,8 @@
 # Stochastic Extension (Prototype)
 
-Isolated, non-breaking prototype that adds a two-stage stochastic optimization layer on top of the existing deterministic growth-plan MILP. The deterministic model (`model.py`) and pipeline are untouched and remain the baseline. See ADR [0004](adr/0004-two-stage-stochastic-extension.md) for the decision record and CONTEXT.md for the glossary (Scenario, First-Stage Decision, Recourse Decision, Expected NPV, Funding Gap).
+Isolated, non-breaking prototype that adds a two-stage stochastic optimization layer on top of the existing deterministic growth-plan MILP. The deterministic model (`model.py`) and pipeline are untouched and remain the baseline. See ADR [0004](adr/0004-two-stage-stochastic-extension.md) for the original decision record, ADR [0009](adr/0009-stochastic-channel-parity-cvar.md) for the accepted replacement target (channel parity + CVaR), and CONTEXT.md for the glossary (Scenario, First-Stage Decision, Recourse Decision, Expected NPV, Funding Gap).
+
+> Current implementation note: this document describes the existing prototype. The target M4 implementation is now `docs/M4_STOCHASTIC_PARITY_PLAN.md`: same three-channel PCA as deterministic, scenario-dependent realized clients, backend-static stochastic defaults, LHS triangular ICDF without scipy, and `CVaR_5%(VAN)` objective.
 
 ## Goal
 

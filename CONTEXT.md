@@ -2,6 +2,40 @@
 
 Financial planning context for modeling startup growth, optimizing an accelerated growth plan, valuing the resulting cashflows, and producing business-facing financial reports.
 
+## UI Architecture
+
+**Executive Report (Informe Ejecutivo)**:
+The `report.html` artifact embedded via iframe. Shown automatically after a successful pipeline run. The authoritative client-facing deliverable — not a dashboard, a document.
+_Avoid_: Dashboard, main page
+
+**Consulting Tool**:
+The framing of the entire UI: a standardized consulting process automation. The UI demonstrates reproducibility and traceability, not just charts. Formula traceability must be preserved in all artifact views.
+_Avoid_: Demo app, prototype, internal tool
+
+**Drill-down Tabs**:
+The supporting Streamlit pages (Plan de crecimiento, Valoración, Due Diligence, Análisis estocástico) that provide interactive exploration of the same data shown in the Executive Report. Dense layout (Bloomberg-moderate). Each visualization accompanied by McKinsey-style parametrized narrative text.
+_Avoid_: Separate app, standalone pages
+
+**Parametrized Narrative**:
+Report text built from template strings with variable placeholders filled from artifact data, plus conditional rule-based tone adjustments (positive/warning/critical) based on business metric thresholds. Not LLM-generated. Reproducible and auditable.
+_Avoid_: Static boilerplate, AI-generated text, dynamic prose
+
+**Downloadable Artifact**:
+A pipeline output that the UI exposes as a download button. Baseline format: PDF. Excel is additionally required for Growth Plan and Unit Economics (Alejandro works in Excel templates). HTML+PDF for Valuation DCF with formula trace visible.
+_Avoid_: Inline-only display, CSV-only export
+
+**Qualitative Valuation Narrative** (Future Extension):
+AI agent-generated qualitative content for valuation sections (market positioning, strategic risks, investment thesis). Deferred — not in scope for current sprint. Documented as Trabajo Futuro in thesis.
+_Avoid_: Implementing now
+
+**Consensuated Plan**:
+The first 12 months of the planning horizon where client acquisition is provided as external parameters (`A_base` in config YAML), not optimized. Contrasted against Projections in the client acquisition view.
+_Avoid_: Historical period, base year
+
+**Projections**:
+Months 13–36 of the planning horizon where client acquisition is decided by the MILP optimizer. Displayed separately from the Consensuated Plan, then unified in a combined 36-month view.
+_Avoid_: Optimized period, growth phase
+
 ## Language
 
 **Acquisition**:
@@ -13,8 +47,8 @@ Spanish business-facing label for **Acquisition**.
 _Avoid_: Adquisition
 
 **Fixed Acquisition Period**:
-The first twelve monthly periods where **Acquisition** is provided as an external assumption rather than chosen by the growth plan.
-_Avoid_: Base year, historical period
+The first twelve monthly periods where **Acquisition** is provided as an external consensuated assumption rather than chosen by the growth plan. In current M4, this period remains fixed and is not perturbed by channel-efficiency scenarios.
+_Avoid_: Base year, historical period, stochastic channel plan
 
 **Planning Period**:
 One month in the planning horizon.
@@ -115,8 +149,8 @@ The baseline single-scenario MILP that optimizes the growth plan against point-e
 _Avoid_: Stochastic model, point model
 
 **Stochastic Model**:
-The expected-value (risk-neutral SAA) valuation layer that runs after the **Deterministic Model** baseline, optimizing one growth plan across many **Scenarios** to maximize **Expected NPV**. It is not robust/worst-case optimization.
-_Avoid_: Robust optimization, worst-case, Monte Carlo, simulation
+The M4 two-stage SAA model that optimizes one first-stage PCA across LHS **Scenarios** using a downside-risk valuation objective, default **CVaR Valuation Objective** over VAN. It requires deterministic channel parity and scenario-dependent realized acquisition and **Active Client Pool**.
+_Avoid_: Risk-neutral-only SAA, simplified Monte Carlo, fixed-traction simulation
 
 ## Stochastic optimization
 
@@ -125,16 +159,28 @@ One realized draw of the uncertain parameters (churn/retention, commercial produ
 _Avoid_: Simulation run, trial
 
 **First-Stage Decision**:
-A decision committed before uncertainty is realized, shared across all **Scenarios**: the acquisition plan, sellers, and leaders.
-_Avoid_: Here-and-now plan (informal), strategic vars
+A decision committed before commercial efficiency uncertainty is realized, shared across all **Scenarios**: planned acquisition by channel, sellers, leaders, and advertising investment. The plan is optimized ex ante because the realized efficiency of each channel is unknown.
+_Avoid_: Here-and-now plan (informal), scenario-aware acquisition, fixed realized clients
 
 **Recourse Decision**:
-A decision allowed to adapt per **Scenario** after uncertainty is observed: operational capacity steps and all financial outcomes (revenue, EBITDA, cash, valuation, funding gap).
-_Avoid_: Second-stage hack, wait-and-see
+A decision allowed to adapt per **Scenario** after uncertainty is observed: operational capacity steps and financial outcomes (revenue, EBITDA, cash, valuation, funding gap). Commercial recourse is out of scope for current M4.
+_Avoid_: Second-stage hack, wait-and-see commercial replanning
 
 **Expected NPV**:
-The probability-weighted average NPV across **Scenarios**; the objective the **Stochastic Model** maximizes.
-_Avoid_: Robust value, mean cashflow
+The probability-weighted average NPV across **Scenarios**. It is a reported distribution statistic and optional tie-breaker, not the primary objective of the current **Stochastic Model**.
+_Avoid_: Robust value, primary objective
+
+**CVaR Valuation Objective**:
+A conservative downside objective that optimizes expected VAN in the worst `alpha` tail of **Scenarios**, defaulting to CVaR 5%.
+_Avoid_: Expected NPV, worst-case value, average valuation
+
+**Realized Acquisition**:
+Scenario-dependent acquisition produced by applying commercial efficiency multipliers to planned channel acquisition. It determines scenario-dependent **Active Client Pool** and must not be treated as fixed traction.
+_Avoid_: Fixed acquisition, fixed traction, deterministic acquisition in M4
+
+**Third-Party Commission Window**:
+The limited number of **Planning Periods** during which a third-party channel earns commission on **Revenue** attributable to **Service Cohorts** acquired through that channel. It applies to initial and recurring revenue inside the window, but never to total company revenue.
+_Avoid_: Company-wide revenue share, perpetual channel commission, one-time-only commission
 
 **Funding Gap**:
 The financing shortfall implied when a **Scenario**'s cash position breaches the **Liquidity Policy** floor.
@@ -158,11 +204,14 @@ _Avoid_: Cash deficit (ambiguous), loss
 - A **Report Data Package** combines model output artifacts with one **Document YAML**.
 - A **Document YAML** does not define optimization assumptions.
 - **Due Diligence** wraps the **Deterministic Model** and may reuse **Calibration** outputs as inputs; the two remain conceptually distinct and are not merged.
-- The **Stochastic Model** is blocked only by a `rejected_for_stochastic` **Due Diligence Verdict** (structural infeasibility). All other verdicts permit it to run; the **Valuation Mode** records how to read the result (`final`/`warning`/`diagnostic`). It is never mandatory.
-- Business/financial risk (negative cash, **Funding Gap**, low runway, weak unit economics) is diagnostic — it shapes the verdict, **Valuation Mode**, and recalibration recommendations but does not block the **Stochastic Model**, because the point is to study plan robustness under uncertainty.
-- A `requires_major_adjustment` verdict means the case is not yet venture-scale eligible (e.g. insufficient revenue growth, no credible EBITDA regime by year 3); the **Stochastic Model** may still run in `diagnostic` **Valuation Mode**.
+- The canonical **Stochastic Model** runs only when the **Due Diligence Verdict** is `passed`, `passed_with_warnings`, or `requires_minor_adjustment`; `requires_major_adjustment` and `rejected_for_stochastic` return to YAML recalibration before M4.
+- Business/financial risk (negative cash, **Funding Gap**, low runway, weak unit economics) shapes the verdict, **Valuation Mode**, and recalibration recommendations; severe venture-scale failures should be resolved before running canonical M4.
+- A `requires_major_adjustment` verdict means the case is not yet venture-scale eligible (e.g. insufficient revenue growth, no credible EBITDA regime by year 3) and blocks canonical M4 until the instance is recalibrated.
 - A **First-Stage Decision** is identical across all **Scenarios**; a **Recourse Decision** may differ per **Scenario**.
-- **Expected NPV** is computed over the **Scenarios** of the **Stochastic Model**.
+- **Expected NPV** is computed over the **Scenarios** of the **Stochastic Model** as a distribution statistic, not the default primary objective.
+- The **CVaR Valuation Objective** is the default primary objective of the current **Stochastic Model**.
+- **Realized Acquisition** varies by **Scenario** and drives scenario-dependent **Active Client Pool**.
+- A **Third-Party Commission Window** applies only to **Revenue** attributable to third-party-origin **Service Cohorts**.
 - A **Funding Gap** arises in a **Scenario** when cash breaches the **Liquidity Policy** floor.
 
 ## Example dialogue

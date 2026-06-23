@@ -16,6 +16,13 @@ from adventure_capital.standard_report import build_report_data_package, render_
 VERDICT_EXIT = {"PASS": 0, "WARN": 1, "FAIL": 2}
 
 
+def _resolve_output(output_arg: str | None) -> str:
+    if output_arg is not None:
+        return output_arg
+    stamp = datetime.now().strftime("%y-%d-%m-%H:%M:%S")
+    return str(Path("runs") / stamp)
+
+
 def _run_calibrate(args: argparse.Namespace) -> int:
     verdict = run_calibration(
         args.input,
@@ -66,11 +73,7 @@ def _run_report(args: argparse.Namespace) -> int:
 
 def _run_all(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    output_dir = args.output
-    if output_dir is None:
-        stamp = datetime.now().strftime("%y-%d-%m-%H:%M:%S")
-        output_dir = str(Path("runs") / stamp)
-
+    output_dir = _resolve_output(args.output)
     run_pipeline(config, output_dir=output_dir, baseline_only=False)
     artifacts = build_report_data_package(
         output_dir,
@@ -126,10 +129,7 @@ def main() -> int:
 
     if args.command == "run":
         config = load_config(args.config)
-        output_dir = args.output
-        if output_dir is None:
-            stamp = datetime.now().strftime("%y-%d-%m-%H:%M:%S")
-            output_dir = str(Path("runs") / stamp)
+        output_dir = _resolve_output(args.output)
         run_pipeline(config, output_dir=output_dir, baseline_only=False)
         print(f"Artifacts written to {output_dir}")
         return 0
