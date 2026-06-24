@@ -103,6 +103,60 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
                 log_ceiling[t] = max(0.0, gross)
                 prev_stock = stock_t
 
+    # Convex-CAC endogenous growth law (ADR 0013). Diminishing returns: per-period
+    # acquisition is decomposed into batches of the year-1 run-rate, and each further
+    # batch carries a rising marginal CAC premium base_cac * theta * k. Growth self-limits
+    # where marginal CAC meets LTV (k* = (LTV/base_cac - 1)/theta), with no exogenous cap.
+    convex_cfg = config.get("convex_cac", {})
+    convex_enabled = bool(convex_cfg.get("enabled", False))
+    convex: dict[str, Any] = {"enabled": convex_enabled}
+    if convex_enabled:
+        theta = float(convex_cfg.get("theta", 1.0))
+        if theta <= 0.0:
+            raise ValueError("convex_cac.theta must be > 0.")
+        # Per-service LTV (representative cohort t=13), year-1 batch width, base CAC.
+        ltv: dict[int, float] = {}
+        batch: dict[int, float] = {}
+        base_cac: dict[int, float] = {}
+        ref = 13
+        for s, service in enumerate(services):
+            ticket = float(service["ticket"])
+            a = float(service["alpha"])
+            value = ticket
+            for t in range(ref + 1, H + 1):
+                value += (
+                    ticket
+                    * a
+                    * repurchase_window.get((s, ref, t), 0)
+                    * survival.get((s, ref, t), 0.0)
+                    * discount_factor[t]
+                    / discount_factor[ref]
+                )
+            ltv[s] = value
+            batch[s] = max(
+                1.0, sum(base_acquisition[(s, t)] for t in fixed_periods) / len(fixed_periods)
+            )
+            base_cac[s] = config["rem_v"] / config["meta"] + (
+                config["com_v"] + config["com_l"]
+            ) * ticket
+        # Segment count must cover the economic limit k* = (LTV/base_cac - 1)/theta so the
+        # number of batches never artificially caps growth; the economics (or capacity /
+        # cash) bind first. Capped to bound model size.
+        max_cap = int(convex_cfg.get("max_segments", 80))
+        k_star = max(
+            (ltv[s] / base_cac[s] - 1.0) / theta for s in range(service_count)
+        )
+        n_segments = int(convex_cfg.get("segments", min(max_cap, math.ceil(k_star) + 2)))
+        convex.update(
+            {
+                "theta": theta,
+                "segments": n_segments,
+                "ltv": ltv,
+                "batch": batch,
+                "base_cac": base_cac,
+            }
+        )
+
     # Acquisition channels (optional). Default: salesforce-only, no split.
     raw_channels = config.get("channels") or {}
     sf_cfg = raw_channels.get("salesforce", {"active": True, "min_share": 0.0, "max_share": 1.0})
@@ -179,6 +233,7 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         "commercial_productivity_lag": config.get("commercial_productivity_lag", 0),
         "log_ceiling": log_ceiling,
         "ceiling_slack": ceiling_slack,
+        "convex_cac": convex,
         "channels": channels,
     }
 

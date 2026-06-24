@@ -127,17 +127,48 @@ def build_model(instance: dict[str, Any], *, elastic_floor: bool = False) -> Mod
         for t in instance["T_base"]:
             problem += acquisition[(s, t)] == instance["A_base"][(s, t)]
 
-    # Growth law (ADR 0010): the logarithmic market-saturation ceiling is the PRIMARY
-    # and default-on upper bound on TOTAL acquisition across all services for t >= 13.
-    # The former moving-average smoothing constraints were removed (exponential law).
-    # When the ceiling is explicitly disabled (log_ceiling empty), the only acquisition
-    # bounds are physical: salesforce/advertising capacity and the cash floor.
-    log_ceiling = instance.get("log_ceiling", {})
-    ceiling_slack = instance.get("ceiling_slack", 0.0)
-    for t, ceiling_value in log_ceiling.items():
-        problem += pulp.lpSum(
-            acquisition[(s, t)] for s in range(service_count)
-        ) <= ceiling_value * (1 + ceiling_slack)
+    # Growth law. Convex-CAC endogenous diminishing returns (ADR 0013) supersedes the
+    # exogenous logarithmic ceiling (ADR 0010) when enabled. They are mutually exclusive:
+    # the convex law self-limits growth economically, so no upper-bound ceiling is applied.
+    convex = instance.get("convex_cac", {})
+    convex_enabled = bool(convex.get("enabled", False))
+    acq_segment: dict[tuple[int, int, int], Any] = {}
+    saturation_cost: dict[int, Any] = {}
+    if convex_enabled:
+        theta = convex["theta"]
+        n_seg = convex["segments"]
+        batch = convex["batch"]
+        base_cac = convex["base_cac"]
+        opt_periods = [t for t in periods if t >= 13]
+        acq_segment = {
+            (s, t, k): pulp.LpVariable(f"aseg_{s}_{t}_{k}", lowBound=0, upBound=batch[s])
+            for s in range(service_count)
+            for t in opt_periods
+            for k in range(n_seg)
+        }
+        for s in range(service_count):
+            for t in opt_periods:
+                problem += acquisition[(s, t)] == pulp.lpSum(
+                    acq_segment[(s, t, k)] for k in range(n_seg)
+                )
+        # Saturation premium per period: batch k carries base_cac * theta * k extra CAC.
+        saturation_cost = {t: pulp.LpVariable(f"sat_cac_{t}", lowBound=0) for t in opt_periods}
+        for t in opt_periods:
+            problem += saturation_cost[t] == pulp.lpSum(
+                base_cac[s] * theta * k * acq_segment[(s, t, k)]
+                for s in range(service_count)
+                for k in range(n_seg)
+            )
+    else:
+        # Logarithmic market-saturation ceiling (ADR 0010): default-on upper bound on
+        # TOTAL acquisition for t >= 13. When disabled (log_ceiling empty), the only
+        # acquisition bounds are physical (capacity, cash floor).
+        log_ceiling = instance.get("log_ceiling", {})
+        ceiling_slack = instance.get("ceiling_slack", 0.0)
+        for t, ceiling_value in log_ceiling.items():
+            problem += pulp.lpSum(
+                acquisition[(s, t)] for s in range(service_count)
+            ) <= ceiling_value * (1 + ceiling_slack)
 
     # Channel split identity and per-channel mechanics (Phase 2).
     for s in range(service_count):
@@ -247,6 +278,7 @@ def build_model(instance: dict[str, Any], *, elastic_floor: bool = False) -> Mod
             pulp.lpSum(revenue[(s, t)] for s in range(service_count))
             - pulp.lpSum(operational_cost[(s, t)] for s in range(service_count))
             - cac[t]
+            - (saturation_cost[t] if t in saturation_cost else 0)
             - instance["g_adm"]
             - instance["RRHH"][t]
         )
@@ -316,6 +348,8 @@ def build_model(instance: dict[str, Any], *, elastic_floor: bool = False) -> Mod
         "third_party_cost": third_party_cost,
         "total_acquisition_cost": total_acquisition_cost,
         "cash_shortfall": cash_shortfall,
+        "saturation_cost": saturation_cost,
+        "acq_segment": acq_segment,
     }
     return {"problem": problem, "variables": variables}
 
