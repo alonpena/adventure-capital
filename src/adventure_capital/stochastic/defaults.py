@@ -5,11 +5,15 @@ inputs. They are intentionally not exposed in the Streamlit config form (see
 the M4 plan and ADR 0009). Override only in code or tests when validating
 alternative parameterizations.
 
-Key invariants (ADR 0009):
-- objective is ``cvar_van`` at ``cvar_alpha = 0.05``;
+Key invariants (ADR 0009, amended by ADR 0011):
+- objective is mean-CVaR of VAN: ``lambda*E[VAN] + (1-lambda)*CVaR_alpha(VAN)``
+  with ``cvar_alpha = 0.15`` and ``mean_cvar_lambda = 0.5`` (robust without
+  over-penalizing the operational plan; empirically +~25% E[VAN] at flat CVaR);
 - VC is fixed across scenarios (no financing multiplier);
 - efficiency multipliers are per *channel* (not per service);
-- churn is a single global multiplier per scenario.
+- churn is a single global multiplier per scenario;
+- the growth law is the deterministic logarithmic ceiling (ADR 0010), not the
+  legacy moving-average smoothing.
 """
 
 from __future__ import annotations
@@ -21,7 +25,8 @@ from typing import Any
 # multipliers relative to the deterministic base (1.0 = no change).
 M4_DEFAULTS: dict[str, Any] = {
     "objective": "cvar_van",
-    "cvar_alpha": 0.05,
+    "cvar_alpha": 0.15,
+    "mean_cvar_lambda": 0.5,
     "saa_scenario_count": 100,
     "evaluation_scenario_count": 1000,
     # Operational default for the CBC time limit (seconds). The canonical

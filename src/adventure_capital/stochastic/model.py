@@ -52,6 +52,16 @@ def _cvar_alpha(config: dict[str, Any]) -> float:
     return alpha
 
 
+def _mean_cvar_lambda(config: dict[str, Any]) -> float:
+    """Mean-CVaR weight (ADR 0011). lambda=0 -> pure CVaR (worst-tail only);
+    lambda=1 -> risk-neutral expectation. Default 0.5: robust without leaving
+    expected value on the table."""
+    lam = float(_stochastic_block(config).get("mean_cvar_lambda", M4_DEFAULTS["mean_cvar_lambda"]))
+    if not (0.0 <= lam <= 1.0):
+        raise ValueError(f"mean_cvar_lambda must be in [0, 1], got {lam}.")
+    return lam
+
+
 def _commission_periods(config: dict[str, Any]) -> int:
     block = _stochastic_block(config).get("third_party_defaults", {}) or {}
     return int(
@@ -73,7 +83,6 @@ def build_saa_model(config: dict[str, Any], scenarios: list[Scenario]) -> ModelB
     periods = base_instance["T"]
     services = base_instance["servicios"]
     fixed_periods = base_instance["T_base"]
-    growth_limit = base_instance["g_max_suavizado"]
     lag = base_instance["commercial_productivity_lag"]
     terminal_multiple = _terminal_multiple(config)
     tax_rate = float(base_instance["tax"])
@@ -152,21 +161,20 @@ def build_saa_model(config: dict[str, Any], scenarios: list[Scenario]) -> ModelB
         problem += leaders[t] == fixed_leaders
         problem += ad_investment[t] == 0
 
-    # ----- First-stage: plan identity + smoothing (months 13..H) -----
+    # ----- First-stage: plan identity (months 13..H) -----
     for s in range(service_count):
         for t in periods:
             problem += plan_total[(s, t)] == sf_plan(s, t) + ad_plan(s, t) + tp_plan(s, t)
 
-        base_average = sum(
-            base_instance["A_base"][(s, t)] for t in fixed_periods
-        ) / len(fixed_periods)
-        transition_base = max(base_instance["A_base"][(s, 12)], base_average)
-        problem += plan_total[(s, 13)] <= (1 + growth_limit) * transition_base
-        problem += plan_total[(s, 14)] <= (1 + growth_limit) * plan_total[(s, 13)]
-        for t in range(15, horizon + 1):
-            problem += plan_total[(s, t)] <= ((1 + growth_limit) / 3) * (
-                plan_total[(s, t - 1)] + plan_total[(s, t - 2)] + plan_total[(s, t - 3)]
-            )
+    # ----- First-stage: logarithmic growth ceiling (ADR 0010/0011 parity) -----
+    # The deterministic active-stock saturation ceiling replaces the legacy
+    # moving-average smoothing. Bounds TOTAL plan acquisition for t >= 13.
+    log_ceiling = base_instance.get("log_ceiling", {})
+    ceiling_slack = base_instance.get("ceiling_slack", 0.0)
+    for t, ceiling_value in log_ceiling.items():
+        problem += pulp.lpSum(
+            plan_total[(s, t)] for s in range(service_count)
+        ) <= ceiling_value * (1 + ceiling_slack)
 
     # ----- First-stage: commercial team + salesforce capacity (months 13..H) -----
     for t in periods:
@@ -352,15 +360,19 @@ def build_saa_model(config: dict[str, Any], scenarios: list[Scenario]) -> ModelB
             + terminal
         )
 
-    # ----- CVaR objective -----
+    # ----- Mean-CVaR objective (ADR 0011) -----
+    # maximize  lambda*E[VAN] + (1-lambda)*CVaR_alpha(VAN). lambda is a real risk
+    # knob (replaces the negligible 1e-6 expected-VAN tie-break): it recovers
+    # expected value left on the table by pure CVaR at flat worst-case cost.
     alpha_cvar = _cvar_alpha(config)
+    lam = _mean_cvar_lambda(config)
     eta = pulp.LpVariable("eta", lowBound=None)
     z = {w: pulp.LpVariable(f"z_{w}", lowBound=0) for w in scenario_keys}
     for w in scenario_keys:
         problem += z[w] >= eta - van[w]
     cvar = eta - (1.0 / alpha_cvar) * pulp.lpSum(scenarios[w].probability * z[w] for w in scenario_keys)
     expected_van = pulp.lpSum(scenarios[w].probability * van[w] for w in scenario_keys)
-    problem += cvar + 1e-6 * expected_van, "FO_CVaR_VAN"
+    problem += lam * expected_van + (1.0 - lam) * cvar, "FO_mean_CVaR_VAN"
 
     variables = {
         "A_sf_plan": plan_sf,
@@ -384,6 +396,7 @@ def build_saa_model(config: dict[str, Any], scenarios: list[Scenario]) -> ModelB
         "scenario_instances": scenario_instances,
         "base_instance": base_instance,
         "cvar_alpha": alpha_cvar,
+        "mean_cvar_lambda": lam,
         "channels": {"advertising": ad_active, "third_party": tp_active},
     }
 
@@ -440,6 +453,7 @@ def solve_saa_model(
         "status": status,
         "objective": "cvar_van",
         "cvar_alpha": alpha,
+        "mean_cvar_lambda": model_bundle.get("mean_cvar_lambda"),
         "cvar_van": cvar_van,
         "expected_van": expected_van,
         # Back-compat: consumers historically read ``expected_objective``.
