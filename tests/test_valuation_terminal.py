@@ -92,7 +92,8 @@ def test_pipeline_document_validation_errors(tmp_path):
     with pytest.raises(ValueError, match="gordon_g es requerido"):
         run_pipeline(config, document_path=str(doc_path1))
 
-    # EBITDA multiple missing ebitda_multiple
+    # EBITDA multiple without an explicit ebitda_multiple now falls back to the
+    # default 1.0 (1x last-year EBITDA, going-concern terminal) instead of erroring.
     doc2 = {
         "document": {"title": "X", "company_name": "X", "author": "X", "report_date": "2026-01-01"},
         "params": {"config_path": "configs/base.yaml"},
@@ -105,6 +106,6 @@ def test_pipeline_document_validation_errors(tmp_path):
     doc_path2 = tmp_path / "doc2.yaml"
     doc_path2.write_text(yaml.dump(doc2), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="ebitda_multiple es requerido"):
-        run_pipeline(config, document_path=str(doc_path2))
+    result = run_pipeline(config, document_path=str(doc_path2))
+    assert result["dcf"]["VAN"] is not None
 

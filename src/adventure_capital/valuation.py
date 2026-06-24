@@ -63,8 +63,11 @@ def calculate_dcf(df: pd.DataFrame, instance: dict[str, Any]) -> dict[str, Any]:
     tax = float(parameters.get("tax", instance.get("tax", 0.125)))
     terminal_ebitda_multiple = float(parameters.get("mult_vd_ebitda", 1.0))
 
-    # E.1 read residual value params
-    metodo = parameters.get("valor_residual_metodo", "none")
+    # E.1 read residual value params. Default terminal value = 1x last-year EBITDA
+    # (ebitda_multiple with multiple 1.0): a conservative going-concern terminal so the
+    # company is never worth more "in parts" than operating. Arbitrary high multiples are
+    # deliberately not the default; override per instance with documented justification.
+    metodo = parameters.get("valor_residual_metodo", "ebitda_multiple")
     ebitda_multiple = parameters.get("ebitda_multiple", terminal_ebitda_multiple)
     gordon_g = parameters.get("gordon_g")
 

@@ -41,6 +41,9 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "ciclo_op": [180, 90, 30],
     "buffer_caja": 0,
     "tax": 0.125,
+    # Terminal value default: 1x last-year EBITDA (going-concern, conservative).
+    "valor_residual_metodo": "ebitda_multiple",
+    "ebitda_multiple": 1.0,
     "liquidity_policy": {"type": "none"},
     "working_capital": {"enabled": False, "floor_mode": "ticket"},
     # Logarithmic market-saturation growth law (ADR 0010). Default-on: the curve is
