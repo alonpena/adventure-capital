@@ -144,6 +144,34 @@ sum_s A[s,t] <= ceiling[t] * (1 + slack)      for t >= 13
 anywhere from 0 up to the cap. Diagnostic output columns `Log_ceiling[t]` and
 `Log_ceiling_slack[t]` are emitted when the ceiling is active.
 
+### Choosing `target_stock_multiplier`: 3x baseline + calibrated sensitivity
+
+`target_stock_multiplier = 3.0` is the **standard-acceleration baseline** — a uniform
+"triple your clients by year 3" reference applied to every instance. It is the binding
+growth constraint (the ceiling, not salesforce/ops capacity, is what caps these plans:
+on the benchmark instances it binds ~23/24 optimized months), so the multiplier directly
+sets the achievable scale.
+
+For instances whose thesis targets a specific scale (e.g. the >$1M year-3 revenue startup
+benchmark), the multiplier is **calibrated per instance from an exogenous, documented
+target** — never tuned to the resulting VAN (no circularity):
+
+```text
+multiplier_i = target_active_stock_Y3_i / C_0_i
+   target_active_stock_Y3 derived from the business plan (revenue/client goal, TAM).
+```
+
+This is academically defensible as long as the target's source is documented. Report the
+baseline and the calibrated value as a sensitivity, e.g. (terminal value = 1x EBITDA):
+
+| instance | 3x baseline (Y3 rev / VAN) | calibrated to >=$1M Y3 revenue |
+| -------- | ------------------------- | ------------------------------ |
+| entrena  | 662k / 554k               | ~5x -> 1.12M / 1.18M           |
+| kava     | 866k / 362k               | ~4x -> 1.23M / 0.68M           |
+
+A higher multiplier raises achievable revenue and VAN monotonically up to the point where
+salesforce/ops capacity or the cash floor begins to bind instead.
+
 ## Acquisition channels (optional, Phase 2)
 
 Total per-service acquisition is split across channels while `A[s,t]` stays the
