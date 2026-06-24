@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from adventure_capital.financial_model import build_fixed_period_financial_model
-from adventure_capital.instance import generate_instance
+from adventure_capital.instance import check_pre_feasibility, generate_instance
 from adventure_capital.model import solve_growth_plan, solve_with_working_capital
 from adventure_capital.reporting import generate_report
 from adventure_capital.results import extract_results, summarize_results
@@ -39,6 +39,13 @@ def run_pipeline(
         return run_assessment(config, output_dir=out_dir, verbose_solver=verbose_solver)
 
     instance = generate_instance(config)
+
+    # Pre-feasibility heuristics (ADR 0010, R3): warn on obviously underfunded /
+    # margin-negative inputs before paying for the MILP solve.
+    for warning in check_pre_feasibility(instance):
+        import warnings as _warnings
+
+        _warnings.warn(f"pre-feasibility: {warning}", stacklevel=2)
 
     # Propagate DCF parameters from document YAML if provided
     if document_path is not None:

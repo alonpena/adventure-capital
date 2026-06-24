@@ -89,36 +89,50 @@ Caja[t] = Caja[t-1] + EBITDA[t]                                 for t > 1
 
 Liquidity policy defaults to `none`, adding no cash floor. Optional policies currently implemented: `nonnegative` and `minimum_cash`.
 
-## Logarithmic acquisition ceiling (optional)
+## Logarithmic acquisition growth law (ADR 0010)
 
-An optional upper bound on **total** acquisition across all services for `t >= 13`,
-modeling market saturation. It is a conservative brake on Enterprise Value: it can
-only lower or leave EV unchanged, never raise it. It is an **additional** constraint
-layered on top of the existing smoothing constraints — it does not replace them.
+The **primary, default-on** upper bound on **total** acquisition across all services for
+`t >= 13`, modeling market saturation. It replaced the former moving-average smoothing
+constraints (an exponential growth law). It is a conservative brake on Enterprise Value:
+it can only lower or leave EV unchanged, never raise it.
 
-Config block (disabled by default):
+`target_stock_multiplier` is fitted to the venture-capital investment thesis: by year 3
+(`t = H = 36`) cumulative acquisition reaches `multiplier x` the year-1 base plan — the
+"triple your clients" VC benchmark, default `3.0`. Due-diligence experts may override it.
+
+Config block (default-on; an absent block enables it with defaults, only an explicit
+`enabled: false` opts out):
 
 ```yaml
 acquisition_ceiling:
   enabled: true
-  target_stock_multiplier: 2.0   # target cumulative acquisition stock vs. year-1 total
-  slack: 0.15                    # tolerance above the ceiling (>= 0)
+  target_stock_multiplier: 3.0   # cumulative acquisition vs. year-1 total by t = H (VC 3x)
+  slack: 0.15                    # upward tolerance band around the curve (>= 0)
 ```
 
-Preprocessing (in `instance.py`), where `S_0` is the total year-1 acquisition
-(`sum_s sum_{t=1..12} A_base[s,t]`) and `H_post = H - 12`:
+When explicitly disabled, the smoothing law does **not** return: the only remaining
+acquisition bounds are physical (salesforce/advertising capacity, the `-VC` cash floor).
+With no such bound, acquisition is unbounded by design.
+
+The anchor is the **active client stock**, not cumulative acquisition. Preprocessing (in
+`instance.py`), where `C_0` is the end-of-year-1 active stock (net of churn) and
+`H_post = H - 12`:
 
 ```text
-S_target = S_0 * target_stock_multiplier
-K        = (S_target - S_0) / ln(1 + H_post)
-S(t)     = S_0 + K * ln(1 + (t - 12))        for t >= 13
-ceiling[t] = S(t) - S(t-1)                   (S(12) = S_0)
+C_0        = sum_s sum_{c=1..12} phi[s,c,12] * A_base[s,c]   # active clients at t=12
+C_target   = C_0 * target_stock_multiplier                   # target stock at t=H
+K          = (C_target - C_0) / ln(1 + H_post)
+C(t)       = C_0 + K * ln(1 + (t - 12))        for t >= 13   # net stock target curve
+churn_agg(t) = mean_s churn_mensual[s,t]                     # aggregate replacement proxy
+ceiling[t] = max(0, C(t) - C(t-1) * (1 - churn_agg(t)))      # gross acquisition cap
 ```
 
-`ceiling[t]` is the **marginal** per-period acquisition cap. Because the cumulative
-stock `S(t)` follows a logarithm, its increments are monotonically decreasing, so the
-ceiling tightens over time. Cumulative acquisition over `t = 13..H` reaches `S_target`
-by construction.
+The **net** stock `C(t)` follows a logarithm (saturation toward `C_target`). The
+per-period cap is the net increment **plus churn replacement**, so it does not collapse
+in year 3 (unlike a cumulative-acquisition anchor). Acquiring at the ceiling every month
+drives the projected net stock to `C_target = multiplier x C_0` by `t = H`. The aggregate
+churn proxy is a preprocessing heuristic; the solved model uses exact per-service `phi`,
+so realized stock tracks the target approximately (DD-assessed).
 
 Constraint added to the MILP:
 
@@ -133,7 +147,7 @@ anywhere from 0 up to the cap. Diagnostic output columns `Log_ceiling[t]` and
 ## Acquisition channels (optional, Phase 2)
 
 Total per-service acquisition is split across channels while `A[s,t]` stays the
-total used by cohorts, revenue, recurrence, smoothing, and the log ceiling:
+total used by cohorts, revenue, recurrence, and the log ceiling:
 
 ```text
 A[s,t] = A_sf[s,t] + A_ad[s,t] + A_tp[s,t]

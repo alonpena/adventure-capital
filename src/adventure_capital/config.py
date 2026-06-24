@@ -43,9 +43,13 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "tax": 0.125,
     "liquidity_policy": {"type": "none"},
     "working_capital": {"enabled": False, "floor_mode": "ticket"},
+    # Logarithmic market-saturation growth law (ADR 0010). Default-on: the curve is
+    # fitted so cumulative acquisition reaches target_stock_multiplier x the year-1 base
+    # plan by t = H (the VC "triple your clients" benchmark). slack is the upward
+    # tolerance band. An explicit enabled: false opts out (only physical/cash bounds remain).
     "acquisition_ceiling": {
-        "enabled": False,
-        "target_stock_multiplier": 2.0,
+        "enabled": True,
+        "target_stock_multiplier": 3.0,
         "slack": 0.15,
     },
     "channels": {
@@ -62,7 +66,7 @@ _DEFAULT_CONFIG: dict[str, Any] = {
         },
         "third_party": {"active": False, "commission": 0.0, "min_share": 0.0, "max_share": 1.0},
     },
-    "solver": {"name": "cbc", "time_limit": 120, "verbose": False},
+    "solver": {"name": "cbc", "time_limit": 300, "verbose": False},
     "commercial_productivity_lag": 0,
 }
 
@@ -105,7 +109,10 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError(f"Missing config keys: {missing}")
 
     if config["H"] < 14:
-        raise ValueError("H must be >= 14 because smoothing constraints reference months 13 and 14.")
+        raise ValueError(
+            "H must be >= 14: the optimized growth horizon starts at month 13 and the "
+            "logarithmic acquisition ceiling needs at least one post-year-1 period."
+        )
 
     if not config["servicios"]:
         raise ValueError("At least one service is required.")

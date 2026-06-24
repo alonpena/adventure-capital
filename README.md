@@ -88,3 +88,15 @@ Without `output_dir`, API returns dataframes/dicts and writes no files.
 uv run pytest
 uv run ruff check src tests
 ```
+
+## Future work
+
+- **Working-capital management.** Advanced working-capital policy (e.g. minimum-cash
+  covenants, payment-cycle timing) is deferred. The MILP currently enforces a single
+  liquidity contract: accumulated cash may not fall below the financing ticket,
+  `Caja[t] >= -VC`. See ADR 0010.
+- **Stochastic parity for the growth law.** The deterministic model uses the logarithmic
+  market-saturation ceiling (ADR 0010); the stochastic model still uses the legacy
+  moving-average smoothing. Aligning them is pending (ADR 0009 territory).
+- **After-tax valuation.** The MILP objective is pre-tax NPV(EBITDA); taxes and
+  free-cash-flow timing are applied linearly post-solve in `valuation.py`.

@@ -21,7 +21,6 @@ def build_model(instance: dict[str, Any], *, elastic_floor: bool = False) -> Mod
     minimizing total shortfall. This is used only to measure the financing gap after the
     main model is infeasible; it never mutates the main model.
     """
-    horizon = instance["H"]
     service_count = instance["S"]
     periods = instance["T"]
     services = instance["servicios"]
@@ -128,19 +127,11 @@ def build_model(instance: dict[str, Any], *, elastic_floor: bool = False) -> Mod
         for t in instance["T_base"]:
             problem += acquisition[(s, t)] == instance["A_base"][(s, t)]
 
-    growth_limit = instance["g_max_suavizado"]
-    for s in range(service_count):
-        base_average = sum(instance["A_base"][(s, t)] for t in instance["T_base"]) / len(instance["T_base"])
-        transition_base = max(instance["A_base"][(s, 12)], base_average)
-        problem += acquisition[(s, 13)] <= (1 + growth_limit) * transition_base
-        problem += acquisition[(s, 14)] <= (1 + growth_limit) * acquisition[(s, 13)]
-        for t in range(15, horizon + 1):
-            problem += acquisition[(s, t)] <= ((1 + growth_limit) / 3) * (
-                acquisition[(s, t - 1)] + acquisition[(s, t - 2)] + acquisition[(s, t - 3)]
-            )
-
-    # Optional logarithmic acquisition ceiling: additional upper bound on TOTAL
-    # acquisition across all services for t >= 13. Does not replace smoothing.
+    # Growth law (ADR 0010): the logarithmic market-saturation ceiling is the PRIMARY
+    # and default-on upper bound on TOTAL acquisition across all services for t >= 13.
+    # The former moving-average smoothing constraints were removed (exponential law).
+    # When the ceiling is explicitly disabled (log_ceiling empty), the only acquisition
+    # bounds are physical: salesforce/advertising capacity and the cash floor.
     log_ceiling = instance.get("log_ceiling", {})
     ceiling_slack = instance.get("ceiling_slack", 0.0)
     for t, ceiling_value in log_ceiling.items():

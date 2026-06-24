@@ -63,30 +63,45 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         year = min((t - 1) // 12, len(config["RRHH_mensual"]) - 1)
         hr[t] = config["RRHH_mensual"][year]
 
-    minimum_cash = {}
-    for t in periods:
-        minimum_cash[t] = 0
-
     discount_factor = {t: 1 / (1 + monthly_discount) ** t for t in periods}
 
-    # Logarithmic acquisition ceiling (optional). A conservative, monotonically
-    # decreasing per-period brake on total acquisition for t >= 13, modeling
-    # market saturation. See docs/model.md.
+    # Logarithmic market-saturation growth law (ADR 0010). The PRIMARY, default-on
+    # acquisition bound for t >= 13. The ANCHOR is the active client stock: by t = H the
+    # projected net stock (clients, net of churn) reaches target_stock_multiplier x the
+    # end-of-year-1 active stock (the VC "triple your clients" benchmark). The net stock
+    # follows a logarithm (saturation); the per-period acquisition cap is the net stock
+    # increment PLUS churn replacement, so it does not collapse in year 3.
+    # Default-on: an absent block enables it with defaults; only an explicit
+    # enabled: false opts out (then only physical/cash bounds remain). There is no
+    # moving-average smoothing fallback.
     ceiling_config = config.get("acquisition_ceiling", {})
     log_ceiling: dict[int, float] = {}
     ceiling_slack = 0.0
-    if ceiling_config.get("enabled", False):
-        ceiling_slack = float(ceiling_config.get("slack", 0.0))
-        target_multiplier = float(ceiling_config["target_stock_multiplier"])
-        S_0 = sum(base_acquisition[(s, t)] for s in range(service_count) for t in fixed_periods)
-        S_target = S_0 * target_multiplier
-        H_post = H - 12  # months in years 2+ (post fixed-acquisition period)
-        K = (S_target - S_0) / math.log(1 + H_post)
-        prev_stock = S_0
-        for t in range(13, H + 1):
-            stock_t = S_0 + K * math.log(1 + (t - 12))
-            log_ceiling[t] = stock_t - prev_stock
-            prev_stock = stock_t
+    if ceiling_config.get("enabled", True):
+        ceiling_slack = float(ceiling_config.get("slack", 0.15))
+        target_multiplier = float(ceiling_config.get("target_stock_multiplier", 3.0))
+        # Active client stock at end of year 1 (net of churn), aggregated over services.
+        C_0 = sum(
+            survival[(s, cohort, 12)] * base_acquisition[(s, cohort)]
+            for s in range(service_count)
+            for cohort in fixed_periods
+        )
+        if C_0 > 0:
+            C_target = C_0 * target_multiplier
+            H_post = H - 12  # months in years 2+ (post fixed-acquisition period)
+            K = (C_target - C_0) / math.log(1 + H_post)
+            # Aggregate monthly churn proxy (mean across services) for replacement.
+            churn_agg = {
+                t: sum(monthly_churn[(s, t)] for s in range(service_count)) / service_count
+                for t in range(13, H + 1)
+            }
+            prev_stock = C_0
+            for t in range(13, H + 1):
+                stock_t = C_0 + K * math.log(1 + (t - 12))
+                # Gross acquisition cap = net stock increment + churn replacement.
+                gross = stock_t - prev_stock * (1 - churn_agg[t])
+                log_ceiling[t] = max(0.0, gross)
+                prev_stock = stock_t
 
     # Acquisition channels (optional). Default: salesforce-only, no split.
     raw_channels = config.get("channels") or {}
@@ -150,7 +165,6 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         "A_base": base_acquisition,
         "ciclo_op": config["ciclo_op"],
         "RRHH": hr,
-        "B_min": minimum_cash,
         "VC": config["VC"],
         "g_adm": config["g_adm"],
         "meta": config["meta"],
@@ -167,3 +181,36 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         "ceiling_slack": ceiling_slack,
         "channels": channels,
     }
+
+
+def check_pre_feasibility(instance: dict[str, Any]) -> list[str]:
+    """Cheap pre-solve heuristics (ADR 0010, R3).
+
+    Returns a list of human-readable warnings; an empty list means no obvious problem.
+    This never replaces the solver's feasibility verdict — it catches the obvious
+    underfunded / margin-negative cases before paying for a full MILP solve.
+    """
+    warnings: list[str] = []
+
+    # 1) Financing vs. year-1 committed fixed cost. RRHH[1] is the month-1 payroll;
+    #    g_adm is the fixed monthly admin cost. 12 months is a coarse but cheap proxy.
+    fixed_year1 = 12 * (float(instance["g_adm"]) + float(instance["RRHH"][1]))
+    vc = float(instance["VC"])
+    if vc < fixed_year1:
+        warnings.append(
+            f"VC={vc:,.0f} < year-1 committed fixed cost≈{fixed_year1:,.0f} "
+            "(12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1."
+        )
+
+    # 2) Per-service unit margin sign. A non-positive contribution margin means every
+    #    sale destroys cash, so no acquisition plan can be profitable.
+    for s, service in enumerate(instance["servicios"]):
+        ticket = float(service["ticket"])
+        c_u = float(service["c_u"])
+        if ticket <= c_u:
+            warnings.append(
+                f"service {s} ({service.get('nombre', s)}): ticket={ticket:,.0f} "
+                f"<= c_u={c_u:,.0f}: negative unit margin, every sale destroys cash."
+            )
+
+    return warnings
