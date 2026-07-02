@@ -11,8 +11,8 @@ def _fast_config():
     config["solver"]["time_limit"] = 30
     return config
 
-def test_ev_only_renders_13_pages(tmp_path):
-    """Reporte EV-only debe tener exactamente 13 secciones .page."""
+def test_ev_only_renders_15_pages(tmp_path):
+    """Reporte EV-only: 14 secciones + anexo metodológico = 15 .page."""
     out_dir = tmp_path / "ev_only"
     run_pipeline(_fast_config(), output_dir=str(out_dir))
     
@@ -23,10 +23,10 @@ def test_ev_only_renders_13_pages(tmp_path):
     html = path.read_text(encoding="utf-8")
     soup = BeautifulSoup(html, "html.parser")
     pages = soup.find_all("section", class_="page")
-    assert len(pages) == 14, f"Esperadas 14 páginas, encontradas {len(pages)}"
+    assert len(pages) == 15, f"Esperadas 15 páginas, encontradas {len(pages)}"
 
-def test_full_renders_14_pages(tmp_path):
-    """Reporte full debe tener exactamente 15 secciones .page."""
+def test_full_renders_16_pages(tmp_path):
+    """Reporte full: 15 secciones + anexo metodológico = 16 .page."""
     out_dir = tmp_path / "full"
     run_pipeline(_fast_config(), output_dir=str(out_dir))
     
@@ -37,4 +37,4 @@ def test_full_renders_14_pages(tmp_path):
     html = path.read_text(encoding="utf-8")
     soup = BeautifulSoup(html, "html.parser")
     pages = soup.find_all("section", class_="page")
-    assert len(pages) == 15, f"Esperadas 15 páginas, encontradas {len(pages)}"
+    assert len(pages) == 16, f"Esperadas 16 páginas, encontradas {len(pages)}"
