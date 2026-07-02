@@ -27,7 +27,7 @@ dev = [
 ]
 
 [tool.ruff]
-exclude = ["optimizacion_plan_crecimiento_acelerado_v3 (1).py"]
+exclude = ["legacy/optimizacion_plan_crecimiento_acelerado_v3 (1).py"]
 
 [build-system]
 requires = ["hatchling"]
