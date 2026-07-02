@@ -13,6 +13,27 @@ from streamlit_pages import components as C
 from streamlit_pages.styles import ACCENT, ACCENT_CYAN, ALERT, SUCCESS, TEXT_SECONDARY
 
 
+def _load_diagnostics(run_id: str) -> dict | None:
+    """Load stochastic diagnostics: flat canonical first, postprocessed fallback.
+
+    The flat canonical file is ``stochastic_diagnostics.json`` at the execution
+    root (see ADR 0007/0008). Older runs may keep it under
+    ``postprocessed_results/stochastic_assessment/``.
+    """
+    return (
+        C.canonical_json(run_id, "stochastic_diagnostics.json")
+        or C.postprocessed_json(run_id, "stochastic_assessment", "stochastic_diagnostics.json")
+    )
+
+
+def _load_scenarios(run_id: str):
+    # NB: cannot use ``a or b`` — DataFrame truthiness is ambiguous.
+    df = C.canonical_csv(run_id, "stochastic_scenarios.csv")
+    if df is None:
+        df = C.postprocessed_csv(run_id, "stochastic_assessment", "stochastic_scenarios.csv")
+    return df
+
+
 def render(st) -> None:
     st.title("Análisis de Escenarios")
     st.caption("Distribución de resultados bajo incertidumbre — escenarios generados, probabilidades y brechas.")
@@ -21,57 +42,44 @@ def render(st) -> None:
     if run_id is None:
         return
 
-    # ── Load data ────────────────────────────────────────────────
-    assessment = C.canonical_json(run_id, "assessment_summary.json")
-    stoch = (assessment or {}).get("stochastic")
-    method_status = C.postprocessed_json(run_id, "stochastic_assessment", "stochastic_method_status.json")
-    diagnostics = C.postprocessed_json(run_id, "stochastic_assessment", "stochastic_diagnostics.json")
-    scenarios_df = C.postprocessed_csv(run_id, "stochastic_assessment", "stochastic_scenarios.csv")
-    summary_df = C.postprocessed_csv(run_id, "stochastic_assessment", "stochastic_summary.csv")
+    # ── Load data (flat canonical first, postprocessed fallback) ─────
+    exe = C.get_execution(run_id) or {}
+    m4_state = exe.get("stages", {}).get("M4_STOCHASTIC", "—")
+    assessment = C.canonical_json(run_id, "assessment_summary.json") or {}
+    diagnostics = _load_diagnostics(run_id)
+    scenarios_df = _load_scenarios(run_id)
 
-    if stoch is None and method_status is None:
-        st.warning("No se ejecutó el análisis de escenarios para este caso. "
-                   "Ejecuta el análisis completo desde el Gestor de Instancias.")
-        return
-
-    # ── Chances / no disponible ──────────────────────────────────
-    if stoch:
-        ran = stoch.get("ran")
-        if ran is False or ran is None:
-            reason = stoch.get("reason", "bloqueado por veredicto de Due Diligence")
-            val_mode = stoch.get("valuation_mode", "none")
-            st.info(f"Análisis de escenarios no ejecutado: {reason}")
-            C.note(st, f"Modo de valoración asignado: **{val_mode}**. "
+    # ── Not run / blocked ────────────────────────────────────────
+    if diagnostics is None and scenarios_df is None:
+        if assessment.get("allows_stochastic") is False or m4_state == "blocked":
+            st.info("Análisis de escenarios bloqueado por el veredicto de Due Diligence.")
+            for reason in assessment.get("blocking_reasons", []):
+                st.markdown(f"- ⛔ {reason}")
+            C.note(st, f"Modo de valoración: **{assessment.get('valuation_mode', 'none')}**. "
                        "Revisa la página de Due Diligence para entender el bloqueo.")
-            return
-    elif method_status:
-        pass  # May have postprocessed results without assessment.json
-    else:
+        else:
+            st.warning("No se ejecutó el análisis de escenarios para este caso. "
+                       "Ejecútalo desde el Gestor de Instancias.")
         return
 
-    # ── Method status (subtle, not the headline) ─────────────────
-    if method_status:
-        st.markdown("### Estado del análisis")
-        m1, m2 = st.columns(2)
-        with m1:
-            C.kpi(st, "Método de escenarios",
-                  str(method_status.get("method", "—")).replace("_", " ").title())
-        with m2:
-            C.kpi(st, "Objetivo", "Valor en riesgo (CVaR)")
-        C.note(st, method_status.get("note", ""))
-
-        status_cols = st.columns(3)
-        status_items = [
-            ("Escenarios generados", method_status.get("lhs_implemented"), "ok"),
-            ("Optimización multi-escenario", method_status.get("saa_implemented"), "ok"),
-            ("Evaluación ex-post", method_status.get("monte_carlo_ex_post_implemented"), "ok"),
-        ]
-        for i, (label, ok, tone) in enumerate(status_items):
-            with status_cols[i]:
-                C.badge(st, f"{'✅' if ok else '⬜'} {label}", tone if ok else "muted")
+    # ── Method status (derived from diagnostics metadata) ────────
+    st.markdown("### Estado del análisis")
+    m1, m2 = st.columns(2)
+    with m1:
+        method = str((diagnostics or {}).get("evaluation", "—")).replace("_", " ").title()
+        C.kpi(st, "Método de escenarios", method)
+    with m2:
+        obj = (diagnostics or {}).get("objective")
+        obj_label = {"cvar_van": "Valor en riesgo (CVaR)"}.get(obj, str(obj or "—"))
+        C.kpi(st, "Objetivo", obj_label)
 
     # ── Distribution diagnostics ─────────────────────────────────
     diag_summary = (diagnostics or {}).get("summary", {})
+    if not diag_summary:
+        # Fallback: single-row stochastic_summary.csv carries the same fields.
+        summary_df = C.canonical_csv(run_id, "stochastic_summary.csv")
+        if summary_df is not None and not summary_df.empty:
+            diag_summary = summary_df.iloc[0].to_dict()
     if diag_summary:
         st.markdown("### Distribución de resultados")
 
@@ -157,21 +165,15 @@ def render(st) -> None:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── Breakeven ────────────────────────────────────────────────
-    breakeven = C.postprocessed_csv(run_id, "stochastic_assessment", "stochastic_breakeven.csv")
-    if breakeven is not None:
-        with st.expander("Análisis de breakeven por escenario"):
-            st.dataframe(breakeven, use_container_width=True, hide_index=True)
-
     # ── Scenarios table ──────────────────────────────────────────
     if scenarios_df is not None:
         with st.expander("Escenarios generados (detalle)"):
             st.dataframe(scenarios_df, use_container_width=True, hide_index=True)
 
     # ── Management summary note ──────────────────────────────────
-    if stoch:
+    val_mode = assessment.get("valuation_mode")
+    if val_mode:
         st.markdown("### Resumen para gestión")
-        val_mode = stoch.get("valuation_mode", "—")
         mode_descriptions = {
             "final": "Resultado listo para decisión de inversión.",
             "warning": "Resultado preliminar — requiere atención en los hallazgos de Due Diligence.",

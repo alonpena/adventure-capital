@@ -57,17 +57,27 @@ def _build_sidebar(st) -> None:
         options.append(label)
         label_map[label] = rid
 
+    # Point the radio at the currently selected run so navigating between pages
+    # does not snap the selection back to the newest execution (which would
+    # override current_run_id and hijack the current page).
+    current_run_id = st.session_state.get("current_run_id")
+    rid_order = [label_map[label] for label in options]
+    try:
+        current_index = rid_order.index(current_run_id) if current_run_id else None
+    except ValueError:
+        current_index = None
+
     selected_label = st.sidebar.radio(
         "Seleccionar ejecución",
         options,
-        index=0 if st.session_state.get("current_run_id") else None,
+        index=current_index,
         key="exec_radio",
         format_func=lambda x: x,
     )
 
     if selected_label and label_map.get(selected_label):
         run_id = label_map[selected_label]
-        if run_id != st.session_state.get("current_run_id"):
+        if run_id != current_run_id:
             st.session_state["current_run_id"] = run_id
             st.session_state["current_page"] = "Informe Ejecutivo"
             st.rerun()

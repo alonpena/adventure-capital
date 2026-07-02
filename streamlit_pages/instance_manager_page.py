@@ -11,10 +11,8 @@ Landing page of the Streamlit UI. Users can:
 
 from __future__ import annotations
 
-import json
-import tempfile
 from copy import deepcopy
-from pathlib import Path
+from typing import Any
 
 import yaml
 import streamlit as st
@@ -78,34 +76,34 @@ def _channels_form(st, base: dict) -> dict:
     st.markdown("#### Canales comerciales")
 
     sf = channels["salesforce"]
-    sf["active"] = st.checkbox("Fuerza de ventas (salesforce)", value=sf["active"])
+    sf["active"] = st.checkbox("Fuerza de ventas (salesforce)", value=sf["active"], key="ch_sf_active")
     if sf["active"]:
         cc1, cc2 = st.columns(2)
-        sf["min_share"] = cc1.slider("Salesforce min_share", 0.0, 1.0, float(sf["min_share"]), 0.05)
-        sf["max_share"] = cc2.slider("Salesforce max_share", 0.0, 1.0, float(sf["max_share"]), 0.05)
+        sf["min_share"] = cc1.slider("Salesforce min_share", 0.0, 1.0, float(sf["min_share"]), 0.05, key="ch_sf_min")
+        sf["max_share"] = cc2.slider("Salesforce max_share", 0.0, 1.0, float(sf["max_share"]), 0.05, key="ch_sf_max")
 
     ad = channels["advertising"]
-    ad["active"] = st.checkbox("Publicidad (advertising)", value=ad["active"])
+    ad["active"] = st.checkbox("Publicidad (advertising)", value=ad["active"], key="ch_ad_active")
     if ad["active"]:
         a1, a2, a3 = st.columns(3)
-        ad["I_min"] = a1.number_input("Inversión I_min", value=float(ad["I_min"]), min_value=0.0, step=500.0)
-        ad["I_max"] = a2.number_input("Inversión I_max", value=float(ad["I_max"]), min_value=0.0, step=500.0)
-        ad["A_ad_cap"] = a3.number_input("Tope adquisición A_ad_cap", value=float(ad["A_ad_cap"]), min_value=0.0, step=5.0)
+        ad["I_min"] = a1.number_input("Inversión I_min", value=float(ad["I_min"]), min_value=0.0, step=500.0, key="ch_ad_imin")
+        ad["I_max"] = a2.number_input("Inversión I_max", value=float(ad["I_max"]), min_value=0.0, step=500.0, key="ch_ad_imax")
+        ad["A_ad_cap"] = a3.number_input("Tope adquisición A_ad_cap", value=float(ad["A_ad_cap"]), min_value=0.0, step=5.0, key="ch_ad_cap")
         a4, a5 = st.columns(2)
-        ad["A_min"] = a4.number_input("Recta A_min", value=float(ad["A_min"]), min_value=0.0, step=1.0)
-        ad["A_max"] = a5.number_input("Recta A_max", value=float(ad["A_max"]), min_value=0.0, step=1.0)
+        ad["A_min"] = a4.number_input("Recta A_min", value=float(ad["A_min"]), min_value=0.0, step=1.0, key="ch_ad_amin")
+        ad["A_max"] = a5.number_input("Recta A_max", value=float(ad["A_max"]), min_value=0.0, step=1.0, key="ch_ad_amax")
         a6, a7 = st.columns(2)
-        ad["min_share"] = a6.slider("Publicidad min_share", 0.0, 1.0, float(ad["min_share"]), 0.05)
-        ad["max_share"] = a7.slider("Publicidad max_share", 0.0, 1.0, float(ad["max_share"]), 0.05)
+        ad["min_share"] = a6.slider("Publicidad min_share", 0.0, 1.0, float(ad["min_share"]), 0.05, key="ch_ad_minshare")
+        ad["max_share"] = a7.slider("Publicidad max_share", 0.0, 1.0, float(ad["max_share"]), 0.05, key="ch_ad_maxshare")
         C.note(st, "Publicidad = recta lineal A_ad = a + b·I_ad (continua, no escalonada).")
 
     tp = channels["third_party"]
-    tp["active"] = st.checkbox("Canal de terceros (third_party)", value=tp["active"])
+    tp["active"] = st.checkbox("Canal de terceros (third_party)", value=tp["active"], key="ch_tp_active")
     if tp["active"]:
         t1, t2, t3 = st.columns(3)
-        tp["commission"] = t1.number_input("Comisión", value=float(tp["commission"]), min_value=0.0, step=0.01)
-        tp["min_share"] = t2.slider("Terceros min_share", 0.0, 1.0, float(tp["min_share"]), 0.05)
-        tp["max_share"] = t3.slider("Terceros max_share", 0.0, 1.0, float(tp["max_share"]), 0.05)
+        tp["commission"] = t1.number_input("Comisión", value=float(tp["commission"]), min_value=0.0, step=0.01, key="ch_tp_comm")
+        tp["min_share"] = t2.slider("Terceros min_share", 0.0, 1.0, float(tp["min_share"]), 0.05, key="ch_tp_min")
+        tp["max_share"] = t3.slider("Terceros max_share", 0.0, 1.0, float(tp["max_share"]), 0.05, key="ch_tp_max")
     return channels
 
 
@@ -116,6 +114,9 @@ def _build_config(st, base: dict) -> dict:
     config = deepcopy(st.session_state.get("merged_config", base))
 
     # Override with session-state values from form widgets
+    nombre = (st.session_state.get("f_nombre") or "").strip()
+    if nombre:
+        config["nombre"] = nombre
     config["H"] = int(st.session_state.get("f_H", config.get("H", base["H"])))
     config["VC"] = float(st.session_state.get("f_VC", config.get("VC", base["VC"])))
     config["beta"] = float(st.session_state.get("f_beta", config.get("beta", base["beta"])))
@@ -157,6 +158,9 @@ def render(st) -> None:
     base = default_config()
     _seed_services(st, base)
 
+    # ── Due Diligence → M4 gate (global, above tabs) ──────────────
+    _render_m4_gate(st)
+
     # ── tabs for the page ─────────────────────────────────────────
     tab_new, tab_list = st.tabs(["➕ Nueva instancia", "📋 Instancias existentes"])
 
@@ -184,6 +188,7 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
     """
     # Scalar scalar_map: (session_state_key, yaml_key, cast_fn)
     scalar_map = [
+        ("f_nombre", "nombre", str),
         ("f_H", "H", int),
         ("f_VC", "VC", float),
         ("f_beta", "beta", float),
@@ -224,14 +229,22 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
     if isinstance(solver, dict) and "time_limit" in solver:
         st.session_state["f_time"] = int(solver["time_limit"])
 
-    # Services (complex structure, not individual fields)
+    # Services (complex structure, not individual fields).
+    # Drop stale per-widget keys (svc_*) so each service widget re-initialises
+    # from value= against the freshly loaded list. Without this, Streamlit keeps
+    # the previous widget state and the loaded services are silently dropped.
     st.session_state["services"] = loaded.get(
         "servicios", st.session_state.get("services", base["servicios"])
     )
+    for k in [k for k in list(st.session_state) if k.startswith("svc_")]:
+        del st.session_state[k]
 
-    # Channels (checkboxes + nested sub-forms)
+    # Channels (checkboxes + nested sub-forms). Same fix: channel widgets are
+    # keyed ch_*; drop them so value= from yaml_channels takes effect on rerun.
     if "channels" in loaded:
         st.session_state["yaml_channels"] = loaded["channels"]
+        for k in [k for k in list(st.session_state) if k.startswith("ch_")]:
+            del st.session_state[k]
 
     # Build and store the full merged config (base + loaded YAML extra fields).
     # This preserves fields that don't have form widgets (empresa, target_market,
@@ -284,6 +297,10 @@ def _render_create_tab(st, base: dict) -> None:
         scalars = st.session_state.get("loaded_scalars", {})
         return scalars.get(key, fallback)
 
+    # ── Instance name ──
+    st.text_input("Nombre de la instancia", value=_dv("nombre", ""),
+                  key="f_nombre", placeholder="Ej: Caso base Q3")
+
     # ── General params ──
     st.markdown("#### Parámetros generales")
     g1, g2, g3 = st.columns(3)
@@ -296,6 +313,9 @@ def _render_create_tab(st, base: dict) -> None:
     g6.number_input("Suavizado máx. (g_max_suavizado)", value=float(_dv("g_max_suavizado", base["g_max_suavizado"])), min_value=0.0, max_value=1.0, step=0.05, key="f_gmax")
 
     # ── Commercial team ──
+    # TODO(ui): move Salesforce commercial strategy config under Salesforce
+    # toggle/expander in channel configuration. Keep first fields ordered as
+    # meta, sup, commercial_productivity_lag; then rem_v, rem_l, com_v, com_l.
     st.markdown("#### Equipo comercial")
     e1, e2, e3 = st.columns(3)
     e1.number_input("Meta productividad (meta)", value=float(_dv("meta", base["meta"])), min_value=0.1, step=0.5, key="f_meta")
@@ -335,9 +355,8 @@ def _render_create_tab(st, base: dict) -> None:
         l2.number_input("Caja mínima", value=0.0, step=1000.0, key="f_liq_value")
     l3.number_input("Solver time_limit (s)", value=int(base["solver"]["time_limit"]), min_value=10, step=10, key="f_time")
 
-    st.markdown("#### Análisis estocástico (M4)")
-    run_stoch = st.checkbox("Incluir análisis de escenarios (M4)", value=True,
-                            help="Requiere más tiempo de cómputo. Si se desactiva, solo corre el plan determinista.")
+    C.note(st, "El análisis de escenarios (M4) se ejecuta tras Due Diligence, según el veredicto "
+               "(automático si pasa limpio; con confirmación si hay advertencias).")
 
     # ── Create button ──
     st.markdown("---")
@@ -399,23 +418,93 @@ def _render_list_tab(st) -> None:
             st.markdown("---")
 
 
-def _trigger_execution(st, instance_id: str, run_stochastic: bool) -> None:
-    import sys
+def _trigger_execution(st, instance_id: str, run_stochastic: bool = True) -> None:
+    """Phase 1: run M1–M3 (deterministic plan + valuation + Due Diligence) only.
+
+    M4 (stochastic) is gated behind the DD verdict — see ``_render_m4_gate``.
+    """
     from adventure_capital.workflow_registry import run_execution as _run_exec
 
-    with st.spinner("Ejecutando pipeline…"):
+    with st.spinner("Ejecutando plan determinista + valoración + Due Diligence…"):
         try:
-            record = _run_exec(
-                instance_id,
-                run_stochastic=run_stochastic,
-            )
+            record = _run_exec(instance_id, run_stochastic=False)
             st.session_state["current_run_id"] = record["id"]
-            st.success(f"Ejecución completada: {record['id']}")
-            st.info("Ve a las páginas de resultados en el panel lateral.")
+            st.session_state["m4_gate_run_id"] = record["id"]
+            st.rerun()
         except Exception as exc:
             st.error(f"Error en la ejecución: {exc}")
             import traceback
             st.code(traceback.format_exc())
+
+
+def _run_m4(st, run_id: str) -> None:
+    """Phase 2: run the stochastic analysis (M4) on an existing execution."""
+    from adventure_capital.workflow_registry import run_stochastic_only
+
+    with st.spinner("Ejecutando análisis de escenarios (M4)…"):
+        try:
+            run_stochastic_only(run_id)
+            st.session_state["current_run_id"] = run_id
+            st.session_state["m4_gate_run_id"] = None
+            st.success(f"Análisis de escenarios completado: {run_id}")
+            st.info("Ve a las páginas de resultados en el panel lateral.")
+        except Exception as exc:
+            st.error(f"Error en el análisis de escenarios: {exc}")
+            import traceback
+            st.code(traceback.format_exc())
+
+
+def _render_m4_gate(st) -> None:
+    """Show the DD verdict after phase 1 and gate the stochastic stage (M4).
+
+    - Blocking verdict → no M4, show reasons.
+    - Warning / minor verdict → require explicit confirmation to run M4.
+    - Clean pass → run M4 automatically.
+    """
+    from adventure_capital.workflow_registry import _CONFIRM_VERDICTS
+
+    run_id = st.session_state.get("m4_gate_run_id")
+    if not run_id:
+        return
+
+    dd = C.canonical_json(run_id, "due_diligence_report.json") or {}
+    verdict = dd.get("verdict", "—")
+    allows = dd.get("allows_stochastic")
+
+    st.markdown("### Resultado de Due Diligence")
+    C.badge(st, verdict, C.VERDICT_TONE.get(verdict, "muted"))
+    st.caption(f"Ejecución: `{run_id}`")
+
+    # Blocking verdict — M4 not allowed.
+    if not allows:
+        st.warning("El veredicto bloquea el análisis de escenarios (M4). Recalibra el caso.")
+        for reason in dd.get("blocking_reasons", []):
+            st.markdown(f"- ⛔ {reason}")
+        if st.button("Cerrar", key="m4_gate_close_blocked"):
+            st.session_state["m4_gate_run_id"] = None
+            st.rerun()
+        st.markdown("---")
+        return
+
+    # Warning / minor adjustment — require explicit confirmation.
+    if verdict in _CONFIRM_VERDICTS:
+        st.warning("Due Diligence con advertencias. Confirma para continuar con el análisis de escenarios (M4).")
+        for rec in dd.get("adjustment_recommendations", []):
+            msg = rec.get("recommendation") if isinstance(rec, dict) else rec
+            st.markdown(f"- 💡 {msg}")
+        c1, c2 = st.columns(2)
+        if c1.button("✅ Continuar con M4", type="primary", key="m4_gate_confirm"):
+            _run_m4(st, run_id)
+            st.rerun()
+        if c2.button("✋ Solo plan determinista", key="m4_gate_skip"):
+            st.session_state["m4_gate_run_id"] = None
+            st.rerun()
+        st.markdown("---")
+        return
+
+    # Clean pass — run M4 automatically.
+    _run_m4(st, run_id)
+    st.markdown("---")
 
 
 def _show_instance_detail(st, instance_id: str) -> None:

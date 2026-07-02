@@ -120,6 +120,12 @@ Before building a real UI/form workflow, the artifact contract must be stable. M
 | Advertising | `active`, `I_min`, `I_max`, `A_min`, `A_max`, `A_ad_cap`, `min_share`, `max_share` |
 | Third-party/B2B | `active`, `commission`, `min_share`, `max_share` |
 
+UI TODO for Salesforce strategy block:
+
+- Nest Salesforce commercial-strategy inputs under Salesforce channel toggle/expander, not as separate top-level form section.
+- Order first inputs as `meta`, `sup`, `commercial_productivity_lag`.
+- Then show remuneration/commission inputs: `rem_v`, `rem_l`, `com_v`, `com_l`.
+
 ### 6.3 DCF/report fields
 
 | Section | Fields |

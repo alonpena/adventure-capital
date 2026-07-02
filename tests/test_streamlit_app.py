@@ -52,3 +52,59 @@ def test_components_tone_maps():
     assert "ok" in C.SEVERITY_TONE
     assert "completed" in C.STATUS_TONE
     assert "M1_DETERMINISTIC" in C.STAGE_LABELS
+
+
+def test_apply_loaded_yaml_fills_all_fields():
+    """Loading a YAML must populate scalars, services and channels — and drop
+    stale per-widget keys so Streamlit's value= takes effect on rerun."""
+    from adventure_capital.config import default_config
+    from streamlit_pages import instance_manager_page as P
+
+    base = default_config()
+
+    class FakeST:
+        def __init__(self):
+            self.session_state = {}
+
+    st = FakeST()
+    # Stale widget state from a prior render.
+    st.session_state.update(
+        {"svc_name_0": "OLD", "svc_ticket_0": 1.0, "ch_sf_active": False, "f_H": base["H"]}
+    )
+
+    loaded = {
+        "nombre": "Caso cargado",
+        "H": 30,
+        "VC": 250000.0,
+        "servicios": [
+            {
+                "nombre": "NUEVO",
+                "ticket": 999.0,
+                "frecuencia": 2,
+                "alpha": 0.3,
+                "c_u": 50.0,
+                "c_min": 100.0,
+                "u_max": 20,
+                "churn_anual": [0.1, 0.2],
+                "A_base": [1] * 12,
+            }
+        ],
+        "channels": {
+            "salesforce": {"active": True, "min_share": 0.2, "max_share": 0.8},
+            "advertising": {"active": True, "I_min": 1000.0, "I_max": 5000.0,
+                            "A_min": 1.0, "A_max": 9.0, "A_ad_cap": 50.0,
+                            "min_share": 0.0, "max_share": 0.5},
+            "third_party": {"active": False, "commission": 0.1, "min_share": 0.0, "max_share": 0.3},
+        },
+    }
+    P._apply_loaded_yaml(st, loaded, base)
+    ss = st.session_state
+
+    assert ss["f_H"] == 30
+    assert ss["f_nombre"] == "Caso cargado"
+    assert ss["services"][0]["nombre"] == "NUEVO"
+    # Stale per-widget keys must be gone so value= re-applies.
+    assert "svc_name_0" not in ss and "svc_ticket_0" not in ss
+    assert "ch_sf_active" not in ss
+    assert ss["yaml_channels"]["salesforce"]["active"] is True
+    assert ss["merged_config"]["nombre"] == "Caso cargado"
