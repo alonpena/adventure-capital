@@ -27,6 +27,7 @@ from adventure_capital.due_diligence.rules import (
     Finding,
     evaluate_pre_rules,
     resolve_thresholds,
+    rule_exit_roi,
 )
 from adventure_capital.due_diligence.workflow import run_assessment, run_due_diligence
 
@@ -181,3 +182,78 @@ def test_run_assessment_chains_stochastic(tmp_path: Path) -> None:
         }.get(verdict.verdict)
         if expected_reason is not None:
             assert result["stochastic"]["reason"] == expected_reason
+
+
+# ----- DD03 operating-company exemption + DD12 exit ROI ---------------------
+
+
+def test_dd03_vc_zero_structural_without_flag() -> None:
+    config = default_config()
+    config["VC"] = 0
+    findings = evaluate_pre_rules(config, resolve_thresholds(None))
+    dd03 = next(f for f in findings if f.id == "DD03")
+    assert dd03.severity_class == STRUCTURAL
+    assert not dd03.passed
+
+
+def test_dd03_operating_company_downgrades_to_warning() -> None:
+    config = default_config()
+    config["VC"] = 0
+    config["operating_company"] = True
+    findings = evaluate_pre_rules(config, resolve_thresholds(None))
+    dd03 = next(f for f in findings if f.id == "DD03")
+    assert dd03.severity_class == WARNING
+    assert not dd03.passed
+    assert dd03.evidence["operating_company"] is True
+
+
+def test_exit_roi_passes_at_3x_or_more() -> None:
+    thresholds = resolve_thresholds(None)
+    finding = rule_exit_roi(
+        {"valor_por_ingresos": 3_000_000.0},
+        {"VAN": 400_000.0},
+        {"VC": 100_000.0},
+        thresholds,
+    )
+    # post-money min = 500k; exit 3.0M -> ROI 6x
+    assert finding.id == "DD12"
+    assert finding.passed
+
+
+def test_exit_roi_warns_below_3x() -> None:
+    thresholds = resolve_thresholds(None)
+    finding = rule_exit_roi(
+        {"valor_por_ingresos": 1_000_000.0},
+        {"VAN": 400_000.0},
+        {"VC": 100_000.0},
+        thresholds,
+    )
+    # post-money min = 500k; exit 1.0M -> ROI 2x < 3x
+    assert finding.severity_class == WARNING
+    assert not finding.passed
+    assert abs(finding.evidence["exit_roi"] - 2.0) < 1e-9
+
+
+def test_exit_roi_negative_van_floors_pre_money_at_zero() -> None:
+    thresholds = resolve_thresholds(None)
+    finding = rule_exit_roi(
+        {"valor_por_ingresos": 400_000.0},
+        {"VAN": -50_000.0},
+        {"VC": 100_000.0},
+        thresholds,
+    )
+    # post-money min = 0 + 100k; exit 400k -> ROI 4x
+    assert finding.passed
+    assert abs(finding.evidence["exit_roi"] - 4.0) < 1e-9
+
+
+def test_exit_roi_not_applicable_without_post_money() -> None:
+    thresholds = resolve_thresholds(None)
+    finding = rule_exit_roi(
+        {"valor_por_ingresos": 400_000.0},
+        {"VAN": -50_000.0},
+        {"VC": 0.0},
+        thresholds,
+    )
+    assert finding.passed
+    assert finding.severity_class == "ok"

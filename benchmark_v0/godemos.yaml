@@ -22,6 +22,7 @@
 
 H: 36
 VC: 0              # empresa ya operativa, sin inversión inicial requerida
+operating_company: true  # exención DD03: VC=0 legítimo (empresa operando) → warning, no rechazo
 beta: 0.35         # CAPM estandarizado (Excel usa 0.2823; 0.35 = convención AC)
 g_max_suavizado: 0.25
 

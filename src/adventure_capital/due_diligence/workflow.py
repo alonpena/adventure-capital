@@ -43,6 +43,7 @@ from adventure_capital.due_diligence.rules import (
     evaluate_synthesis_rules,
     map_calibration_findings,
     resolve_thresholds,
+    rule_exit_roi,
 )
 from adventure_capital.pipeline import run_pipeline
 
@@ -158,6 +159,14 @@ def run_due_diligence(
 
     # 4. Synthesis + liquidity diagnostic over deterministic outputs.
     synthesis_findings = evaluate_synthesis_rules(optimized, config, thresholds)
+    synthesis_findings.append(
+        rule_exit_roi(
+            pipeline_result.get("multiples_valuation") or {},
+            pipeline_result.get("dcf") or {},
+            config,
+            thresholds,
+        )
+    )
     liquidity = compute_liquidity_diagnostic(optimized, config)
     if wc_diagnostic and wc_diagnostic.get("feasible") is False:
         liquidity.update(

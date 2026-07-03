@@ -42,6 +42,7 @@ DEFAULT_THRESHOLDS: dict[str, float] = {
     "gap_minor": 5.0,              # working-capital trough as multiple of VC -> minor
     "ebitda_regime_year": 3,       # annual EBITDA must be positive by this year
     "revenue_growth_min_multiple": 1.5,  # final-year revenue / first-year revenue
+    "exit_roi_min": 3.0,           # exit value / minimum post-money (VC 3x rule)
 }
 
 
@@ -110,11 +111,24 @@ def _rule_unit_margin_positive(config: dict[str, Any]) -> Finding:
 def _rule_financing_present(config: dict[str, Any]) -> Finding:
     vc = float(config.get("VC", 0.0))
     if vc <= 0:
+        # Operating-company exemption: an already-operating company can enter
+        # with VC = 0 (working capital covered by its own margin). Declared
+        # explicitly in the instance YAML — never inferred.
+        if bool(config.get("operating_company", False)):
+            return Finding(
+                id="DD03", name="financing_present", severity_class=WARNING, passed=False,
+                message="`VC` = 0 con `operating_company: true` — empresa operando sin ticket "
+                        "inicial; el plan debe autofinanciarse (piso de caja 0).",
+                evidence={"VC": vc, "operating_company": True},
+                recommendation="Verificar que la caja del plan nunca sea negativa; si lo es, "
+                               "el caso sí requiere un ticket.",
+            )
         return Finding(
             id="DD03", name="financing_present", severity_class=STRUCTURAL, passed=False,
             message="Falta input esencial: `VC` <= 0 (sin capital de trabajo inicial para ejecutar el plan).",
             evidence={"VC": vc},
-            recommendation="Definir un `VC` (capital de trabajo inicial) > 0.",
+            recommendation="Definir un `VC` (capital de trabajo inicial) > 0, o declarar "
+                           "`operating_company: true` si la empresa ya opera sin ticket.",
         )
     return _ok("DD03", "financing_present", f"Financiamiento inicial VC={vc:,.0f}.")
 
@@ -219,6 +233,50 @@ def _rule_revenue_growth(optimized: pd.DataFrame, thresholds: dict[str, float]) 
             recommendation="Revisar supuestos de adquisición/recurrencia; el caso debe mostrar crecimiento tipo venture.",
         )
     return _ok("DD10", "revenue_growth", f"Crecimiento de ingresos {multiple:.2f}× en el horizonte.")
+
+
+def rule_exit_roi(
+    multiples: dict[str, Any],
+    dcf: dict[str, Any],
+    config: dict[str, Any],
+    thresholds: dict[str, float],
+) -> Finding:
+    """VC 3x rule (reunión A. Maureira 2026-07-01): exit value (múltiplo de
+    ingresos del último año) debe ser >= `exit_roi_min` veces el post-money
+    mínimo (pre-money + VC invertido). Nunca estructural: es elegibilidad
+    venture, no un problema de modelado."""
+    exit_value = float(multiples.get("valor_por_ingresos", 0.0))
+    van = float(dcf.get("VAN", 0.0))
+    vc = float(config.get("VC", 0.0))
+    # Post-money mínimo = pre-money + inversión; el pre-money no puede aportar
+    # valor negativo a la caja (piso en 0).
+    post_money_min = max(van, 0.0) + vc
+    minimum = float(thresholds["exit_roi_min"])
+    evidence = {
+        "exit_value_revenue_multiple": exit_value,
+        "pre_money_van": van,
+        "vc": vc,
+        "post_money_min": post_money_min,
+        "exit_roi_min": minimum,
+    }
+    if post_money_min <= 0:
+        return _ok("DD12", "exit_roi", "Sin post-money evaluable (VC=0 y VAN<=0); ROI de exit no aplica.")
+    roi = exit_value / post_money_min
+    evidence["exit_roi"] = roi
+    if roi < minimum:
+        return Finding(
+            id="DD12", name="exit_roi", severity_class=WARNING, passed=False,
+            message=f"ROI de exit {roi:.1f}× < {minimum:.0f}× (exit {exit_value:,.0f} vs "
+                    f"post-money mínimo {post_money_min:,.0f}) — bajo el umbral que exige un venture capital.",
+            evidence=evidence,
+            recommendation="Mejorar la trayectoria de ingresos del año 3 o negociar entrada a un "
+                           "post-money menor; con ROI < 3× la inversión no es venture-atractiva.",
+        )
+    return Finding(
+        id="DD12", name="exit_roi", severity_class=OK, passed=True,
+        message=f"ROI de exit {roi:.1f}× ≥ {minimum:.0f}× (exit {exit_value:,.0f}).",
+        evidence=evidence,
+    )
 
 
 # ----- Liquidity diagnostic (reported, not pass/fail eligibility) ----------
