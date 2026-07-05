@@ -288,6 +288,39 @@ def build_model(instance: dict[str, Any], *, elastic_floor: bool = False) -> Mod
             problem += sellers[t] >= sellers[t - 1]
             problem += leaders[t] >= leaders[t - 1]
 
+    # Hiring friction (ADR 0014, opt-in, default off): caps the monthly headcount
+    # jump for t >= 13 on top of the existing monotonicity (no firing). When
+    # disabled, this is a strict no-op (no constraints added).
+    hiring = instance.get("hiring", {})
+    if bool(hiring.get("enabled", False)):
+        max_new_sellers = hiring["max_new_sellers_per_month"]
+        max_new_leaders = hiring["max_new_leaders_per_month"]
+        for t in periods:
+            if t >= 13:
+                problem += sellers[t] <= sellers[t - 1] + max_new_sellers
+                problem += leaders[t] <= leaders[t - 1] + max_new_leaders
+
+    # Growth commitment (ADR 0014, opt-in, default off): investment-thesis FLOOR
+    # on the net client stock (sum_s C[s,t]) at annual checkpoints. Never a
+    # ceiling — the upper side stays free (existing bounds: log ceiling / convex
+    # CAC / capacity / cash). Infeasible is a valid business result (the thesis
+    # does not fit the structure); see scripts/diagnose_infeasibility.py.
+    growth_commitment = instance.get("growth_commitment", {})
+    if bool(growth_commitment.get("enabled", False)):
+        checkpoint_targets = growth_commitment.get("checkpoint_targets", {})
+        horizon = instance["H"]
+        for checkpoint_month, target in checkpoint_targets.items():
+            if checkpoint_month > horizon:
+                raise ValueError(
+                    f"growth_commitment checkpoint at month {checkpoint_month} exceeds "
+                    f"H={horizon}: raise H or use checkpoints: terminal with H >= 36, or "
+                    "disable growth_commitment for short horizons."
+                )
+            problem += (
+                pulp.lpSum(active_clients[(s, checkpoint_month)] for s in range(service_count))
+                >= target
+            )
+
     problem += cash[1] == instance["VC"] + ebitda[1]
     for t in periods:
         if t > 1:

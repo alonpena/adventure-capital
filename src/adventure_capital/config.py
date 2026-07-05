@@ -173,6 +173,58 @@ def validate_config(config: dict[str, Any]) -> None:
         if slack < 0.0:
             raise ValueError("acquisition_ceiling.slack must be >= 0.")
 
+    # Growth commitment (ADR 0014): investment-thesis FLOOR on the client stock —
+    # never a ceiling, never a default. Opt-in; absent block / enabled: false is a
+    # bit-for-bit no-op. C36 >= multiple_3y * C12 means "triple the client stock
+    # between the end of the consensuated year 1 (month 12) and the end of year 3
+    # (month 36)".
+    growth_commitment = config.get("growth_commitment", {})
+    if growth_commitment.get("enabled", False):
+        source = growth_commitment.get("source", "vc_minimum")
+        valid_sources = {"vc_minimum", "plan_mom", "custom", "none"}
+        if source not in valid_sources:
+            raise ValueError(
+                f"growth_commitment.source must be one of {sorted(valid_sources)}, got {source!r}."
+            )
+        multiple_3y = growth_commitment.get("multiple_3y", 3.0)
+        if multiple_3y is None or multiple_3y <= 1.0:
+            raise ValueError("growth_commitment.multiple_3y must be > 1.0.")
+        checkpoints = growth_commitment.get("checkpoints", "annual")
+        if checkpoints not in {"annual", "terminal"}:
+            raise ValueError(
+                f"growth_commitment.checkpoints must be 'annual' or 'terminal', got {checkpoints!r}."
+            )
+        floor_slack = growth_commitment.get("floor_slack", 0.0)
+        if floor_slack is None or not (0.0 <= floor_slack < 1.0):
+            raise ValueError("growth_commitment.floor_slack must be in [0, 1).")
+        if source == "custom":
+            custom_g_annual = growth_commitment.get("custom_g_annual")
+            if custom_g_annual is None or custom_g_annual <= 0.0:
+                raise ValueError(
+                    "growth_commitment.custom_g_annual must be > 0 when source is 'custom'."
+                )
+        # Ceiling/commitment coexistence (known trap, WORKLOG): if the exogenous
+        # log ceiling is active at the same time, it must not make the ×multiple
+        # floor structurally unreachable (ceiling target < commitment target).
+        if ceiling.get("enabled", False):
+            ceiling_multiplier = float(ceiling.get("target_stock_multiplier", 3.0))
+            if ceiling_multiplier < float(multiple_3y):
+                raise ValueError(
+                    "growth_commitment is infeasible by construction: acquisition_ceiling."
+                    f"target_stock_multiplier ({ceiling_multiplier}) < growth_commitment."
+                    f"multiple_3y ({multiple_3y}). Raise the ceiling multiplier, disable the "
+                    "ceiling, or lower the commitment multiple."
+                )
+
+    hiring = config.get("hiring", {})
+    if hiring.get("enabled", False):
+        max_sellers = hiring.get("max_new_sellers_per_month", 1)
+        max_leaders = hiring.get("max_new_leaders_per_month", 1)
+        if max_sellers is None or max_sellers < 0:
+            raise ValueError("hiring.max_new_sellers_per_month must be >= 0.")
+        if max_leaders is None or max_leaders < 0:
+            raise ValueError("hiring.max_new_leaders_per_month must be >= 0.")
+
     channels = config.get("channels")
     if channels is not None:
         active_max_share_sum = 0.0

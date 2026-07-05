@@ -188,6 +188,19 @@ def build_saa_model(config: dict[str, Any], scenarios: list[Scenario]) -> ModelB
         problem += sellers[t] >= sellers[t - 1]
         problem += leaders[t] >= leaders[t - 1]
 
+    # ----- First-stage: hiring friction (ADR 0014, opt-in, default off) -----
+    # Parity with the deterministic model: caps the monthly headcount jump on
+    # the shared first-stage V/L plan. Strict no-op when disabled.
+    hiring = base_instance.get("hiring", {})
+    if bool(hiring.get("enabled", False)):
+        max_new_sellers = hiring["max_new_sellers_per_month"]
+        max_new_leaders = hiring["max_new_leaders_per_month"]
+        for t in periods:
+            if t <= _FIXED_MONTHS:
+                continue
+            problem += sellers[t] <= sellers[t - 1] + max_new_sellers
+            problem += leaders[t] <= leaders[t - 1] + max_new_leaders
+
     # ----- First-stage: advertising recta + cap (months 13..H) -----
     if ad_active:
         ad = channels["advertising"]
@@ -223,6 +236,31 @@ def build_saa_model(config: dict[str, Any], scenarios: list[Scenario]) -> ModelB
                     problem += total_fn(t) >= min_share * plan_t
                 if max_share < 1.0:
                     problem += total_fn(t) <= max_share * plan_t
+
+    # ----- First-stage: growth commitment (ADR 0014, opt-in, default off) -----
+    # Parity with the deterministic model, but the floor binds on the PLANNED
+    # (pre-efficiency, first-stage) client stock, not the realized per-scenario
+    # stock — the here-and-now decision is the plan, so the commitment is a
+    # first-stage constraint like everything else in this block. The realized
+    # P(C36_real >= multiple_3y*C12) is reported ex-post as a KPI (evaluate.py),
+    # never enforced as a per-scenario constraint (that would break here-and-now).
+    growth_commitment = base_instance.get("growth_commitment", {})
+    if bool(growth_commitment.get("enabled", False)):
+        checkpoint_targets = growth_commitment.get("checkpoint_targets", {})
+        phi_base = base_instance["phi"]
+        for checkpoint_month, target in checkpoint_targets.items():
+            if checkpoint_month > horizon:
+                raise ValueError(
+                    f"growth_commitment checkpoint at month {checkpoint_month} exceeds "
+                    f"H={horizon}: raise H or use checkpoints: terminal with H >= 36, or "
+                    "disable growth_commitment for short horizons."
+                )
+            planned_stock = pulp.lpSum(
+                phi_base.get((s, cohort, checkpoint_month), 0.0) * plan_total[(s, cohort)]
+                for s in range(service_count)
+                for cohort in range(1, checkpoint_month + 1)
+            )
+            problem += planned_stock >= target
 
     # ----- Realized acquisition expressions (per scenario, linear in plan) -----
     def a_sf_real(s: int, t: int, w: int) -> Any:

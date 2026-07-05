@@ -260,6 +260,22 @@ def evaluate_strategy(
             "client_counts", M4_DEFAULTS["milestones"]["client_counts"]
         )
     )
+    # Growth commitment (ADR 0014): auto-add the terminal (C36) target as a
+    # milestone so P(C36_realized >= multiple_3y*C12) is reported ex-post as a
+    # KPI (summarize_distribution already turns any milestone into
+    # prob_hit_final_active_clients_{milestone}). No-op when disabled.
+    growth_commitment = config.get("growth_commitment", {}) or {}
+    if growth_commitment.get("enabled", False):
+        from adventure_capital.instance import generate_instance as _gen_instance
+
+        base_inst = _gen_instance(config)
+        terminal_target = base_inst.get("growth_commitment", {}).get(
+            "checkpoint_targets", {}
+        ).get(base_inst["H"])
+        if terminal_target is not None:
+            rounded_target = int(round(terminal_target))
+            if rounded_target not in milestones:
+                milestones = sorted(milestones + [rounded_target])
     rows = [
         _evaluate_one(
             config,

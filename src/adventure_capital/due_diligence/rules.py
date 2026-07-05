@@ -279,6 +279,123 @@ def rule_exit_roi(
     )
 
 
+# ----- Growth commitment / hiring warnings (ADR 0014, plan §4) --------------
+# W1-W5: always WARNING severity, never structural/major/minor — the commitment
+# is an investment-thesis choice, not a modeling defect. Evaluated only when
+# growth_commitment is present in the config (opt-in feature); absent/disabled
+# config produces no findings (no-op).
+
+
+def rule_growth_commitment_warnings(
+    config: dict[str, Any], suggestions: dict[str, Any] | None
+) -> list[Finding]:
+    """W1-W5 growth-commitment/calibration warnings.
+
+    ``suggestions`` is the dict returned by
+    :func:`adventure_capital.instance.compute_growth_suggestions` (g_vc_minimum,
+    g_plan_mom_stock, C12, etc). When ``growth_commitment`` is absent or
+    disabled in ``config``, returns an empty list (strict no-op).
+    """
+    growth_commitment = config.get("growth_commitment", {}) or {}
+    if not growth_commitment.get("enabled", False):
+        return []
+
+    findings: list[Finding] = []
+    suggestions = suggestions or {}
+    source = growth_commitment.get("source", "vc_minimum")
+    g_vc_minimum = float(suggestions.get("g_vc_minimum", 0.0))
+    g_plan_mom_stock = float(suggestions.get("g_plan_mom_stock", 0.0))
+    c12 = float(suggestions.get("C12", 0.0))
+
+    # W5: plan inconsistent — C12 ~ 0 or MoM not computable. Checked first: if
+    # this fires, W1/W2 (which depend on g_plan_mom_stock) are not meaningful.
+    plan_degenerate = c12 <= 1e-9
+    if plan_degenerate:
+        findings.append(
+            Finding(
+                id="DD15", name="growth_commitment_plan_inconsistent",
+                severity_class=WARNING, passed=False,
+                message="El plan consensuado no permite anclar el piso de crecimiento "
+                        f"(C12≈{c12:.2f}, stock casi nulo o MoM no computable).",
+                evidence={"C12": c12},
+                recommendation="Revisar A_base y churn del año 1 antes de fijar un compromiso de crecimiento.",
+            )
+        )
+
+    if source == "plan_mom" and not plan_degenerate:
+        # W1: plan_mom suspiciously fast vs the VC-minimum benchmark.
+        if g_vc_minimum > 0 and g_plan_mom_stock > 2.0 * g_vc_minimum:
+            findings.append(
+                Finding(
+                    id="DD13", name="growth_commitment_plan_mom_suspicious",
+                    severity_class=WARNING, passed=False,
+                    message=f"El MoM del plan implica un crecimiento de stock de "
+                            f"{g_plan_mom_stock:.1%}/año (> 2x el mínimo VC de {g_vc_minimum:.1%}/año) "
+                            "— revisar con el cliente antes de usarlo como compromiso.",
+                    evidence={"g_plan_mom_stock": g_plan_mom_stock, "g_vc_minimum": g_vc_minimum},
+                    recommendation="Confirmar con el cliente que el MoM del plan es sostenible antes "
+                                   "de fijarlo como piso de compromiso; considerar `vc_minimum` en su lugar.",
+                )
+            )
+        # W2: plan grows below the VC thesis.
+        elif g_plan_mom_stock < g_vc_minimum:
+            findings.append(
+                Finding(
+                    id="DD14", name="growth_commitment_plan_below_thesis",
+                    severity_class=WARNING, passed=False,
+                    message=f"El plan consensuado crece bajo la tesis ×{growth_commitment.get('multiple_3y', 3.0):.1f} "
+                            f"({g_plan_mom_stock:.1%}/año < {g_vc_minimum:.1%}/año) — el compromiso exigirá "
+                            "acelerar sobre el plan.",
+                    evidence={"g_plan_mom_stock": g_plan_mom_stock, "g_vc_minimum": g_vc_minimum},
+                    recommendation="Confirmar que el equipo comercial puede acelerar sobre el MoM histórico, "
+                                   "o usar `vc_minimum`/`custom` con un piso más conservador.",
+                )
+            )
+
+    # W4: custom source without a recorded justification.
+    if source == "custom":
+        justification = growth_commitment.get("custom_justification")
+        if not justification or not str(justification).strip():
+            findings.append(
+                Finding(
+                    id="DD16", name="growth_commitment_custom_unjustified",
+                    severity_class=WARNING, passed=False,
+                    message="Override experto (`custom`) sin justificación registrada "
+                            "(`custom_justification` vacío o ausente).",
+                    evidence={"source": source},
+                    recommendation="Registrar `custom_justification` con el fundamento del experto (Alejandro) "
+                                   "para el `custom_g_annual` elegido.",
+                )
+            )
+
+    return findings
+
+
+def rule_growth_commitment_infeasible(
+    solver_status: str, config: dict[str, Any], diagnosis: dict[str, Any] | None = None
+) -> Finding | None:
+    """W3: solver Infeasible with growth_commitment enabled is a VALID business
+    result ("this structure does not support the x3 thesis"), never an error.
+    Attaches the structured diagnosis (plan §5) when available. Returns None
+    when growth_commitment is not enabled (no-op) or the solve was not
+    infeasible."""
+    growth_commitment = config.get("growth_commitment", {}) or {}
+    if not growth_commitment.get("enabled", False):
+        return None
+    if solver_status not in {"Infeasible", "Undefined"}:
+        return None
+    return Finding(
+        id="DD17", name="growth_commitment_infeasible",
+        severity_class=WARNING, passed=False,
+        message=f"El solver reportó {solver_status} con growth_commitment activo — "
+                "resultado válido de negocio: esta estructura no soporta la tesis de crecimiento declarada.",
+        evidence={"solver_status": solver_status, "diagnosis": diagnosis or {}},
+        recommendation="Revisar el diagnóstico de infactibilidad (scripts/diagnose_infeasibility.py) "
+                       "para identificar qué palancas (contratación, canal, mix, churn, costo, caja, "
+                       "o el propio múltiplo) restaurarían la factibilidad.",
+    )
+
+
 # ----- Liquidity diagnostic (reported, not pass/fail eligibility) ----------
 
 

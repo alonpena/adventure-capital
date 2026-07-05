@@ -157,6 +157,71 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
+    # Growth commitment (ADR 0014): investment-thesis FLOOR on the net client
+    # stock (never a ceiling). Opt-in, default off — an absent block or an
+    # explicit enabled: false leaves the instance byte-for-byte unaffected
+    # (growth_commitment key below is informational only when disabled).
+    #
+    # C12 = net active-client stock at month 12 (same survival/phi mechanics as
+    # the log-ceiling C_0 above), precomputed deterministically from A_base and
+    # churn — no solve required. Checkpoints:
+    #   annual:   C24 >= (1-slack)*sqrt(m)*C12  and  C36 >= (1-slack)*m*C12
+    #   terminal: only C36 >= (1-slack)*m*C12
+    # "C36 >= multiple_3y * C12" means: triple the client stock between the end
+    # of the consensuated year 1 (month 12) and the end of year 3 (month 36).
+    c12_stock = sum(
+        survival.get((s, cohort, 12), 0.0) * base_acquisition.get((s, cohort), 0.0)
+        for s in range(service_count)
+        for cohort in fixed_periods
+    )
+
+    growth_commitment_cfg = config.get("growth_commitment", {})
+    growth_commitment_enabled = bool(growth_commitment_cfg.get("enabled", False))
+    growth_commitment: dict[str, Any] = {"enabled": growth_commitment_enabled, "C12": c12_stock}
+    if growth_commitment_enabled:
+        source = growth_commitment_cfg.get("source", "vc_minimum")
+        checkpoints_mode = growth_commitment_cfg.get("checkpoints", "annual")
+        floor_slack = float(growth_commitment_cfg.get("floor_slack", 0.0))
+
+        if source == "custom":
+            g_annual = float(growth_commitment_cfg["custom_g_annual"])
+            m = (1.0 + g_annual) ** 2
+        elif source == "plan_mom":
+            g_annual = _stock_mom_annual(base_acquisition, survival, service_count, fixed_periods)
+            m = (1.0 + g_annual) ** 2
+        else:  # vc_minimum or none: use the declared multiple directly
+            m = float(growth_commitment_cfg.get("multiple_3y", 3.0))
+
+        checkpoint_targets: dict[int, float] = {}
+        if checkpoints_mode == "annual":
+            checkpoint_targets[24] = (1.0 - floor_slack) * math.sqrt(m) * c12_stock
+        checkpoint_targets[36] = (1.0 - floor_slack) * m * c12_stock
+
+        growth_commitment.update(
+            {
+                "source": source,
+                "multiple_3y": float(growth_commitment_cfg.get("multiple_3y", 3.0)),
+                "checkpoints": checkpoints_mode,
+                "floor_slack": floor_slack,
+                "m": m,
+                "checkpoint_targets": checkpoint_targets,
+                "custom_justification": growth_commitment_cfg.get("custom_justification"),
+            }
+        )
+
+    # Hiring friction (ADR 0014): opt-in monthly headcount cap on new sellers /
+    # leaders for t >= 13 (V_t <= V_{t-1} + h_v, L_t <= L_{t-1} + h_l). Default off.
+    hiring_cfg = config.get("hiring", {})
+    hiring_enabled = bool(hiring_cfg.get("enabled", False))
+    hiring: dict[str, Any] = {"enabled": hiring_enabled}
+    if hiring_enabled:
+        hiring.update(
+            {
+                "max_new_sellers_per_month": int(hiring_cfg.get("max_new_sellers_per_month", 1)),
+                "max_new_leaders_per_month": int(hiring_cfg.get("max_new_leaders_per_month", 1)),
+            }
+        )
+
     # Acquisition channels (optional). Default: salesforce-only, no split.
     raw_channels = config.get("channels") or {}
     sf_cfg = raw_channels.get("salesforce", {"active": True, "min_share": 0.0, "max_share": 1.0})
@@ -235,7 +300,149 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         "ceiling_slack": ceiling_slack,
         "convex_cac": convex,
         "channels": channels,
+        "growth_commitment": growth_commitment,
+        "hiring": hiring,
     }
+
+
+def _stock_mom_annual(
+    base_acquisition: dict[tuple[int, int], float],
+    survival: dict[tuple[int, int, int], float],
+    service_count: int,
+    fixed_periods: list[int],
+) -> float:
+    """Annualized implied monthly growth of the net client STOCK over year 1.
+
+    The growth commitment binds on client stock (not acquisition), so the
+    comparable "plan_mom" growth rate is the geometric monthly growth of the
+    net active-client stock C[t] = sum_s sum_{cohort<=t} phi(s,cohort,t)*A_base(s,cohort),
+    evaluated at t=1..12, not the raw acquisition MoM. Falls back to 0.0 when the
+    stock is degenerate (first month has zero stock) — see W5.
+    """
+    stock_by_month: dict[int, float] = {}
+    for t in fixed_periods:
+        stock_by_month[t] = sum(
+            survival.get((s, cohort, t), 0.0) * base_acquisition.get((s, cohort), 0.0)
+            for s in range(service_count)
+            for cohort in fixed_periods
+            if cohort <= t
+        )
+    first_month = fixed_periods[0]
+    last_month = fixed_periods[-1]
+    first_stock = stock_by_month.get(first_month, 0.0)
+    last_stock = stock_by_month.get(last_month, 0.0)
+    months = last_month - first_month
+    if first_stock <= 0 or months <= 0:
+        return 0.0
+    monthly_growth = (last_stock / first_stock) ** (1.0 / months) - 1.0
+    return (1.0 + monthly_growth) ** 12 - 1.0
+
+
+def compute_growth_suggestions(config: dict[str, Any]) -> dict[str, Any]:
+    """Compute g-suggestions (report-only, never auto-selected) for the growth
+    commitment (ADR 0014, plan §3). Returns a JSON-serializable dict suitable
+    for the ``growth_suggestions.json`` pipeline artifact.
+
+    - ``g_vc_minimum``: annual growth implied by the ×multiple_3y/3-years VC
+      benchmark (``multiple_3y**0.5 - 1``, since checkpoints are annual/sqrt).
+    - ``g_plan_mom_acquisition``: MoM growth of the raw A_base acquisition plan
+      (auxiliary; NOT the number the commitment is measured against).
+    - ``g_plan_mom_stock``: MoM growth of the net client STOCK implied by
+      A_base + churn over year 1 — the comparable number to ``g_vc_minimum``,
+      since the commitment binds on stock, not acquisition.
+    - ``g_required_rev``: annual growth required to hit ``target_revenue_y3``
+      (only if the YAML declares that optional key).
+    """
+    validate_config(config)
+    services = config["servicios"]
+    service_count = len(services)
+    H = config["H"]
+    fixed_periods = list(range(1, 13))
+    periods = list(range(1, H + 1))
+
+    monthly_churn: dict[tuple[int, int], float] = {}
+    for s, service in enumerate(services):
+        for t in periods:
+            year = min((t - 1) // 12, len(service["churn_anual"]) - 1)
+            annual_churn = service["churn_anual"][year]
+            monthly_churn[(s, t)] = 1 - (1 - annual_churn) ** (1 / 12)
+
+    survival: dict[tuple[int, int, int], float] = {}
+    for s in range(service_count):
+        for cohort in fixed_periods:
+            survival[(s, cohort, cohort)] = 1.0
+            for t in range(cohort + 1, 13):
+                survival[(s, cohort, t)] = survival[(s, cohort, t - 1)] * (
+                    1 - monthly_churn[(s, t)]
+                )
+
+    base_acquisition = {
+        (s, t): float(service["A_base"][t - 1])
+        for s, service in enumerate(services)
+        for t in fixed_periods
+    }
+
+    c12_stock = sum(
+        survival.get((s, cohort, 12), 0.0) * base_acquisition.get((s, cohort), 0.0)
+        for s in range(service_count)
+        for cohort in fixed_periods
+    )
+
+    growth_commitment_cfg = config.get("growth_commitment", {})
+    multiple_3y = float(growth_commitment_cfg.get("multiple_3y", 3.0))
+    g_vc_minimum = multiple_3y ** 0.5 - 1.0
+
+    # Auxiliary: raw acquisition MoM (geometric mean over months 1..12 of a
+    # single representative service — service 0 — matching the plan's own units).
+    a_base_0 = services[0]["A_base"]
+    first_acq, last_acq = float(a_base_0[0]), float(a_base_0[-1])
+    months = len(a_base_0) - 1
+    if first_acq > 0 and months > 0:
+        g_mom_acq_monthly = (last_acq / first_acq) ** (1.0 / months) - 1.0
+    else:
+        g_mom_acq_monthly = 0.0
+    g_plan_mom_acquisition = (1.0 + g_mom_acq_monthly) ** 12 - 1.0
+
+    # Comparable number: stock MoM (net client stock, not raw acquisition).
+    g_plan_mom_stock = _stock_mom_annual(base_acquisition, survival, service_count, fixed_periods)
+
+    suggestions: dict[str, Any] = {
+        "schema_version": "1.0",
+        "C12": c12_stock,
+        "multiple_3y": multiple_3y,
+        "g_vc_minimum": g_vc_minimum,
+        "g_plan_mom_acquisition": g_plan_mom_acquisition,
+        "g_plan_mom_stock": g_plan_mom_stock,
+        "g_plan_mom_monthly_acquisition": g_mom_acq_monthly,
+        "notes": (
+            "g_vc_minimum is the annual growth implied by the x{:.1f}-in-3-years VC "
+            "benchmark, applied as annual checkpoints (sqrt(m) at year 2, m at year 3). "
+            "g_plan_mom_stock is the comparable number for W1/W2 (the commitment binds "
+            "on client STOCK); g_plan_mom_acquisition is auxiliary only (raw A_base MoM)."
+        ).format(multiple_3y),
+    }
+
+    target_revenue_y3 = config.get("target_revenue_y3")
+    if target_revenue_y3 is not None and c12_stock > 0:
+        # annual_revenue_per_customer approximation: constant-mix, from
+        # unit_economics-style ticket*frequency for service 0 (declared approximation).
+        ticket = float(services[0]["ticket"])
+        frequency = float(services[0]["frecuencia"])
+        annual_revenue_per_customer = ticket * (12.0 / frequency) if frequency > 0 else 0.0
+        if annual_revenue_per_customer > 0:
+            required_customers_y3 = float(target_revenue_y3) / annual_revenue_per_customer
+            ratio = required_customers_y3 / c12_stock if c12_stock > 0 else float("inf")
+            g_required_rev = ratio ** 0.5 - 1.0 if ratio > 0 else 0.0
+            suggestions.update(
+                {
+                    "target_revenue_y3": float(target_revenue_y3),
+                    "annual_revenue_per_customer": annual_revenue_per_customer,
+                    "required_customers_y3": required_customers_y3,
+                    "g_required_rev": g_required_rev,
+                }
+            )
+
+    return suggestions
 
 
 def check_pre_feasibility(instance: dict[str, Any]) -> list[str]:
