@@ -157,3 +157,19 @@ claves) — sin código a revertir, el no-op está verificado por test
 | Benchmarks modo destino | ✅ | tabla en diagnosis §0; VAN escala ~lineal en h (h = palanca declarada del cliente); kavacomex destino h=1: VAN +620k vs −378k con ceiling |
 | Cableo W1-W5 a DD | ✅ | workflow.py: W1/W2/W4/W5 pre-modelo + W3/DD17 en camino normal (chain sobrevive vía C01) Y en camino de excepción (re-solve + reporte limpio). Test nuevo. Suite **172 passed, 3 skipped**. Nota: W1/W2 disparan solo con `source: plan_mom` (scoping de Sonnet, mantenido) |
 | Fix mínimo tp propuesto (NO implementado) | ⏳ | opción segura pre-lunes: validación config; estructural post-defensa: `A_tp_cap` espejo de `A_ad_cap` (diagnosis §5-6) |
+
+## CIERRE DE SESIÓN 2026-07-05 — corrección de core (Alonso) + handoff
+
+- **Fricción de contratación DEJA de ser core** (Alonso la había excluido como
+  mecanismo principal; además VAN ~lineal en h = misma objeción que el M del
+  ceiling). Queda como feature opcional experimental/sensibilidad (ya opt-in
+  default-off; solo re-etiquetar, no revertir).
+- **Core nuevo: growth_commitment + aggregate_acquisition_envelope** (U_t anclada
+  al plan consensuado + benchmark VC + holgura creciente declarada + custom
+  justificado). Framing "ceiling" prohibido; usar "envolvente".
+- Third-party = limitación MVP: default inactivo o capacidad explícita requerida.
+- **Handoff completo para el próximo agente: `NEXT_AGENT_HANDOFF_GROWTH_CORE.md`**
+  (ecuaciones, config, keep/re-etiquetar/deprecar/implementar, rollback, narrativa
+  de defensa). Recomendaciones previas de fricción-como-default SUPERSEDIDAS.
+- Branch: KEEP con modificaciones (nada se revierte; envelope se agrega). Sin
+  merge, sin UI, sin rebaseline. entrega-tesis intacto (`dd0cc08`, 161 tests).
