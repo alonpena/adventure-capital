@@ -233,6 +233,7 @@ def write_core_csv_outputs(result: dict[str, Any], output_dir: str | Path) -> di
         "growth_plan_summary": out / "growth_plan_summary.json",
         "valuation_summary": out / "valuation_summary.json",
         "formula_trace": out / "formula_trace.json",
+        "growth_suggestions": out / "growth_suggestions.json",
     }
 
     result["fixed_cashflow"].to_csv(paths["fixed_cashflow"], index=False)
@@ -269,6 +270,21 @@ def write_core_csv_outputs(result: dict[str, Any], output_dir: str | Path) -> di
     )
     paths["formula_trace"].write_text(
         json.dumps(_build_formula_trace(), indent=2, ensure_ascii=False, default=str),
+        encoding="utf-8",
+    )
+    # Growth commitment g-suggestions (ADR 0014, plan §3): always computed and
+    # reported — regardless of whether growth_commitment is enabled — since
+    # this is a calibration aid, never an auto-selected default. Uses the
+    # instance's own parametros (raw config), not the built instance dict.
+    from adventure_capital.instance import compute_growth_suggestions
+
+    raw_config = result["instance"].get("parametros", {})
+    try:
+        suggestions = compute_growth_suggestions(raw_config)
+    except Exception:
+        suggestions = {"schema_version": "1.0", "error": "could not compute growth suggestions"}
+    paths["growth_suggestions"].write_text(
+        json.dumps(suggestions, indent=2, ensure_ascii=False, default=str),
         encoding="utf-8",
     )
 

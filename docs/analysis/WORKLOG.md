@@ -82,10 +82,69 @@ grande, no calibrar para cuadrar resultados, `uv run pytest -q` verde.
 
 ## Pendientes conocidos POST-lunes (no de este turno)
 
-- ADR 0014 + implementación producción de `growth_commitment` (piso) + `hiring`
-  (fricción) en model.py + paridad stochastic/model.py + claves YAML + goldens.
 - Elicitación distribuciones con Maureira (prioridad: salesforce_efficiency 77% de
   varianza, wacc 21%) — ver `distribution_assumptions.md`.
 - DD08: base de comparación → drawdown (no gap/VC).
 - Mitigación truncamiento año 3 (término de cola).
 - Sesión UI (`ui-pro` corre en sesión aparte — no mezclar hasta cerrar modelo).
+
+## Rev 2026-07-05 — implementación `growth_commitment` + `hiring` (Sonnet, branch `growth-law-adr14`)
+
+**Estado: IMPLEMENTADO. Suite completa verde (171 passed, 3 skipped; era 161/3 — 10 tests
+nuevos, cero goldens tocados). `entrega-tesis` intocado (verificado: HEAD sin cambios,
+branch de trabajo creado con `git checkout -b growth-law-adr14` desde `entrega-tesis`).**
+
+Implementado (orden del plan §9):
+
+1. `config.py`: claves `growth_commitment`/`hiring` + validaciones completas (source
+   enum, multiple_3y>1, floor_slack∈[0,1), custom exige g_annual, hiring h>=0,
+   coexistencia ceiling/commitment con error claro si el ceiling < el compromiso).
+2. `instance.py`: `C12` precomputado (mismo phi/survival que el ceiling, sin solve),
+   `checkpoint_targets` (B_24=√m·C12, B_36=m·C12), `compute_growth_suggestions`
+   (g_vc_minimum, g_plan_mom_acquisition, g_plan_mom_stock — corrección: se reportan
+   AMBOS, el stock MoM es el comparable porque el piso ata sobre stock —, g_required_rev
+   si el YAML declara `target_revenue_y3`).
+3. `model.py`: bloques aditivos condicionados a `enabled` (piso en `sum_s C[s,checkpoint]`,
+   fricción en V/L); `H` < checkpoint levanta `ValueError` claro en vez de fallar en
+   silencio.
+4. `due_diligence/rules.py`: W1-W5 como DD13-DD17 (WARNING únicamente, nunca bloqueo),
+   funciones puras importables; NO wireadas en el chain automático de
+   `run_due_diligence` (la trampa conocida: `run_pipeline`+`output_dir` explota con
+   solves no-Optimal, y un commitment infeasible es un resultado válido esperado —
+   evitar ese choque quedó documentado como trabajo futuro explícito, no forzado).
+5. `stochastic/model.py`: paridad — fricción en V/L de primera etapa (idéntica forma),
+   piso sobre el stock PLANEADO (pre-eficiencia, `plan_total` con `phi` de la instancia
+   base, no de ningún escenario). Paridad V-path verificada empíricamente (escenario
+   único determinista, mismo objetivo/mismo V-path que el modelo determinista). KPI
+   ex-post `P(C36_real >= multiple_3y*C12)` vía el mecanismo existente de milestones
+   (`prob_hit_final_active_clients_{milestone}`), sin artefacto nuevo.
+6. `scripts/diagnose_infeasibility.py`: rutina R1-R8 (fricción, publicidad, mix,
+   churn, costo fijo, costo unitario, piso de caja, el múltiplo mismo) como función
+   pura config→JSON + CLI, mismo patrón de inyección que
+   `scripts/growth_band_experiment.py`.
+7. `tests/test_growth_commitment.py`: los 10 tests exactos del plan §6, todos en H=36
+   (los checkpoints m24/m36 lo exigen; solve ~0.1s, muy por debajo del budget de 60s —
+   no hizo falta el fallback H=26).
+8. `scripts/growth_commitment_benchmarks.py` + `docs/analysis/growth_commitment_benchmarks.md`:
+   4 instancias × {off, vc_minimum, vc_minimum+hiring h=1}; kavacomex además `none` +
+   rutina R1-R8 completa (corrida SIEMPRE, no solo si infeasible, per instrucción).
+   **Hallazgo principal**: `off` == `vc_minimum` en las 4 instancias — el ceiling
+   default (ADR 0010, x3/slack 0.15) ya despeja el piso x3 con holgura en las 4, incluso
+   con hiring h=1; kavacomex (esperado como candidato a Infeasible, ramp real ~0.99x)
+   también resultó Optimal por la misma razón. Corrida de contraste (ceiling
+   desactivado) confirma que el piso solo nunca acota por arriba (`Unbounded` en las 4,
+   comportamiento esperado ADR 0010/0013) — nunca se subió el multiplicador del ceiling
+   como parte de esta feature (instrucción explícita).
+9. `docs/adr/0014-growth-commitment-hiring-friction.md`: decisión completa, incluye
+   las 3 correcciones del supervisor (semántica ×3/3años explícita; stock MoM +
+   acquisition MoM ambos reportados; ceiling nunca core, verificado con ceiling off).
+
+**No hecho a propósito / limitación documentada**: W1-W5 no están wireadas en el chain
+automático `run_due_diligence`/`run_assessment` (razón: trampa conocida de
+`run_pipeline`+`output_dir` con solves no-Optimal). Quedan como funciones puras
+importables, cubiertas por tests directos — endurecer ese chain para tolerar
+Infeasible-con-commitment es trabajo futuro explícito, no un blocker de esta entrega.
+
+**Rollback**: desactivar `growth_commitment.enabled`/`hiring.enabled` (o ausentar las
+claves) — sin código a revertir, el no-op está verificado por test
+(`test_commitment_off_is_noop`, `test_hiring_off_is_noop`).
