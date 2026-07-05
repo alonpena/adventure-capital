@@ -176,6 +176,7 @@ def validate_config(config: dict[str, Any]) -> None:
     channels = config.get("channels")
     if channels is not None:
         active_max_share_sum = 0.0
+        active_min_share_sum = 0.0
         any_active = False
         for name in ("salesforce", "advertising", "third_party"):
             ch = channels.get(name)
@@ -191,9 +192,14 @@ def validate_config(config: dict[str, Any]) -> None:
                     f"channels.{name}: require 0 <= min_share <= max_share <= 1."
                 )
             active_max_share_sum += max_share
+            active_min_share_sum += min_share
         if any_active and active_max_share_sum < 1.0:
             raise ValueError(
                 "Sum of max_share across active channels must be >= 1.0 (mix otherwise infeasible)."
+            )
+        if any_active and active_min_share_sum > 1.0:
+            raise ValueError(
+                "Sum of min_share across active channels must be <= 1.0 (mix otherwise infeasible)."
             )
 
         third_party = channels.get("third_party", {})
