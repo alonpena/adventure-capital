@@ -18,10 +18,15 @@ grande, no calibrar para cuadrar resultados, `uv run pytest -q` verde.
   `scripts/growth_band_experiment.py`.
 - Timings SAA (hoy): N=20/50/100 → 11.7/10.6/27.6 s solve; eval 500 ≈ 1 s; plan
   ex-post idéntico entre N y entre (λ,α) — plan en la cota del freno.
-- Decisión de fondo ya tomada: ideal = mínimo VC (2×/año, fuente Motor/Maureira) +
+- ~~Decisión de fondo ya tomada: ideal = mínimo VC (2×/año, fuente Motor/Maureira) +
   fricción de contratación (h del cliente), SIN techo numérico; fallback lunes =
   ceiling declarado como benchmark. NO implementar la ley nueva en producción antes
-  de la defensa (requiere paridad estocástica + ADR 0014 + re-baseline goldens).
+  de la defensa (requiere paridad estocástica + ADR 0014 + re-baseline goldens).~~
+  **SUPERSEDIDO por REV 2 (2026-07-05 PM):** benchmark = **×3 en 3 años sobre stock**
+  (triplicar el stock de clientes entre el fin del año 1 consensuado y el fin del
+  año 3: C36 ≥ 3·C12, checkpoint C24 ≥ √3·C12) — NO ×2 anual; e implementación
+  **autorizada AHORA** por Alonso en branch `growth-law-adr14` (Sonnet, opt-in,
+  defaults off, entrega-tesis intocado). Ceiling ×8 jamás como core.
 
 ## Plan de cierre (este turno)
 
