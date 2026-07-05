@@ -263,3 +263,46 @@ def test_diagnosis_routine_smoke():
     r1 = next(r for r in diagnosis["relaxations"] if r["relaxation"] == "R1")
     assert r1["feasible"] is True
     assert "contrataci" in r1["diagnosis"] or "onboarding" in r1["diagnosis"]
+
+
+def test_dd_chain_emits_w_warnings_and_survives_infeasible(tmp_path):
+    """W1-W5 wired into run_due_diligence (follow-up closed): the calibration
+    warnings appear as findings, and an Infeasible commitment produces a clean
+    DD17 report instead of the consistency-check crash."""
+    from pathlib import Path
+
+    from adventure_capital.due_diligence.workflow import run_due_diligence
+
+    # Feasible case with source plan_mom (base.yaml stock MoM 33.6x/yr >> 2x
+    # the VC minimum): expect W1 (DD13) present and normal chain completion.
+    config = _base_config(
+        growth_commitment={
+            "enabled": True,
+            "source": "plan_mom",
+            "multiple_3y": 3.0,
+            "checkpoints": "annual",
+        },
+    )
+    result = run_due_diligence(config, output_dir=tmp_path / "feasible")
+    ids = {f.id for f in result["verdict"].findings}
+    assert "DD13" in ids  # W1 fired from suggestions
+    assert result["ran_model"] is True
+
+    # Infeasible commitment (recipe from test_commitment_infeasible_reported):
+    # chain must not crash; DD17 (W3) reported; artifacts written.
+    config_inf = _base_config(
+        acquisition_ceiling={"enabled": True, "target_stock_multiplier": 3.0, "slack": 0.0},
+        hiring={"enabled": True, "max_new_sellers_per_month": 0, "max_new_leaders_per_month": 0},
+        growth_commitment={
+            "enabled": True,
+            "source": "vc_minimum",
+            "multiple_3y": 3.0,
+            "checkpoints": "annual",
+        },
+    )
+    result_inf = run_due_diligence(config_inf, output_dir=tmp_path / "infeasible")
+    ids_inf = {f.id for f in result_inf["verdict"].findings}
+    assert "DD17" in ids_inf
+    dd17 = next(f for f in result_inf["verdict"].findings if f.id == "DD17")
+    assert dd17.evidence["solver_status"] in {"Infeasible", "Undefined"}
+    assert Path(result_inf["artifacts"]["json"]).exists()

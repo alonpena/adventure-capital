@@ -44,6 +44,8 @@ from adventure_capital.due_diligence.rules import (
     map_calibration_findings,
     resolve_thresholds,
     rule_exit_roi,
+    rule_growth_commitment_infeasible,
+    rule_growth_commitment_warnings,
 )
 from adventure_capital.pipeline import run_pipeline
 
@@ -92,6 +94,17 @@ def run_due_diligence(
     # 1. Pre-rules on the raw instance.
     pre_findings = evaluate_pre_rules(config, thresholds)
 
+    # 1b. Growth-commitment calibration warnings (W1/W2/W4/W5, ADR 0014).
+    # Config-only, evaluated pre-model; strict no-op when the feature is off.
+    if (config.get("growth_commitment") or {}).get("enabled", False):
+        from adventure_capital.instance import compute_growth_suggestions
+
+        try:
+            growth_suggestions = compute_growth_suggestions(config)
+        except Exception:
+            growth_suggestions = None
+        pre_findings.extend(rule_growth_commitment_warnings(config, growth_suggestions))
+
     # If the instance is structurally invalid, do not run the model.
     if _has_structural(pre_findings):
         verdict = build_verdict(pre_findings, calibration_verdict=None, inputs=inputs)
@@ -105,7 +118,35 @@ def run_due_diligence(
         }
 
     # 2. Deterministic baseline (reused, not duplicated).
-    pipeline_result = run_pipeline(config, output_dir=str(out), verbose_solver=verbose_solver, baseline_only=True)
+    # With growth_commitment enabled, Infeasible is a VALID business result
+    # (ADR 0014): the pipeline's downstream artifact/consistency machinery
+    # raises on non-Optimal solves, so we detect that case with a direct
+    # solve, emit W3 (DD17), and return a clean rejection-style report
+    # instead of crashing.
+    try:
+        pipeline_result = run_pipeline(config, output_dir=str(out), verbose_solver=verbose_solver, baseline_only=True)
+    except Exception:
+        if not (config.get("growth_commitment") or {}).get("enabled", False):
+            raise
+        from adventure_capital.instance import generate_instance
+        from adventure_capital.model import build_model, solve_model
+
+        solved = solve_model(build_model(generate_instance(config)), time_limit=120)
+        w3 = rule_growth_commitment_infeasible(solved["status"], config)
+        if w3 is None:
+            raise  # not an infeasibility — genuine pipeline failure
+        verdict = build_verdict(
+            pre_findings + [w3], calibration_verdict=None, inputs=inputs
+        )
+        artifacts = write_due_diligence_report(verdict, out)
+        return {
+            "verdict": verdict,
+            "artifacts": artifacts,
+            "pipeline": None,
+            "calibration": None,
+            "ran_model": True,
+            "solver_status": solved["status"],
+        }
     optimized = pipeline_result["optimized_results"]
     solver_status = pipeline_result["solution"]["status"]
     wc_diagnostic = pipeline_result.get("working_capital_diagnostic") or {}
@@ -167,6 +208,12 @@ def run_due_diligence(
             thresholds,
         )
     )
+    # W3 (DD17): Infeasible/Undefined with growth_commitment on — the chain
+    # survives via calibration's C01, but the business reading is the ADR 0014
+    # one: the structure does not support the declared thesis.
+    w3_inline = rule_growth_commitment_infeasible(solver_status, config)
+    if w3_inline is not None:
+        synthesis_findings.append(w3_inline)
     liquidity = compute_liquidity_diagnostic(optimized, config)
     if wc_diagnostic and wc_diagnostic.get("feasible") is False:
         liquidity.update(

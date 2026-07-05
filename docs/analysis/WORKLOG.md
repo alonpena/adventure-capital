@@ -148,3 +148,12 @@ Infeasible-con-commitment es trabajo futuro explícito, no un blocker de esta en
 **Rollback**: desactivar `growth_commitment.enabled`/`hiring.enabled` (o ausentar las
 claves) — sin código a revertir, el no-op está verificado por test
 (`test_commitment_off_is_noop`, `test_hiring_off_is_noop`).
+
+## Rev 2026-07-05 tarde — diagnóstico Unbounded + benchmarks destino + cableo W1-W5
+
+| tarea | estado | notas |
+|---|---|---|
+| Diagnóstico camino Unbounded (goal audit) | ✅ | **el modo destino (piso+fricción+ceiling off) NO es Unbounded: Optimal en las 4 instancias, h=1 y h=2** — la tabla Unbounded previa era piso SIN fricción. Camino unbounded real y único: **third_party sin cota propia** (tp-only Unbounded con y sin comisión; sf acota vía fricción, ad vía I_max+cap). Cash≥0 duro = Infeasible (esperado). Ver `unbounded_path_diagnosis.md` + `scripts/unbounded_path_matrix.py` |
+| Benchmarks modo destino | ✅ | tabla en diagnosis §0; VAN escala ~lineal en h (h = palanca declarada del cliente); kavacomex destino h=1: VAN +620k vs −378k con ceiling |
+| Cableo W1-W5 a DD | ✅ | workflow.py: W1/W2/W4/W5 pre-modelo + W3/DD17 en camino normal (chain sobrevive vía C01) Y en camino de excepción (re-solve + reporte limpio). Test nuevo. Suite **172 passed, 3 skipped**. Nota: W1/W2 disparan solo con `source: plan_mom` (scoping de Sonnet, mantenido) |
+| Fix mínimo tp propuesto (NO implementado) | ⏳ | opción segura pre-lunes: validación config; estructural post-defensa: `A_tp_cap` espejo de `A_ad_cap` (diagnosis §5-6) |
