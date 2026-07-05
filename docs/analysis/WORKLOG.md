@@ -61,9 +61,24 @@ grande, no calibrar para cuadrar resultados, `uv run pytest -q` verde.
 | P3 | `implementation_plan_growth_law.md` — plan 14 puntos | ✅ | ley recomendada = D (piso VC + fricción, sin techo); curva especificada (P0=m12 consensuado, P1=año 3 tesis, g de fuente declarada VC/MoM/custom, PISO no banda); decisión: **NOT READY hoy sin autorización de Alonso, READY como plan**; bloqueante humano (g por instancia, kavacomex), no técnico; rollback = opt-in default-off + branch aparte |
 | P4 | Actualizar WORKLOG | ✅ | este archivo |
 
-**Nota para el próximo agente (Sonnet):** ejecutar SOLO §10 del plan, en branch
+**Nota para el próximo agente (Sonnet):** ejecutar SOLO §9 del plan REV 2, en branch
 `growth-law-adr14`, sin tocar `entrega-tesis`, sin flip de defaults, sin rebaseline
-(criterios §9). Checklist de revisión posterior: §11.
+(criterios §8). Checklist de revisión posterior: §10.
+
+## Rev 2026-07-05 PM — decisiones de Alonso (plan REV 2, autorización de implementación)
+
+- **Cambiado:** benchmark vc_minimum = **×3 en 3 años** (C36 ≥ 3·C12), NO ×2 anual;
+  **PISO con checkpoints anuales** (C24 ≥ √3·C12, C36 ≥ 3·C12), sin piso mensual;
+  sin restricciones de caja nuevas; plan_mom = diagnóstico (sin clamps, sin
+  no-linealidades — si es sospechoso: warning W1 + revisión humana); custom con
+  justificación obligatoria (W4); **Infeasible = resultado válido de negocio** con
+  diagnóstico estructurado §5 (8 relajaciones dirigidas → diagnóstico, sin IA).
+- **Decisiones humanas resueltas:** forma del piso (checkpoints anuales); piso stoch
+  sobre stock PLANEADO; kavacomex = ambos modos + análisis de palancas de
+  factibilidad; timing = **AHORA** (Sonnet autorizado, restricciones estrictas §9).
+- **Blockers restantes:** ninguno de decisión. Gate de rebaseline = humano
+  (`final_growth_decision.md` APPROVED).
+- **Estado: READY TO IMPLEMENT — Sonnet lanzado en worktree `growth-law-adr14`.**
 
 ## Pendientes conocidos POST-lunes (no de este turno)
 

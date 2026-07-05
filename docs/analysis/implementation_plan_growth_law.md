@@ -1,208 +1,196 @@
-# Plan de implementación — ley de crecimiento (PLAN ONLY, sin código aún)
+# Plan de implementación — ley de crecimiento (REV 2, decisiones de Alonso resueltas)
 
-Fecha: 2026-07-05 AM · Goal: backend core antes de UI; determinista y estocástico con
-LA MISMA ley; ceiling ×8 inaceptable como core. Evidencia previa citada, no repetida:
-`threshold_analysis.md` (E1–E4), `growth_band_experiment.md`, `objective_sweep.md`,
-`growth_dynamics_final.md`, `due_diligence_audit.md`, `saa_here_and_now_final.md`.
+Fecha: 2026-07-05 (rev 2, post-decisiones) · Reemplaza REV 1 del mismo día.
+Evidencia: `threshold_analysis.md` (E1–E4), `growth_band_experiment.md`,
+`growth_dynamics_final.md`, `objective_sweep.md`, `saa_here_and_now_final.md`.
+**Estado: AUTORIZADO POR ALONSO — Sonnet implementa AHORA en branch `growth-law-adr14`,
+`entrega-tesis` intocado.**
 
-## 0. Respuestas previas al código (preguntas 1–12 del goal)
+## 1. Recomendación revisada (decisiones finales)
 
-1. **Ley actual:** ceiling logarítmico sobre stock (ADR 0010, default-on,
-   `instance.py:77-103`, aplicado en `model.py` y `stochastic/model.py:169-177`).
-   Convex-CAC opt-in (ADR 0013). Media móvil inerte.
-2. **Dónde se restringe el crecimiento:** t≤12 adquisición exógena (`A_base`);
-   t≥13: ceiling (nivel), capacidad salesforce `Σsf ≤ meta·V_{t-lag}` + `V ≤ sup·L`
-   + monotonía V/L (`model.py:248-289`), publicidad `A_ad = a+b·I, I∈[I_min,I_max],
-   ≤ A_ad_cap` (`model.py:180-196`), shares por canal, escalones `u_max`, caja.
-3. **Por qué sin freno = Unbounded:** valor marginal por cliente positivo constante
-   (c_u≈0 real), contratación sin costo de ajuste ni límite de ritmo, canales
-   lineales ⇒ LP empuja A→∞. Falta el costo/fricción de CRECER, no un techo de mercado.
-4. **Ya existe en código:** ceiling ✓; ad min/max gasto ✓ (I_min/I_max, t≥13);
-   ad eficiencia min/max ✗ determinista (b constante — la eficiencia varía solo en
-   escenarios estocásticos) pero cap A_ad_cap ✓; min/max shares ✓ (+ validación
-   Σmin≤1 del 2026-07-05); monotonía salesforce ✓ (sin despidos); caja ✓.
-5. **Falta para crecimiento tipo startup:** (a) fricción de contratación/onboarding
-   (ritmo máximo + lag de productividad — el lag YA existe como parámetro, default 0);
-   (b) piso de compromiso de crecimiento (benchmark VC); (c) opcional: saturación
-   cóncava de publicidad.
-6. **YAMLs bien cargados/calibrados:** ver §5 — estructura válida los 4; calibración
-   con supuestos blend documentados en cada YAML; beloop mal especificado (downgrades).
-7. **DD warnings:** mayormente señal real de negocio o de freno (no reglas excesivas);
-   detalle §6.
-8. **Candidatas:** §2.
-9. **Paridad det/estocástico:** §3.2 paso 4.
-10. **Tests pre-rebaseline:** §3.4.
-11. **Artefactos:** §7 (spot-check hoy: 3 corridas completas, `all_passed=True`,
-    estocástico ausente manejado con razón explícita — verificado).
-12. **Sonnet vs futuro:** §10/§12.
+**`growth_commitment` = PISO de tesis de inversión, no techo ni banda:**
 
-## 1. Ley recomendada: IMPLEMENTAR (post-decisión, pre-rebaseline controlado)
+- **vc_minimum (benchmark estándar): ×3 en 3 años sobre stock de clientes.**
+  `C36 ≥ 3·C12`, con C12 = stock del plan consensuado en mes 12. Fuente: regla VC
+  3× (reunión Maureira 2026-07-01, retorno big-tech 3 años). El ×2 anual queda
+  DESCARTADO como default (era más agresivo: 4× en 2 años).
+- **Forma: terminal + checkpoints anuales** (decisión Alonso):
+  `C24 ≥ √3·C12` y `C36 ≥ 3·C12`. Sin piso mensual (evita infeasibilidad espuria
+  por estacionalidad); auditable por año (lógica VC de hitos). Constantes
+  precomputadas ⇒ 2 restricciones lineales, MILP intacto.
+- **Sin restricciones de caja nuevas**: la única consideración es la existente
+  (caja no baja de −VC cuando la política lo activa). Nada más.
+- **plan_mom = diagnóstico/sugerencia, NUNCA default automático.** Si el MoM
+  implícito del plan es sospechoso, NO se recorta ni se corrige con no-linealidades:
+  se emite warning DD/calibración y se exige revisión humana.
+- **custom = override experto (Alejandro)** con justificación obligatoria.
+- **none = bottom-up puro** sin compromiso (valorización sin piso).
+- **Infeasible = resultado válido de negocio**: "esta estructura no soporta la
+  tesis ×3". Se acompaña SIEMPRE del diagnóstico estructurado (§5), jamás se trata
+  como error del modelo.
+- **Fricción de contratación opt-in**: `V_t ≤ V_{t−1} + h_v`, `L_t ≤ L_{t−1} + h_l`
+  (t ≥ 13); h = plan de contratación del cliente. Onboarding vía
+  `commercial_productivity_lag` existente.
+- **Estocástico: piso sobre stock PLANEADO de primera etapa** (pre-eficiencia),
+  manteniendo here-and-now único; se reporta `P(C36_realizado ≥ 3·C12)` como KPI
+  ex-post (decisión Alonso).
+- Ceiling log: guard-rail opcional; **nunca core**; default off intacto en este
+  branch (sin flip).
 
-**`growth_commitment` (piso) + `hiring` (fricción) — candidata D del goal, SIN techo
-numérico.** Ceiling queda como guard-rail OPCIONAL (default off tras migrar) —
-candidata A = fallback de emergencia. Justificación: única combinación probada
-(Optimal, upside intacto VAN 3.83M, rampa orgánica, min caja −11.9k) cuyos dos
-parámetros tienen dueño de negocio: g (tesis de inversión) y h (plan de contratación).
+## 2. Config schema EXACTO
 
-### Ajuste de la curva mínima (especificación exacta)
+```yaml
+growth_commitment:
+  enabled: false                 # opt-in estricto; default off = no-op total
+  source: vc_minimum             # vc_minimum | plan_mom | custom | none
+  multiple_3y: 3.0               # C36 >= multiple_3y * C12 (vc_minimum)
+  checkpoints: annual            # annual -> C24 >= sqrt(m)*C12 y C36 >= m*C12
+                                 # terminal -> solo C36
+  floor_slack: 0.0               # tolerancia hacia abajo declarada: C_k >= (1-slack)*B_k
+  custom_g_annual: null          # requerido si source: custom (crecimiento anual del stock)
+  custom_justification: null     # requerido no-vacío si source: custom (si falta -> warning DD)
 
-```text
-Puntos de anclaje:
-  P0 = (m12, C12)      C12 = stock de clientes del plan consensuado en el mes 12
-                       (determinista dado A_base y churn; base.yaml: 55.8)
-  P1 = (m36, C36_obj)  C36_obj = C12·(1+g_anual)^2   [tesis de inversión año 3]
-
-Fuentes admisibles de g_anual (en orden de preferencia, declarada en YAML):
-  a) tesis VC pactada: 2.0 (duplicar cartera/año — Motor godemos realizado + regla Maureira)
-  b) MoM implícito del propio plan consensuado: g_mom = (A12/A1)^(1/11)−1 anualizado
-     (base.yaml: 15.8%/mes ⇒ 4.8×/año)
-  c) parámetro explícito del cliente
-
-Curva: B_t = C12·(1+g_m)^(t−12),  g_m = (1+g_anual)^(1/12)−1,  t = 13..H
-Rol:   PISO (floor). stock_t ≥ B_t. NO es techo ni banda.
-Techo: NINGUNO numérico — acotan fricción de contratación + caja + capacidad + canales.
-Slack: al piso, tolerancia hacia ABAJO opcional δ (stock_t ≥ (1−δ)·B_t), default 0;
-       si se usa, δ se declara supuesto. Variantes techo (fija/anual/MoM) EVALUADAS y
-       DESCARTADAS con evidencia (matan upside; `growth_band_experiment.md`).
-Fricción: V_t ≤ V_{t−1} + h_v;  L_t ≤ L_{t−1} + h_l;  t ≥ 13
-       h_v = plan de contratación del cliente (YAML, como A_base); default propuesto 1.
-       Onboarding: usar commercial_productivity_lag existente (recomendar 1–2 meses).
+hiring:
+  enabled: false                 # opt-in estricto
+  max_new_sellers_per_month: 1   # h_v >= 0
+  max_new_leaders_per_month: 1   # h_l >= 0
 ```
 
-## 2. Matriz de candidatas (A–G)
+Validaciones (`validate_config`): `multiple_3y > 1`; `source` en enum; `custom` ⇒
+`custom_g_annual > 0`; `floor_slack ∈ [0,1)`; `h_* ≥ 0` enteros; `checkpoints` en
+enum. `plan_mom` como source: usa g del MoM del plan PERO exige que el warning W1/W2
+(§4) no sea silenciado — el YAML lo elige explícitamente, el sistema no lo elige solo.
 
-| cand. | fórmula | sentido | params | arbitrar. | costo impl. | costo paridad stoch | comportamiento esperado benchmarks | recomendación |
-|---|---|---|---|---|---|---|---|---|
-| A ceiling log (actual) | stock ≤ curva log → M·C12 | proxy mercado | M, slack | alto (VAN~lineal en M) | 0 | 0 (ya en paridad) | reproduce hoy; Y3 sobre-crece vs Excel (+74/334%) | **fallback emergencia**, default off tras migrar |
-| B mín + slack techo dinámico | B_t ≤ stock ≤ B_t(1+δ_t) | banda compromiso | g, δ_t | medio (δ) | ~20 líneas | medio | probado: mata upside salvo δ del MoM | rechazar como core; δ-MoM documentado |
-| C mín + caps pub + caja + mix | piso + frenos existentes | "lo que ya hay + piso" | g | bajo | ~15 líneas | bajo | **Unbounded en salesforce-only** (band-min-only) — solo acota si publicidad/capacidad activas y apretadas | rechazar como core general |
-| **D mín + fricción contratación** | §1 | piso VC + ritmo real de crecer | g, h_v, lag | **bajo** | ~30 líneas det | ~30 líneas (espejo en first-stage V/L, que ya existen en SAA) | godemos/entrena: rampa continua, VAN entre convex y ceiling; kavacomex (ramp plano 0.99): piso 2× puede ser INFEASIBLE → g por instancia o δ>0 — riesgo conocido | **CORE** |
-| E mín + convex-CAC | piso + premium θ·k | saturación económica | g, θ | alto (θ*45–300) | 0 (existe) | pendiente ADR 0013 paso 5 | sobre-conservador | rechazar; comparación tesis |
-| F CAC por tramos (general) | curvas por canal | saturación por canal | tabla tramos | medio | alto | alto | n/a | futuro |
-| G híbrida (D + guard-rail A opcional) | D + stock ≤ ceiling(M_grande) | piso+fricción con paracaídas | D + M | bajo si M solo guard-rail documentado | D + 0 | D + 0 | como D con cota de cordura | aceptable si el comité exige techo explícito |
+### Curva / puntos (formulación exacta, lineal-compatible)
 
-## 3. Pasos exactos de implementación (Sonnet, post-defensa o si Alonso lo autoriza hoy)
+```text
+C12 = Σ_s C[s,12] — determinista dado A_base y churn (precomputable en instance.py
+      con los mismos delta/phi del modelo; base.yaml: 55.8).
+m   = multiple_3y (o (1+g)^2 si source custom/plan_mom, con g anual de la fuente)
+Checkpoints (annual):  C24 >= (1-slack)·√m·C12   ·   C36 >= (1-slack)·m·C12
+Interpolación implícita exponencial mensual (m^((t-12)/24)) SOLO como referencia
+de reporting/sugerencias — no se impone mensualmente. Constantes precomputadas:
+cero no-linealidades en el MILP.
+```
 
-1. **Config** (`config.py`): claves `growth_commitment: {enabled, annual_growth,
-   source: vc|mom|custom, floor_slack}` y `hiring: {max_new_sellers_per_month,
-   max_new_leaders_per_month}`; validaciones (g>0, h≥0, source∈enum). DEFAULTS:
-   commitment off, hiring off (opt-in primero; flip de default = decisión aparte).
-2. **Instance** (`instance.py`): precomputar `C12` (determinista desde A_base+churn —
-   reusar delta/phi), curva `B_t`, exponer `growth_commitment` + `hiring` en instance.
-3. **Determinista** (`model.py`): bloque nuevo tras el ceiling —
-   `Σ_s C[s,t] ≥ (1−δ)·B_t` y `V_t ≤ V_{t−1}+h_v`, `L_t ≤ L_{t−1}+h_l` (t≥13),
-   activos solo si enabled. Mutuamente exclusivo con convex? NO — ortogonal; sí
-   validar que commitment+ceiling simultáneos exijan ceiling ≥ piso (infeasibility
-   temprana con mensaje claro).
-4. **Paridad estocástica** (`stochastic/model.py`): mismas restricciones sobre
-   first-stage `V/L/plan_total`; stock por escenario: piso aplica al stock PLANEADO
-   (pre-eficiencia) para mantener first-stage único — documentar elección en ADR.
-5. **ADR 0014**: decisión, fuentes de g, elección de piso-planeado vs realizado,
-   kavacomex caveat.
-6. **Pre-feasibility** (`due_diligence/workflow.py`): chequeo barato
-   `B_H alcanzable con h_v·meta` → warning si no (evita Infeasible ciego).
+## 3. Motor de sugerencias de g (calcular y REPORTAR, jamás elegir en silencio)
 
-## 4. Tests a agregar/actualizar (antes de cualquier rebaseline)
+Computado en `instance.py`/calibración y emitido en artefacto
+(`growth_suggestions.json`) + informe:
 
-- Nuevos: commitment respeta piso (stock_m24 ≥ B_24); Infeasible claro si g imposible
-  con h dado; hiring friction limita salto (V_13 ≤ V_12+h); paridad: det y stoch
-  producen mismo V-path año 2 con mismos params; validaciones config (g≤0, h<0,
-  ceiling < piso). Extender `test_model_behavior.py` (patrón ya establecido).
-- Actualizar: goldens/smoke que asuman ceiling default-on SI se flippea el default
-  (NO flippear en el mismo PR que introduce la ley — dos pasos).
-- Verde previo obligatorio: `uv run pytest -q` (hoy: 161 pass / 3 skip).
+```text
+g_vc_minimum   = multiple_3y^(1/2) − 1  anual        (×3 ⇒ 73.2%/año; 4.68%/mes)
+g_plan_mom     = (A_base[12]/A_base[1])^(1/11) − 1   mensual, anualizado (base: 15.8%/mes ⇒ 4.8×/año)
+g_required_rev = ((R_target_y3 / rev_anual_por_cliente) / C12)^(1/2) − 1  anual
+                 SI el YAML declara target_revenue_y3 (clave nueva opcional);
+                 rev_anual_por_cliente = annual_revenue_per_customer (unit_economics)
+                 — aproximación de mix constante, declarada.
+custom         = lo que fije el experto (con justificación).
+```
 
-## 5. Auditoría YAML benchmarks (hecha hoy — leídos los 4)
+UI podrá mostrar los candidatos para calibración (extensión futura, NO este branch).
 
-| instancia | estructura | params sospechosos | causa de warnings DD | uso |
-|---|---|---|---|---|
-| godemos | ✓ (targets y simplificaciones documentadas en el YAML) | `sup: 99` (hack "sin líderes"); `meta 15` ajustada (nominal 5); c_u 0.10 casi cero (blend) | VC=0 → DD03-warning (exención, correcta); DD12 1.7×<3× = señal real | **benchmark + demo** (corre desde 2026-07-03) |
-| entrena | ✓ | `meta 20` para 1 vendedor (no restrictiva por diseño); c_min 8000 alto vs c_u 10 | EBITDA yr1 negativo (real, target también) | **benchmark + demo** (passed_with_warnings) |
-| beloop | ✓ | downgrades Enterprise→Pro NO modelados (documentado) → +469% VAN vs target; Enterprise churn 0 | modelo sobre-crece por especificación, no por regla | **stress test / EXCLUIR de demo** |
-| kavacomex | ✓ | c_u 97 vs ticket 140 (margen bruto ~31%, el único caso costo-intensivo); ramp real plano (0.99) | conservador legítimo | **benchmark + stress para el piso** (piso 2× puede ser infeasible — caso de prueba clave) |
+## 4. Warnings DD/calibración nuevos (plan; implementación = reglas warning, nunca bloqueo)
 
-Carga: los 4 pasan `validate_config`; la UI preserva campos extra (fix 7320aba).
+| id | condición | mensaje/diagnóstico |
+|---|---|---|
+| W1 plan_mom sospechoso | g_plan_mom > 2·g_vc_minimum | "MoM del plan implica {x}×/año — revisar con el cliente antes de usarlo como compromiso" (NO se recorta) |
+| W2 plan bajo tesis | g_plan_mom < g_vc_minimum | "el plan consensuado crece bajo la tesis ×3 — el compromiso exigirá acelerar sobre el plan" |
+| W3 tesis infeasible | solver Infeasible con commitment on | resultado válido + adjuntar diagnóstico §5 |
+| W4 custom sin justificación | source custom y justification vacía | "override experto sin justificación registrada" |
+| W5 plan inconsistente | A_base con ceros/huecos que hacen C12≈0 o MoM no computable | "plan consensuado no permite anclar el piso" |
 
-## 6. Clasificación DD (plan de severidades, no implementación)
+## 5. Rutina de diagnóstico de infactibilidad (determinista, automatizable, sin IA)
 
-Matriz completa en `due_diligence_audit.md`. Resumen: DD01/02/04 + C01 = validación
-técnica dura (bloquear, correcto); DD05/07/08/11 + C04–C10 = plausibilidad financiera
-(advertir); DD06/09/10/12 = tesis VC (advertir/major, correcto); DD03 = dura con
-exención declarativa (correcto desde 2026-07-03). Por qué muchos casos warn: los
-warnings observados son señal (EBITDA yr1 negativo real, exit 1.7×<3× real, breakeven
-tardío bajo freno apretado) — no reglas excesivas. Único cambio planificado: DD08
-base = drawdown (no gap/VC). Ningún cambio de severidad se implementa este fin de semana.
+Patrón: relajaciones dirigidas una-a-la-vez sobre el mismo build (inyección
+post-build ya validada en `growth_band_experiment.py`; precedente en core:
+`elastic_floor` + `diagnose_financing_gap`, model.py:396+). Orden fijo, se corre la
+secuencia completa y se reporta el CONJUNTO de relajaciones que restauran factibilidad:
 
-## 7. Chequeos de artefactos (spot-check hoy + lista para corrida final)
+| # | relajación (solo esa) | si restaura factibilidad ⇒ diagnóstico |
+|---|---|---|
+| R1 | hiring: h_v,h_l → +∞ (quitar fricción) | ritmo de contratación/onboarding insuficiente para la tesis |
+| R2 | advertising: I_max×10, A_ad_cap×10 (si canal activo) | canal publicitario saturado — tope de gasto/cap limita la tesis |
+| R3 | min_shares → 0 | mix comercial rígido — los mínimos por canal impiden el mix necesario |
+| R4 | churn ×0.5 (recomputa delta/phi) | retención insuficiente: el stock decae más rápido de lo que se puede adquirir |
+| R5 | RRHH y g_adm → 0 (contrafactual) | carga de costo fijo (solo informativo si no hay piso de caja activo) |
+| R6 | c_u → 0 | estructura de costo operativo / margen bruto |
+| R7 | piso de caja elástico (si liquidity policy activa; patrón elastic_floor) | capital insuficiente — brecha = valor del slack (runway) |
+| R8 | el propio piso: multiple_3y → 1.0 | ninguna palanca alcanza: la tesis en sí es el binding (reportar el múltiplo máximo factible por bisección — opcional v2) |
 
-Verificado hoy en 3 corridas (godemos-dd12, m8-vc200, base-default): 8 artefactos
-esperados presentes, `consistency_report.all_passed=True`, dcf 3 años, estocástico
-ausente manejado con razón explícita ("not executed. Reason: …"). Para la corrida
-final de demo: mismos chequeos + informe HTML render (executive page) + breakeven/
-payback/exit visibles (gap conocido: "clientes en mes de breakeven" no está en
-summary — documentado, no bloqueante).
+Output `infeasibility_diagnosis.json`: `[{relaxation, feasible, objective?, diagnosis}]`
++ resumen legible. CAC/margen positivo con infeasibilidad ⇒ el diagnóstico distingue
+costo fijo (R5), caja (R7), capacidad de adquisición (R1–R3) o churn (R4) — decisión 7
+de Alonso. Diseño SaaS-ready: función pura config→JSON.
 
-## 8. Grilla de sensibilidad requerida (diseño; ejecutar post-decisión de ley)
+## 6. Tests EXACTOS (nuevos, branch growth-law-adr14)
 
-Palancas (1-D, ±2 niveles c/u sobre caso demo; herramienta: extender
-`threshold_analysis.py`, mismo patrón): VC {50k,100k,150k}; ticket ×{0.8,1.2};
-churn ×{0.8,1.3}; alpha {0.7,0.95}; com_v/rem_v ×{1,2}; I_max ×{0.5,2} y b ×{0.7,1.3}
-(si ad activa); meta ×{0.75,1.25}; min_shares {0,0.3}; beta {0.30,0.35}; h {1,2,3};
-lag {0,2}; δ piso {0,0.1}. Outputs por celda (todos ya extraíbles): clientes m36,
-ingresos Y3, EBITDA Y3, VAN, min caja+mes (capital requerido), breakeven (mes/
-clientes/EBITDA acum), payback (mes/clientes/VC), exit proxy + post-money + ROI
-(DD12 evidence), V/L path, veredicto DD, artefactos ok. ~26 solves ≈ 15 min.
+```text
+test_commitment_off_is_noop            # enabled false ⇒ VAN idéntico a solve sin claves (no golden)
+test_commitment_checkpoints_hold       # on ⇒ C24 ≥ (1-slack)·√3·C12 y C36 ≥ (1-slack)·3·C12 (solución)
+test_commitment_terminal_only_mode     # checkpoints: terminal ⇒ solo C36 restringido
+test_commitment_infeasible_reported    # h=0 + vc_minimum en caso apretado ⇒ Infeasible limpio + W3, sin crash
+test_hiring_friction_limits_jump       # V13 ≤ V12 + h_v; L13 ≤ L12 + h_l
+test_hiring_off_is_noop
+test_parity_det_stoch_first_stage      # mismos params ⇒ mismo V-path y piso activo en plan_total stoch
+test_config_validation_commitment      # multiple≤1, source inválido, custom sin g, slack≥1, h<0 ⇒ ValueError
+test_suggestions_values                # base.yaml: C12≈55.8, g_vc=73.2%±ε, g_mom=15.8%/mes±ε
+test_diagnosis_routine_smoke           # caso infeasible sintético ⇒ JSON con ≥1 relajación feasible y diagnóstico esperado (R1)
+```
 
-## 9. Criterios de rebaseline de goldens + rollback
+Suite completa debe seguir verde (161 pass hoy) — commitment/hiring default off ⇒
+cero goldens tocados.
 
-Rebaseline SOLO si: (1) ADR 0014 aceptado por Alonso; (2) tests nuevos §4 verdes;
-(3) paridad det/stoch demostrada; (4) 4 benchmarks corridos con la ley nueva y
-deltas vs targets Excel tabulados (no exigir ±20% — exigir EXPLICACIÓN de cada
-delta); (5) commit separado solo-goldens con tabla antes/después en el mensaje.
-**Rollback:** la ley entra opt-in con default off ⇒ rollback = no activar la clave
-(cero riesgo); si se flippeó default: revert del commit de flip + goldens (por eso
-van separados). Branch de trabajo aparte (`growth-law-adr14`), `entrega-tesis`
-intocado hasta merge post-defensa.
+## 7. Corridas benchmark requeridas (análisis, sin rebaseline)
 
-## 10. Qué implementa Sonnet (lista de tareas, en orden)
+1. 4 instancias × {commitment off (hoy), vc_minimum, vc_minimum+hiring h=1}.
+2. **kavacomex: AMBOS modos** (decisión Alonso) — `none` para valorizar +
+   `vc_minimum` esperando Infeasible → correr rutina §5 completa y tabular QUÉ
+   palancas (h, churn, mix, caps) harían factible la tesis ×3 — entender dinámica
+   de palancas.
+3. Tabla deltas vs targets Excel con explicación por caso (no exigir ±20%).
 
-1. §3.1 config + validaciones + tests de validación.
-2. §3.2 instance (C12, B_t) + test unitario de la curva (C12 base = 55.8 ± redondeo).
-3. §3.3 bloque determinista + tests de comportamiento §4.
-4. §3.6 pre-feasibility warning.
-5. §3.4 paridad estocástica + test de paridad.
-6. Corridas benchmark ×4 + tabla deltas (sin tocar goldens).
-7. NADA de UI, NADA de flip de defaults, NADA de rebaseline sin §9.
+## 8. Criterios de rebaseline + rollback (sin cambios de REV 1, endurecidos)
 
-## 11. Checklist de revisión Fable post-Sonnet
+Rebaseline SOLO si: deltas benchmark explicados + paridad det/stoch verde +
+artefactos válidos + **`final_growth_decision.md` dice APPROVED** (gate humano
+explícito, decisión Alonso). Rollback = desactivar claves `growth_commitment`/`hiring`
+(default off) o abandonar branch; `entrega-tesis` jamás se toca desde este trabajo.
+Si la implementación se pone riesgosa: **detenerse y documentar el blocker** (orden
+explícita).
 
-- [ ] Piso aplica a stock PLANEADO en stoch (first-stage única) y está en el ADR.
-- [ ] Ceiling+commitment simultáneos validados (mensaje de infeasibilidad claro).
-- [ ] kavacomex: comportamiento del piso 2× (¿infeasible? → ¿mensaje/δ?).
-- [ ] Ningún golden tocado fuera del commit de rebaseline.
-- [ ] `V_t ≤ sup·L_t` sigue activo (fricción no rompe span).
-- [ ] Tiempos de solve (≤ 60 s det, ≤ 420 s stoch N=100).
-- [ ] Paridad: mismo V-path det vs stoch bajo params idénticos.
+## 9. Alcance Sonnet (autorizado AHORA, restricciones estrictas)
 
-## 12. Futuro (no Sonnet ahora)
+Branch `growth-law-adr14` · opt-in only · defaults off · sin UI · sin refactor amplio
+· sin rebaseline automático · paridad det/stoch obligatoria · tests verdes · rollback
+= claves off.
 
-Recourse/rolling horizon (`recourse_extension.md`); saturación publicidad cóncava;
-CAC por tramos general (F); elicitación distribuciones; DD08 drawdown; múltiplos
-comparables con fuente; mini-optimizador de mix.
+Orden de tareas: (1) config schema+validaciones+tests; (2) instance.py: C12, checkpoints,
+sugerencias g + artefacto; (3) model.py: bloque commitment+hiring (después del bloque
+ceiling, activo solo si enabled); (4) pre-feasibility warning W1–W5 en DD/calibración;
+(5) stochastic/model.py: piso sobre plan de primera etapa + fricción en V/L first-stage;
+(6) rutina diagnóstico §5 como `scripts/diagnose_infeasibility.py` (función importable,
+SaaS-ready); (7) corridas §7 + tabla; (8) ADR 0014 + docs. NO tocar: valuation.py
+(congelado), goldens, UI, defaults.
 
-## 13. Incluido / Excluido / Diferido
+## 10. Checklist revisión Fable post-Sonnet
 
-- **Incluido (este plan):** ley D, paridad, tests, sensibilidad, auditoría YAML/DD/artefactos, rollback.
-- **Excluido:** UI/CSS/informe, microservicios, SaaS, BrightData.
-- **Diferido:** flip de default, rebaseline, §12.
+- [ ] off = no-op bit-a-bit (mismo VAN que HEAD sin claves).
+- [ ] Piso stoch en PLANEADO; KPI P(C36_real ≥ 3·C12) reportado ex-post.
+- [ ] W1–W5 emiten warning, jamás bloquean; W3 adjunta diagnóstico.
+- [ ] kavacomex: ambos modos corridos; tabla de palancas de factibilidad presente.
+- [ ] `V ≤ sup·L` intacto; monotonía intacta; sin despidos.
+- [ ] Ningún golden ni default tocado; suite completa verde; tiempos (det ≤60s, stoch N=100 ≤420s).
+- [ ] ADR 0014 registra: ×3/3años, checkpoints anuales, piso-planeado, infeasible-como-resultado.
 
-## 14. Decisión
+## 11. Futuro (fuera de este branch)
 
-**NOT READY para implementar HOY (sábado) sin autorización de Alonso — READY como
-plan.** Bloqueante único: decisión humana (g por instancia vs global; aceptar
-infeasibilidad de kavacomex o δ>0), no técnica. Esfuerzo estimado: 0.5–1 día Sonnet +
-revisión §11. **Para el lunes el fallback estable ya está definido y probado**
-(ceiling declarado benchmark, suite verde, artefactos consistentes). Si Alonso
-autoriza hoy: ejecutar §10 en branch aparte SIN tocar `entrega-tesis`; si no,
-ejecutar post-defensa. No se finge nada: la ley ideal está cuantificada
-(`growth_band_experiment.md`) pero NO implementada en producción.
+Flip de default (post `final_growth_decision.md`); UI de calibración con sugerencias
+g; bisección del múltiplo máximo factible (R8 v2); saturación publicitaria cóncava;
+recourse/rolling horizon; DD08 drawdown; elicitación distribuciones.
+
+## 12. Decisión
+
+**READY TO IMPLEMENT — autorizado por Alonso (2026-07-05). Sonnet ejecuta §9 ahora.**
+Bloqueantes humanos resueltos: benchmark ×3/3años con checkpoints anuales; piso
+planeado en stoch; kavacomex ambos modos + análisis de palancas; timing = ahora.
