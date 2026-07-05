@@ -52,6 +52,19 @@ grande, no calibrar para cuadrar resultados, `uv run pytest -q` verde.
   paridad estocástica; improvisarla el fin de semana rompería estabilidad — goal lo
   permite explícitamente como "ideal documentado + fallback estable").
 
+## Plan turno 2026-07-05 AM (goal: PLAN ONLY, no implementar)
+
+| # | tarea | estado | notas |
+|---|---|---|---|
+| P1 | Auditoría YAMLs benchmark: params sospechosos, clasificar benchmark/demo/stress/excluir | ✅ | los 4 válidos y con targets documentados en el propio YAML. godemos+entrena = benchmark+demo; **beloop = excluir de demo** (downgrades no modelados → +469% VAN, documentado en el YAML); kavacomex = stress clave del piso (ramp real 0.99 → piso 2× puede ser Infeasible). Hacks visibles: `sup: 99` (sin líderes), metas ajustadas |
+| P2 | Spot-check artefactos | ✅ | 3 corridas: 8 artefactos presentes, `consistency all_passed=True`, estocástico ausente con razón explícita ("not executed. Reason: requires_major…") — manejo limpio verificado |
+| P3 | `implementation_plan_growth_law.md` — plan 14 puntos | ✅ | ley recomendada = D (piso VC + fricción, sin techo); curva especificada (P0=m12 consensuado, P1=año 3 tesis, g de fuente declarada VC/MoM/custom, PISO no banda); decisión: **NOT READY hoy sin autorización de Alonso, READY como plan**; bloqueante humano (g por instancia, kavacomex), no técnico; rollback = opt-in default-off + branch aparte |
+| P4 | Actualizar WORKLOG | ✅ | este archivo |
+
+**Nota para el próximo agente (Sonnet):** ejecutar SOLO §10 del plan, en branch
+`growth-law-adr14`, sin tocar `entrega-tesis`, sin flip de defaults, sin rebaseline
+(criterios §9). Checklist de revisión posterior: §11.
+
 ## Pendientes conocidos POST-lunes (no de este turno)
 
 - ADR 0014 + implementación producción de `growth_commitment` (piso) + `hiring`
