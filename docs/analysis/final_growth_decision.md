@@ -40,8 +40,14 @@ default-on comparta el múltiplo ×3. Piso sin ceiling = Unbounded en las 4
 
 ## Gaps que impiden PASS (ninguno bloquea el lunes)
 
-1. **El modo destino (piso + fricción, ceiling OFF) no fue corrido sobre los 4
-   benchmarks.** Es la combinación que reemplazaría al ceiling como core (evidencia
+> **Actualización (mismo día, commit d95ab61):** gaps 1 y 2 CERRADOS — modo
+> destino corrido en las 4 instancias (Optimal, h=1/2, ver
+> `unbounded_path_diagnosis.md` §0) y W1-W5 cableados a DD con test (172 pass).
+> Queda solo el gap 3 (rollback al ADR) + el agujero third-party documentado
+> (diagnosis §5-6) antes de reconsiderar PASS.
+
+1. ~~**El modo destino (piso + fricción, ceiling OFF) no fue corrido sobre los 4
+   benchmarks.**~~ CERRADO Es la combinación que reemplazaría al ceiling como core (evidencia
    solo en base.yaml, `growth_band_experiment.md`: Optimal, VAN 3.83M). Sin esa
    tabla no se puede decidir el flip de default.
 2. **W1-W5 no cableados al flujo automático de DD** (funciones puras testeadas,
