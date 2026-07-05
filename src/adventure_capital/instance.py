@@ -209,6 +209,122 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
+    # Aggregate acquisition envelope (ADR 0014 amendment): opt-in maximum path
+    # U_t on TOTAL acquisition for t >= 13, precomputed here as constants so the
+    # MILP stays linear (same pattern as checkpoint_targets above). Derivation:
+    #   U_plan_t = Abar12 * (1+g_mom)^(t-12)   (consensuated-plan momentum)
+    #   U_vc_t   = B_t - B_{t-1}*(1-churn_t)   (acquisition required by the
+    #              VC-minimum stock path B_t = C12 * m^((t-12)/24), churn-net)
+    #   U_t      = max/either(U_plan, U_vc) * (1 + delta_t)
+    #   delta_t  = declared growing slack (thesis assumption: 0.25 y2, 0.50 y3)
+    # Aggregation conventions (declared approximations): Abar12 and g_mom come
+    # from TOTAL acquisition across services; churn_t is the C12-stock-weighted
+    # aggregate of per-service monthly churn (falls back to the simple mean when
+    # C12 = 0). custom source uses the declared path verbatim (no slack applied).
+    envelope_cfg = config.get("acquisition_envelope", {})
+    envelope_enabled = bool(envelope_cfg.get("enabled", False))
+    envelope: dict[str, Any] = {"enabled": envelope_enabled}
+    if envelope_enabled:
+        env_source = envelope_cfg.get("source", "max_plan_vc")
+        slack_year2 = float(envelope_cfg.get("slack_year2", 0.25))
+        slack_year3 = float(envelope_cfg.get("slack_year3", 0.50))
+
+        total_acq = {
+            t: sum(base_acquisition[(s, t)] for s in range(service_count))
+            for t in fixed_periods
+        }
+        abar12 = sum(total_acq.values()) / len(fixed_periods)
+        first_acq_total = total_acq[fixed_periods[0]]
+        last_acq_total = total_acq[fixed_periods[-1]]
+        span = fixed_periods[-1] - fixed_periods[0]
+        if first_acq_total > 0 and span > 0:
+            g_mom = (last_acq_total / first_acq_total) ** (1.0 / span) - 1.0
+        else:
+            g_mom = 0.0
+
+        # C12-stock-weighted aggregate churn (per-service stock at month 12).
+        c12_by_service = {
+            s: sum(
+                survival.get((s, cohort, 12), 0.0) * base_acquisition.get((s, cohort), 0.0)
+                for cohort in fixed_periods
+            )
+            for s in range(service_count)
+        }
+        churn_env: dict[int, float] = {}
+        for t in range(13, H + 1):
+            if c12_stock > 0:
+                churn_env[t] = sum(
+                    (c12_by_service[s] / c12_stock) * monthly_churn[(s, t)]
+                    for s in range(service_count)
+                )
+            else:
+                churn_env[t] = sum(
+                    monthly_churn[(s, t)] for s in range(service_count)
+                ) / service_count
+
+        # VC-minimum multiple: reuse the growth_commitment declaration (default x3).
+        m_env = float(growth_commitment_cfg.get("multiple_3y", 3.0))
+
+        u_plan: dict[int, float] = {}
+        u_vc: dict[int, float] = {}
+        u_path: dict[int, float] = {}
+        if env_source == "custom":
+            custom_path = list(envelope_cfg["custom_path"])
+            for offset, t in enumerate(range(13, H + 1)):
+                u_path[t] = float(custom_path[offset])
+        else:
+            b_prev = c12_stock
+            for t in range(13, H + 1):
+                u_plan[t] = abar12 * (1.0 + g_mom) ** (t - 12)
+                b_t = c12_stock * m_env ** ((t - 12) / 24.0)
+                u_vc[t] = max(0.0, b_t - b_prev * (1.0 - churn_env[t]))
+                b_prev = b_t
+                if env_source == "plan_mom":
+                    base_u = u_plan[t]
+                elif env_source == "vc_minimum":
+                    base_u = u_vc[t]
+                else:  # max_plan_vc
+                    base_u = max(u_plan[t], u_vc[t])
+                delta_t = slack_year2 if t <= 24 else slack_year3
+                u_path[t] = base_u * (1.0 + delta_t)
+
+        # Early compatibility check against the growth_commitment floor: simulate
+        # the MAXIMUM reachable stock under U_t (acquire U_t every month, churn-net).
+        # If a checkpoint target is unreachable, the solve is infeasible by
+        # construction — fail early with the business-diagnosis message instead
+        # of paying for a MILP solve (same spirit as the ceiling/commitment check
+        # in config.py).
+        if growth_commitment_enabled:
+            b_max = c12_stock
+            for t in range(13, H + 1):
+                b_max = b_max * (1.0 - churn_env[t]) + u_path[t]
+                target = growth_commitment["checkpoint_targets"].get(t)
+                if target is not None and b_max < target * (1.0 - 1e-9):
+                    raise ValueError(
+                        "acquisition_envelope is incompatible with the growth_commitment "
+                        f"floor: acquiring the full envelope U_t every month reaches at most "
+                        f"{b_max:,.1f} clients by month {t}, below the checkpoint target "
+                        f"{target:,.1f}. This is a business diagnosis, not a solver failure: "
+                        "the consensuated plan's momentum (and declared slack) cannot support "
+                        "the VC thesis — recalibrate the year-1 plan, raise the slack with "
+                        "justification, or lower the commitment multiple."
+                    )
+
+        envelope.update(
+            {
+                "source": env_source,
+                "slack_year2": slack_year2,
+                "slack_year3": slack_year3,
+                "abar12": abar12,
+                "g_mom": g_mom,
+                "multiple_3y": m_env,
+                "U_plan": u_plan,
+                "U_vc": u_vc,
+                "path": u_path,
+                "custom_justification": envelope_cfg.get("custom_justification"),
+            }
+        )
+
     # Hiring friction (ADR 0014): opt-in monthly headcount cap on new sellers /
     # leaders for t >= 13 (V_t <= V_{t-1} + h_v, L_t <= L_{t-1} + h_l). Default off.
     hiring_cfg = config.get("hiring", {})
@@ -245,6 +361,8 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
             "commission": float(tp_cfg.get("commission", 0.0)),
             "min_share": float(tp_cfg.get("min_share", 0.0)),
             "max_share": float(tp_cfg.get("max_share", 1.0)),
+            # Required by validate_config when active (unbounded-path MVP fix).
+            "A_tp_cap": float(tp_cfg["A_tp_cap"]) if tp_active else None,
         },
         # A channel split exists only when a non-salesforce channel is active.
         "any_split": ad_active or tp_active,
@@ -301,6 +419,7 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         "convex_cac": convex,
         "channels": channels,
         "growth_commitment": growth_commitment,
+        "acquisition_envelope": envelope,
         "hiring": hiring,
     }
 
@@ -421,6 +540,25 @@ def compute_growth_suggestions(config: dict[str, Any]) -> dict[str, Any]:
             "on client STOCK); g_plan_mom_acquisition is auxiliary only (raw A_base MoM)."
         ).format(multiple_3y),
     }
+
+    # Aggregate acquisition envelope export (when enabled): the precomputed U_t
+    # path and its components, so the artifact makes the derivation auditable
+    # (plan momentum vs VC-required acquisition vs declared slack).
+    envelope_cfg = config.get("acquisition_envelope", {})
+    if envelope_cfg.get("enabled", False):
+        instance_envelope = generate_instance(config)["acquisition_envelope"]
+        suggestions["acquisition_envelope"] = {
+            "source": instance_envelope["source"],
+            "slack_year2": instance_envelope["slack_year2"],
+            "slack_year3": instance_envelope["slack_year3"],
+            "abar12": instance_envelope["abar12"],
+            "g_mom": instance_envelope["g_mom"],
+            "multiple_3y": instance_envelope["multiple_3y"],
+            "U_plan": {str(t): v for t, v in instance_envelope["U_plan"].items()},
+            "U_vc": {str(t): v for t, v in instance_envelope["U_vc"].items()},
+            "U_t": {str(t): v for t, v in instance_envelope["path"].items()},
+            "custom_justification": instance_envelope["custom_justification"],
+        }
 
     target_revenue_y3 = config.get("target_revenue_y3")
     if target_revenue_y3 is not None and c12_stock > 0:

@@ -262,6 +262,28 @@ def build_saa_model(config: dict[str, Any], scenarios: list[Scenario]) -> ModelB
             )
             problem += planned_stock >= target
 
+    # ----- First-stage: aggregate acquisition envelope (ADR 0014 amendment) -----
+    # Parity with the deterministic model: U_t binds the PLANNED (first-stage)
+    # total acquisition, same planned-first-stage criterion as the commitment
+    # floor above. Strict no-op when disabled.
+    envelope = base_instance.get("acquisition_envelope", {})
+    if bool(envelope.get("enabled", False)):
+        for t, envelope_value in envelope["path"].items():
+            problem += pulp.lpSum(
+                plan_total[(s, t)] for s in range(service_count)
+            ) <= envelope_value
+
+    # ----- First-stage: third-party monthly cap (unbounded-path MVP fix) -----
+    if tp_active:
+        tp_cap = channels["third_party"].get("A_tp_cap")
+        if tp_cap is not None:
+            for t in periods:
+                if t <= _FIXED_MONTHS:
+                    continue
+                problem += pulp.lpSum(
+                    plan_tp[(s, t)] for s in range(service_count)
+                ) <= tp_cap
+
     # ----- Realized acquisition expressions (per scenario, linear in plan) -----
     def a_sf_real(s: int, t: int, w: int) -> Any:
         if t <= _FIXED_MONTHS:

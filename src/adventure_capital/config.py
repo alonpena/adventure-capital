@@ -55,6 +55,21 @@ _DEFAULT_CONFIG: dict[str, Any] = {
         "target_stock_multiplier": 3.0,
         "slack": 0.15,
     },
+    # Aggregate acquisition envelope (ADR 0014 amendment): maximum acquisition
+    # path derived from the consensuated 12-month plan (U_plan), the VC-minimum
+    # stock path net of churn (U_vc), and a declared growing slack. Opt-in,
+    # default off — pairs with the growth_commitment floor as the core growth
+    # methodology. Never framed as an arbitrary market ceiling: every term of
+    # U_t is traceable to the client plan, the investment thesis, or a declared
+    # thesis assumption (slack_year2/slack_year3).
+    "acquisition_envelope": {
+        "enabled": False,
+        "source": "max_plan_vc",  # plan_mom | vc_minimum | max_plan_vc | custom
+        "slack_year2": 0.25,  # declared thesis assumption, not hidden tuning
+        "slack_year3": 0.50,
+        "custom_path": None,  # optional monthly list for months 13..H (override)
+        "custom_justification": None,
+    },
     "channels": {
         "salesforce": {"active": True, "min_share": 0.0, "max_share": 1.0},
         "advertising": {
@@ -216,6 +231,40 @@ def validate_config(config: dict[str, Any]) -> None:
                     "ceiling, or lower the commitment multiple."
                 )
 
+    # Aggregate acquisition envelope (ADR 0014 amendment): opt-in upper path on
+    # TOTAL acquisition for t >= 13, derived from the consensuated plan and/or
+    # the VC-minimum stock path. Absent block / enabled: false is a no-op.
+    envelope = config.get("acquisition_envelope", {})
+    if envelope.get("enabled", False):
+        env_source = envelope.get("source", "max_plan_vc")
+        valid_env_sources = {"plan_mom", "vc_minimum", "max_plan_vc", "custom"}
+        if env_source not in valid_env_sources:
+            raise ValueError(
+                f"acquisition_envelope.source must be one of {sorted(valid_env_sources)}, "
+                f"got {env_source!r}."
+            )
+        for slack_key in ("slack_year2", "slack_year3"):
+            slack_value = envelope.get(slack_key, 0.0)
+            if slack_value is None or slack_value < 0.0:
+                raise ValueError(f"acquisition_envelope.{slack_key} must be >= 0.")
+        if env_source == "custom":
+            custom_path = envelope.get("custom_path")
+            expected_len = config["H"] - _FIXED_ACQUISITION_MONTHS
+            if not isinstance(custom_path, (list, tuple)) or len(custom_path) != expected_len:
+                raise ValueError(
+                    "acquisition_envelope.custom_path must be a list with one value per "
+                    f"optimized month (months 13..H = {expected_len} values) when source "
+                    "is 'custom'."
+                )
+            if any(v is None or float(v) < 0.0 for v in custom_path):
+                raise ValueError("acquisition_envelope.custom_path values must be >= 0.")
+            justification = envelope.get("custom_justification")
+            if not justification or not str(justification).strip():
+                raise ValueError(
+                    "acquisition_envelope.custom_justification is required when source is "
+                    "'custom' (W4: every override must carry an explicit justification)."
+                )
+
     hiring = config.get("hiring", {})
     if hiring.get("enabled", False):
         max_sellers = hiring.get("max_new_sellers_per_month", 1)
@@ -255,8 +304,22 @@ def validate_config(config: dict[str, Any]) -> None:
             )
 
         third_party = channels.get("third_party", {})
-        if third_party.get("active", False) and third_party.get("commission", 0.0) < 0:
-            raise ValueError("channels.third_party.commission must be >= 0.")
+        if third_party.get("active", False):
+            if third_party.get("commission", 0.0) < 0:
+                raise ValueError("channels.third_party.commission must be >= 0.")
+            # Third-party has no own capacity mechanism (no salesforce meta, no
+            # advertising recta), so an active third-party channel without an
+            # explicit cap is a documented unbounded-growth path
+            # (unbounded_path_diagnosis §5-6). MVP decision: require the cap.
+            tp_cap = third_party.get("A_tp_cap")
+            if tp_cap is None:
+                raise ValueError(
+                    "channels.third_party.A_tp_cap is required when third_party is "
+                    "active: the channel has no own capacity, so an explicit monthly "
+                    "acquisition cap must be declared (or deactivate the channel)."
+                )
+            if float(tp_cap) < 0:
+                raise ValueError("channels.third_party.A_tp_cap must be >= 0.")
 
         advertising = channels.get("advertising", {})
         if advertising.get("active", False):
