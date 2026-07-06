@@ -35,12 +35,17 @@ def _load_scenarios(run_id: str):
 
 
 def render(st) -> None:
-    st.title("Análisis de Escenarios")
-    st.caption("Distribución de resultados bajo incertidumbre — escenarios generados, probabilidades y brechas.")
-
     run_id = C.require_execution(st)
     if run_id is None:
+        st.title("Análisis de escenarios")
         return
+
+    C.page_header(
+        st,
+        "Análisis de escenarios",
+        "Distribución de resultados bajo incertidumbre — escenarios generados, probabilidades y brechas.",
+        run_id=run_id,
+    )
 
     # ── Load data (flat canonical first, postprocessed fallback) ─────
     exe = C.get_execution(run_id) or {}
@@ -52,28 +57,18 @@ def render(st) -> None:
     # ── Not run / blocked ────────────────────────────────────────
     if diagnostics is None and scenarios_df is None:
         if assessment.get("allows_stochastic") is False or m4_state == "blocked":
-            st.info("Análisis de escenarios bloqueado por el veredicto de Due Diligence.")
+            st.info("El veredicto de due diligence bloquea el análisis de escenarios.")
             for reason in assessment.get("blocking_reasons", []):
-                st.markdown(f"- ⛔ {reason}")
-            C.note(st, f"Modo de valoración: **{assessment.get('valuation_mode', 'none')}**. "
-                       "Revisa la página de Due Diligence para entender el bloqueo.")
+                st.markdown(f"- {reason}")
+            mode = assessment.get("valuation_mode", "none")
+            C.note(st, f"Modo de valoración: **{C.VALUATION_MODE_LABELS.get(mode, mode)}**. "
+                       "Revisa la página Due diligence para entender el bloqueo.")
         else:
-            st.warning("No se ejecutó el análisis de escenarios para este caso. "
-                       "Ejecútalo desde el Gestor de Instancias.")
+            st.warning("Este caso no tiene análisis de escenarios. "
+                       "Confírmalo desde la página Due diligence tras ejecutar el caso.")
         return
 
-    # ── Method status (derived from diagnostics metadata) ────────
-    st.markdown("### Estado del análisis")
-    m1, m2 = st.columns(2)
-    with m1:
-        method = str((diagnostics or {}).get("evaluation", "—")).replace("_", " ").title()
-        C.kpi(st, "Método de escenarios", method)
-    with m2:
-        obj = (diagnostics or {}).get("objective")
-        obj_label = {"cvar_van": "Valor en riesgo (CVaR)"}.get(obj, str(obj or "—"))
-        C.kpi(st, "Objetivo", obj_label)
-
-    # ── Distribution diagnostics ─────────────────────────────────
+    # ── Scenario Headline: central outcomes first ────────────────
     diag_summary = (diagnostics or {}).get("summary", {})
     if not diag_summary:
         # Fallback: single-row stochastic_summary.csv carries the same fields.
@@ -81,62 +76,68 @@ def render(st) -> None:
         if summary_df is not None and not summary_df.empty:
             diag_summary = summary_df.iloc[0].to_dict()
     if diag_summary:
-        st.markdown("### Distribución de resultados")
-
-        # KPI row
-        d1, d2, d3, d4 = st.columns(4)
-        with d1:
-            C.kpi(st, "Escenarios generados", C.number(diag_summary.get("n_scenarios")))
-        with d2:
+        n_scen = C.number(diag_summary.get("n_scenarios"))
+        h1, h2, h3 = st.columns([2, 2, 1])
+        with h1:
             van_expected = diag_summary.get("expected_van", diag_summary.get("VAN"))
             C.kpi(st, "VAN esperado (promedio)", C.money(van_expected),
-                  tone="success" if (van_expected or 0) >= 0 else "alert")
-        with d3:
-            van_p10 = diag_summary.get("van_p10")
-            C.kpi(st, "VAN pesimista (P10)", C.money(van_p10),
-                  tone="alert" if (van_p10 or 0) < 0 else "")
-        with d4:
+                  sub=f"sobre {n_scen} escenarios",
+                  tone="hero success" if (van_expected or 0) >= 0 else "hero alert")
+        with h2:
+            C.kpi(st, "VAN mediana (P50)", C.money(diag_summary.get("van_p50")),
+                  sub="la mitad de los escenarios supera este valor", tone="hero")
+        with h3:
             van_p90 = diag_summary.get("van_p90")
-            C.kpi(st, "VAN optimista (P90)", C.money(van_p90),
+            C.kpi(st, "Optimista (P90)", C.money(van_p90),
                   tone="success" if (van_p90 or 0) > 0 else "")
-
-        # Risk metrics
-        st.markdown("#### Riesgos y probabilidades")
-        r1, r2, r3 = st.columns(3)
-        with r1:
-            prob_neg = diag_summary.get("prob_van_negative", 0)
-            C.kpi(st, "Probabilidad de VAN negativo", C.pct(prob_neg),
-                  tone="alert" if (prob_neg or 0) > 0.3 else "warn" if (prob_neg or 0) > 0.1 else "")
-        with r2:
-            prob_cash = diag_summary.get("prob_cash_below_floor", 0)
-            C.kpi(st, "Prob. caja bajo mínimo", C.pct(prob_cash),
-                  tone="alert" if (prob_cash or 0) > 0.5 else "")
-        with r3:
-            gap = diag_summary.get("expected_funding_gap", 0)
-            C.kpi(st, "Brecha de financiamiento esperada", C.money(gap),
-                  tone="alert" if (gap or 0) > 0 else "")
-
-        # Additional metrics
-        r4, r5, r6 = st.columns(3)
-        with r4:
-            C.kpi(st, "VAN P50 (mediana)", C.money(diag_summary.get("van_p50")))
-        with r5:
-            cvar = diag_summary.get("cvar_5", diag_summary.get("cvar"))
-            C.kpi(st, "Valor en riesgo (CVaR 5%)", C.money(cvar),
-                  tone="alert" if (cvar or 0) < 0 else "")
-        with r6:
             C.kpi(st, "Clientes activos final (P50)",
                   C.number(diag_summary.get("final_active_clients_p50")))
+
+        # ── Risk Band: grouped downside summary ──────────────────
+        cvar = diag_summary.get("cvar_5", diag_summary.get("cvar"))
+        prob_neg = diag_summary.get("prob_van_negative", 0)
+        prob_cash = diag_summary.get("prob_cash_below_floor", 0)
+        gap = diag_summary.get("expected_funding_gap", 0)
+        C.risk_band(
+            st,
+            "Banda de riesgo — cola 5% de escenarios",
+            [
+                ("Valor en riesgo (CVaR 5%)", C.money(cvar), "VAN promedio del peor 5%"),
+                ("VAN pesimista (P10)", C.money(diag_summary.get("van_p10")), ""),
+                ("Prob. VAN negativo", C.pct(prob_neg), ""),
+                ("Prob. caja bajo mínimo", C.pct(prob_cash), ""),
+                ("Brecha de financiamiento esperada", C.money(gap), ""),
+            ],
+        )
+
+        # Method metadata — footnote, not headline (vocabulario de producto).
+        raw_method = str((diagnostics or {}).get("evaluation", "—"))
+        method = {"ex_post_lhs": "ex post (muestreo LHS)"}.get(raw_method, raw_method.replace("_", " "))
+        obj = (diagnostics or {}).get("objective")
+        obj_label = {"cvar_van": "downside (CVaR 5% sobre VAN)"}.get(obj, str(obj or "—"))
+        st.caption(f"Método: {method} · Objetivo de optimización: {obj_label} · "
+                   f"{n_scen} escenarios generados")
+        C.source_caption(st, "M4_STOCHASTIC", "stochastic_diagnostics.json", "stochastic_summary.csv")
 
     # ── Histogram ────────────────────────────────────────────────
     if scenarios_df is not None and "VAN" in scenarios_df.columns:
         st.markdown("### Distribución de VAN entre escenarios")
         fig = go.Figure()
 
-        # Add mean line
         van_mean = scenarios_df["VAN"].mean()
-        van_p10 = scenarios_df["VAN"].quantile(0.10)
+        van_p50 = scenarios_df["VAN"].quantile(0.50)
         van_p90 = scenarios_df["VAN"].quantile(0.90)
+        van_var5 = scenarios_df["VAN"].quantile(0.05)
+        van_min = scenarios_df["VAN"].min()
+
+        # Shade the 5% tail — the Risk Band (CVaR) region, visually anchored.
+        if van_var5 > van_min:
+            fig.add_vrect(
+                x0=van_min, x1=van_var5,
+                fillcolor=ALERT, opacity=0.15, line_width=0,
+                annotation_text="cola 5% (CVaR)", annotation_position="top left",
+                annotation_font_color=ALERT,
+            )
 
         fig.add_trace(go.Histogram(
             x=scenarios_df["VAN"],
@@ -146,10 +147,12 @@ def render(st) -> None:
             hovertemplate="VAN: USD %{x:,.0f}<br>Frecuencia: %{y}<extra></extra>",
         ))
         fig.add_vline(x=0, line_color=ALERT, line_width=2, annotation_text="VAN = 0")
+        fig.add_vline(x=van_p50, line_color=ACCENT_CYAN, line_width=2,
+                      annotation_text=f"P50: USD {van_p50:,.0f}",
+                      annotation_position="top left")
         fig.add_vline(x=van_mean, line_color=SUCCESS, line_dash="dash",
-                      annotation_text=f"Media: USD {van_mean:,.0f}")
-        fig.add_vline(x=van_p10, line_color=ACCENT_CYAN, line_dash="dot",
-                      annotation_text=f"P10: USD {van_p10:,.0f}")
+                      annotation_text=f"Media: USD {van_mean:,.0f}",
+                      annotation_position="bottom right")
         fig.add_vline(x=van_p90, line_color=ACCENT_CYAN, line_dash="dot",
                       annotation_text=f"P90: USD {van_p90:,.0f}")
 

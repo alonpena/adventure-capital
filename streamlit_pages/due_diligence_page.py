@@ -7,16 +7,96 @@ Muestra el esquema completo de veredicto con campos de decisión:
 from __future__ import annotations
 
 from streamlit_pages import components as C
-from streamlit_pages.styles import ACCENT_CYAN
+from streamlit_pages.styles import ACCENT_CYAN  # noqa: F401
+
+
+# --------------------------------------------------------------------------- #
+# DD → M4 gate (movido desde el Gestor: auditoría UX P0-3)
+# --------------------------------------------------------------------------- #
+
+
+def _run_m4(st, run_id: str) -> None:
+    """Run the stochastic analysis (M4) on an existing execution."""
+    from adventure_capital.workflow_registry import run_stochastic_only
+
+    with st.spinner("Ejecutando análisis de escenarios (M4)…"):
+        try:
+            run_stochastic_only(run_id)
+            st.session_state["current_run_id"] = run_id
+            st.session_state["m4_gate_run_id"] = None
+            st.success("Análisis de escenarios completado. Revisa la página Análisis de escenarios.")
+        except Exception as exc:
+            st.error(f"El análisis de escenarios falló: {exc}. El plan determinista sigue disponible.")
+            import traceback
+            with st.expander("Detalle técnico"):
+                st.code(traceback.format_exc())
+
+
+def _render_m4_gate(st, run_id: str) -> None:
+    """Gate the stochastic stage (M4) after phase 1, in the run's own context.
+
+    - Blocking verdict → no M4, show reasons.
+    - Warning / minor verdict → require explicit confirmation to run M4.
+    - Clean pass → run M4 automatically.
+    """
+    from adventure_capital.workflow_registry import _CONFIRM_VERDICTS
+
+    if st.session_state.get("m4_gate_run_id") != run_id:
+        return
+
+    dd = C.canonical_json(run_id, "due_diligence_report.json") or {}
+    verdict = dd.get("verdict", "—")
+    allows = dd.get("allows_stochastic")
+
+    # Blocking verdict — M4 not allowed.
+    if not allows:
+        st.error("El veredicto bloquea el análisis de escenarios. "
+                 "Recalibra la instancia según las razones de abajo y vuelve a ejecutar.")
+        for reason in dd.get("blocking_reasons", []):
+            st.markdown(f"- {reason}")
+        if st.button("Entendido", key="m4_gate_close_blocked"):
+            st.session_state["m4_gate_run_id"] = None
+            st.rerun()
+        st.markdown("---")
+        return
+
+    # Warning / minor adjustment — require explicit confirmation.
+    if verdict in _CONFIRM_VERDICTS:
+        st.warning("Due diligence aprobó con advertencias. Decide si continuar con el análisis "
+                   "de escenarios (M4) o quedarte con el plan determinista.")
+        for rec in dd.get("adjustment_recommendations", []):
+            msg = rec.get("recommendation") if isinstance(rec, dict) else rec
+            st.markdown(f"- {msg}")
+        c1, c2 = st.columns(2)
+        if c1.button("Continuar con análisis de escenarios", type="primary", key="m4_gate_confirm"):
+            _run_m4(st, run_id)
+            st.rerun()
+        if c2.button("Mantener solo plan determinista", key="m4_gate_skip"):
+            st.session_state["m4_gate_run_id"] = None
+            st.rerun()
+        st.markdown("---")
+        return
+
+    # Clean pass — run M4 automatically.
+    _run_m4(st, run_id)
+    st.rerun()
 
 
 def render(st) -> None:
-    st.title("Due Diligence")
-    st.caption("Evaluación estructurada del caso — veredicto, hallazgos y palancas.")
-
     run_id = C.require_execution(st)
     if run_id is None:
+        st.title("Due diligence")
         return
+
+    C.page_header(
+        st,
+        "Due diligence",
+        "Evaluación estructurada del caso — veredicto, hallazgos y palancas.",
+        run_id=run_id,
+    )
+
+    # ── DD → M4 gate (el veredicto se decide aquí, en el contexto del run) ──
+    _render_m4_gate(st, run_id)
 
     # ── Load data ────────────────────────────────────────────────
     dd_report = C.canonical_json(run_id, "due_diligence_report.json")
@@ -26,8 +106,8 @@ def render(st) -> None:
     # Merge sources: canonical DD report > assessment_summary > postprocessed
     assessment_data = dd_report or assessment or pp_assessment or {}
     if not assessment_data:
-        st.warning("No se ejecutó Due Diligence para este caso. "
-                   "Asegúrate de ejecutar el análisis completo desde el Gestor de Instancias.")
+        st.warning("Este caso no tiene due diligence. Ejecuta el caso desde el Gestor de instancias "
+                   "para generar el veredicto.")
         return
 
     # ── Verdict header ───────────────────────────────────────────
@@ -42,17 +122,17 @@ def render(st) -> None:
 
     with c1:
         tone = C.VERDICT_TONE.get(verdict, "muted")
-        C.badge(st, verdict, tone)
-        st.caption("Veredicto")
+        C.badge(st, C.VERDICT_LABELS.get(verdict, verdict), tone)
+        st.caption(f"Veredicto (`{verdict}`)")
 
     with c2:
         tone = "ok" if allows_stochastic else "bad"
         C.badge(st, "Sí" if allows_stochastic else "No", tone)
-        st.caption("Permite análisis estocástico")
+        st.caption("Permite análisis de escenarios")
 
     with c3:
         tone_map = {"final": "ok", "warning": "warn", "diagnostic": "warn", "none": "muted"}
-        C.badge(st, valuation_mode.capitalize() if valuation_mode else "—",
+        C.badge(st, C.VALUATION_MODE_LABELS.get(valuation_mode, valuation_mode or "—"),
                 tone_map.get(valuation_mode, "muted"))
         st.caption("Modo de valoración")
 
@@ -75,14 +155,16 @@ def render(st) -> None:
     if blocking:
         st.markdown("##### Razones de bloqueo")
         for reason in blocking:
-            st.markdown(f"- ⛔ {reason}")
+            st.markdown(f"- {reason}")
 
     # ── Recommendations ─────────────────────────────────────────
     recommendations = assessment_data.get("adjustment_recommendations", [])
     if recommendations:
         st.markdown("##### Recomendaciones de ajuste")
         for rec in recommendations:
-            st.markdown(f"- 💡 {rec}")
+            st.markdown(f"- {rec}")
+
+    C.source_caption(st, "M3_DUE_DILIGENCE", "due_diligence_report.json", "assessment_summary.json")
 
     # ── Findings ─────────────────────────────────────────────────
     findings = assessment_data.get("findings", [])

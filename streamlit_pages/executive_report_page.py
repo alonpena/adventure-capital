@@ -10,57 +10,22 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import streamlit as st
-
 from streamlit_pages import components as C
 
 
 def render(st) -> None:
-    st.title("Informe Ejecutivo")
-    st.caption("Reporte de valoración y plan de crecimiento — documento oficial del caso.")
-
     run_id = C.require_execution(st)
     if run_id is None:
+        st.title("Informe ejecutivo")
         return
 
-    exe = C.get_execution(run_id)
-    if exe is None:
-        return
-
-    _render_instance_header(st, run_id, exe)
+    C.page_header(
+        st,
+        "Informe ejecutivo",
+        "Documento oficial de valoración y plan de crecimiento del caso.",
+        run_id=run_id,
+    )
     _render_report_view(st, run_id)
-
-
-# --------------------------------------------------------------------------- #
-# Instance header
-# --------------------------------------------------------------------------- #
-
-
-def _render_instance_header(st, run_id: str, exe: dict) -> None:
-    c1, c2, c3 = st.columns([2, 1, 1])
-    with c1:
-        name = exe.get("instance_name", exe.get("name", run_id))
-        st.markdown(f"**Caso:** {name}")
-        st.caption(f"Ejecución: `{run_id}`")
-    with c2:
-        status = exe.get("status", "—")
-        icon = C.STATUS_ICON.get(status, "⚪")
-        st.metric("Estado", f"{icon} {status}")
-    with c3:
-        stages = exe.get("stages", {})
-        completed = sum(1 for s in stages.values() if s == "completed")
-        total = len(stages)
-        st.metric("Etapas completadas", f"{completed}/{total}")
-
-    # Stage status badges
-    stages = exe.get("stages", {})
-    badges = []
-    for stage_key in ["M1_DETERMINISTIC", "M2_VALUATION", "M3_DUE_DILIGENCE", "M4_STOCHASTIC", "M5_REPORT"]:
-        label = C.STAGE_LABELS.get(stage_key, stage_key)
-        state = stages.get(stage_key, "—")
-        icon = C.STATUS_ICON.get(state, "⚪")
-        badges.append(f"{icon} {label}")
-    st.markdown(" | ".join(badges))
 
 
 # --------------------------------------------------------------------------- #
@@ -80,26 +45,31 @@ def _render_report_view(st, run_id: str) -> None:
     report_data = C.canonical_json(run_id, "report_data.json")
     has_standard = report_data is not None
 
-    if has_standard:
-        st.success("Reporte estándar disponible")
-    else:
-        C.note(st, "Reporte simple disponible. Genera el reporte estándar para obtener el documento completo.")
+    # Toolbar: downloads next to the document, no status boxes above it.
+    exe_dir = C.execution_path(run_id)
+    pdf_exists = (exe_dir / "report.pdf").exists()
+    t1, t2, t3 = st.columns([1, 1, 4])
+    with t1:
+        C.download_html_button(st, run_id, label="Descargar HTML")
+    with t2:
+        if pdf_exists:
+            C.download_pdf_button(st, run_id, label="Descargar PDF")
+    with t3:
+        hints = []
+        if not pdf_exists:
+            hints.append("PDF disponible tras generar el reporte estándar.")
+        if not has_standard:
+            hints.append("Reporte simple — genera el reporte estándar para el documento completo (abajo).")
+        if hints:
+            st.caption(" ".join(hints))
 
-    # Read and embed the report HTML
-    html_content = report_path.read_text(encoding="utf-8")
-    st.components.v1.html(html_content, height=800, scrolling=True)
-
-    # Download buttons
-    st.markdown("#### Descargar")
-    d1, d2 = st.columns(2)
-    with d1:
-        C.download_html_button(st, run_id, label="📄 Descargar HTML")
-    with d2:
-        C.download_pdf_button(st, run_id, label="📕 Descargar PDF")
+    # The document is the page: give it almost the full viewport.
+    st.iframe(report_path, height=1100)
+    C.source_caption(st, "M5_REPORT", "report.html")
 
     if not has_standard:
-        st.markdown("---")
-        _render_build_report_section(st, run_id)
+        with st.expander("Generar reporte estándar"):
+            _render_build_report_section(st, run_id)
 
 
 # --------------------------------------------------------------------------- #
@@ -108,7 +78,6 @@ def _render_report_view(st, run_id: str) -> None:
 
 
 def _render_build_report_section(st, run_id: str) -> None:
-    st.markdown("#### Generar reporte estándar")
     C.note(st, "El reporte estándar incluye narrativa parametrizada, gráficos por servicio, "
                "matriz de sensibilidad WACC × múltiplo y diagrama MapValue. Requiere un documento YAML de narrativa.")
 
@@ -118,7 +87,7 @@ def _render_build_report_section(st, run_id: str) -> None:
         key="exec_report_doc_path",
     )
 
-    if st.button("🚀 Generar reporte estándar", type="primary", key="build_std_report"):
+    if st.button("Generar reporte estándar", type="primary", key="build_std_report"):
         _build_standard_report(st, run_id, doc_path)
 
 

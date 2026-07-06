@@ -10,19 +10,23 @@ from __future__ import annotations
 
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 from streamlit_pages import components as C
-from streamlit_pages.styles import ACCENT, ACCENT_CYAN, ALERT, SUCCESS, TEXT_SECONDARY
+from streamlit_pages.styles import ACCENT, ACCENT_CYAN, SUCCESS, TEXT_SECONDARY
 
 
 def render(st) -> None:
-    st.title("Plan de Crecimiento")
-    st.caption("Plan Consensuado (meses 1–12) y Proyecciones (meses 13–36)")
-
     run_id = C.require_execution(st)
     if run_id is None:
+        st.title("Plan de crecimiento")
         return
+
+    C.page_header(
+        st,
+        "Plan de crecimiento",
+        "Plan Consensuado (meses 1–12) y Proyecciones (meses 13–36)",
+        run_id=run_id,
+    )
 
     # ── Load data ────────────────────────────────────────────────
     results = C.canonical_csv(run_id, "optimized_results.csv")
@@ -39,6 +43,8 @@ def render(st) -> None:
     # ── KPI summary ──────────────────────────────────────────────
     summary = C.canonical_json(run_id, "growth_plan_summary.json")
     _render_kpis(st, summary)
+    C.source_caption(st, "M1_DETERMINISTIC",
+                     "growth_plan_summary.json", "optimized_results.csv", "fixed_cashflow.csv")
 
     # ── Side-by-side: Consensuated vs Projections ────────────────
     st.markdown("### Plan Consensuado vs Proyecciones")
@@ -110,7 +116,7 @@ def render(st) -> None:
             "Resultados_completos": results,
         },
         filename="growth_plan.xlsx",
-        label="📥 Descargar Excel (Plan de Crecimiento)",
+        label="Descargar Excel (plan de crecimiento)",
     )
 
 
@@ -145,7 +151,9 @@ def _render_kpis(st, summary: dict | None) -> None:
         C.kpi(st, "Breakeven (mes)",
               f"Mes {summary.get('breakeven_month')}" if summary.get("breakeven_month") else "—")
     with c8:
-        channels = summary.get("enabled_channels", [])
+        channel_names = {"salesforce": "Fuerza de ventas", "advertising": "Publicidad",
+                         "third_party": "Terceros"}
+        channels = [channel_names.get(c, c) for c in summary.get("enabled_channels", [])]
         C.kpi(st, "Canales activos", ", ".join(channels) if channels else "—")
 
 
@@ -180,7 +188,6 @@ def _render_combined_chart(st, results: pd.DataFrame, fixed: pd.DataFrame | None
     has_ebitda = "EBITDA" in df.columns
     has_caja = "Caja" in df.columns
     has_ingresos = "Ingresos" in df.columns
-    has_adq = "Adq_clientes" in df.columns
 
     traces = []
     if has_ingresos:
@@ -234,7 +241,7 @@ def _render_channel_chart(st, results: pd.DataFrame) -> None:
         return
 
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=df["t"], y=df["A_salesforce"], name="Salesforce", marker_color=ACCENT))
+    fig.add_trace(go.Bar(x=df["t"], y=df["A_salesforce"], name="Fuerza de ventas", marker_color=ACCENT))
     fig.add_trace(go.Bar(x=df["t"], y=df["A_advertising"], name="Publicidad", marker_color=ACCENT_CYAN))
     if df["A_third_party"].sum() > 0:
         fig.add_trace(go.Bar(x=df["t"], y=df["A_third_party"], name="Terceros", marker_color=SUCCESS))

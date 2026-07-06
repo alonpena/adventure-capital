@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import streamlit as _st
 
 # --------------------------------------------------------------------------- #
 # Paths
@@ -271,11 +270,13 @@ def require_execution(st) -> str | None:
     """Get run_id from session_state, or show a guard message."""
     run_id = st.session_state.get("current_run_id")
     if not run_id:
-        st.info("Selecciona o ejecuta un caso desde el **Gestor de Instancias**.")
+        st.info("Sin caso seleccionado. Elige una ejecución en el panel lateral "
+                "o crea una en el Gestor de instancias.")
         return None
     rec = get_execution(run_id)
     if rec is None:
-        st.warning(f"La ejecución {run_id} no se encuentra en el registro.")
+        st.warning(f"La ejecución `{run_id}` ya no está en el registro. "
+                   "Selecciona otra en el panel lateral.")
         return None
     return run_id
 
@@ -310,17 +311,62 @@ STATUS_TONE: dict[str, str] = {
 STAGE_LABELS: dict[str, str] = {
     "M1_DETERMINISTIC": "Plan determinista",
     "M2_VALUATION": "Valoración",
-    "M3_DUE_DILIGENCE": "Due Diligence",
+    "M3_DUE_DILIGENCE": "Due diligence",
     "M4_STOCHASTIC": "Análisis de escenarios",
     "M5_REPORT": "Reporte",
 }
 
-STATUS_ICON: dict[str, str] = {
-    "completed": "🟢",
-    "failed": "🔴",
-    "blocked": "🟡",
-    "pending": "⚪",
+STAGE_SHORT: dict[str, str] = {
+    "M1_DETERMINISTIC": "M1",
+    "M2_VALUATION": "M2",
+    "M3_DUE_DILIGENCE": "M3",
+    "M4_STOCHASTIC": "M4",
+    "M5_REPORT": "M5",
 }
+
+# Glifos monocromos — identidad Memorando: estados discretos, sin semáforos emoji.
+STATUS_ICON: dict[str, str] = {
+    "completed": "●",
+    "failed": "✕",
+    "blocked": "◐",
+    "pending": "○",
+}
+
+STATUS_LABELS: dict[str, str] = {
+    "completed": "Completada",
+    "failed": "Fallida",
+    "blocked": "Bloqueada",
+    "pending": "Pendiente",
+}
+
+# Etiquetas de negocio en español; el término técnico se conserva como caption.
+VERDICT_LABELS: dict[str, str] = {
+    "passed": "Aprobado",
+    "passed_with_warnings": "Aprobado con advertencias",
+    "requires_minor_adjustment": "Requiere ajuste menor",
+    "requires_major_adjustment": "Requiere ajuste mayor",
+    "rejected_for_stochastic": "Rechazado para escenarios",
+}
+
+VALUATION_MODE_LABELS: dict[str, str] = {
+    "final": "Final",
+    "warning": "Preliminar",
+    "diagnostic": "Diagnóstico",
+    "none": "No ejecutado",
+}
+
+# Nombres canónicos de páginas — el router de app.py y cualquier página que
+# navegue deben usar estas constantes (nunca strings sueltos: ya hubo un bug
+# de navegación por un prefijo emoji desalineado).
+PAGE_INSTANCES = "instancias"
+PAGE_REPORT = "Informe ejecutivo"
+PAGE_GROWTH = "Plan de crecimiento"
+PAGE_VALUATION = "Valoración"
+PAGE_DD = "Due diligence"
+PAGE_STOCH = "Análisis de escenarios"
+PAGE_ARTIFACTS = "Artefactos"
+
+NAV_PAGES = [PAGE_REPORT, PAGE_GROWTH, PAGE_VALUATION, PAGE_DD, PAGE_STOCH, PAGE_ARTIFACTS]
 
 
 def money(value: Any) -> str:
@@ -342,6 +388,68 @@ def pct(value: Any, decimals: int = 1) -> str:
         return f"{float(value) * 100:,.{decimals}f}%"
     except (TypeError, ValueError):
         return "—"
+
+
+def page_header(st, title: str, subtitle: str = "", run_id: str | None = None) -> None:
+    """Render the page title with the current case context pinned top-right.
+
+    Keeps the user oriented when navigating between drill-down pages
+    (which execution am I looking at?) without repeating status boxes.
+    """
+    case_html = ""
+    if run_id:
+        rec = get_execution(run_id)
+        if rec:
+            name = rec.get("instance_name", rec.get("name", run_id))
+            status = rec.get("status", "—")
+            icon = STATUS_ICON.get(status, "○")
+            status_label = STATUS_LABELS.get(status, status)
+            config_hash = rec.get("config_hash", "")
+            hash_html = f" · config <code>{config_hash}</code>" if config_hash else ""
+            case_html = (
+                f'<span class="case"><b>{name}</b><br/>'
+                f'{icon} {status_label}{hash_html}<br/>'
+                f'<code>{run_id}</code></span>'
+            )
+    st.markdown(
+        f'<div class="ac-page-head">{case_html}'
+        f'<div class="title">{title}</div>'
+        f'<div class="subtitle">{subtitle}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def risk_band(st, title: str, items: list[tuple[str, str, str]]) -> None:
+    """Render the Risk Band: grouped downside KPIs inside one visual band.
+
+    ``items`` is a list of (label, value, sub) tuples.
+    """
+    cells = "".join(
+        f'<div class="ac-kpi"><div class="label">{label}</div>'
+        f'<div class="value">{value}</div>'
+        f'<div class="sub">{sub}</div></div>'
+        for label, value, sub in items
+    )
+    st.markdown(
+        f'<div class="ac-riskband"><div class="band-title">{title}</div>'
+        f'<div style="display:flex;gap:.6rem;flex-wrap:wrap;">'
+        f'{cells}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def source_caption(st, stage_key: str, *files: str) -> None:
+    """Trazabilidad por bloque: qué artefactos alimentan lo que se muestra.
+
+    Renderiza p. ej. ``Fuente: valuation_summary.json · M2 — Valoración``.
+    """
+    short = STAGE_SHORT.get(stage_key, stage_key)
+    label = STAGE_LABELS.get(stage_key, "")
+    names = ", ".join(files)
+    st.markdown(
+        f'<div class="ac-source">Fuente: {names} · {short} — {label}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def kpi(st, label: str, value: str, sub: str = "", tone: str = "") -> None:

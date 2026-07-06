@@ -15,8 +15,6 @@ from copy import deepcopy
 from typing import Any
 
 import yaml
-import streamlit as st
-
 from adventure_capital.config import default_config, validate_config
 from streamlit_pages import components as C
 
@@ -152,17 +150,18 @@ def _seed_services(st, base: dict) -> None:
 
 
 def render(st) -> None:
-    st.title("Gestor de Instancias")
-    st.caption("Crea una instancia (configuración congelada) y ejecuta el pipeline de valoración.")
+    C.page_header(
+        st,
+        "Gestor de instancias",
+        "Crea una instancia (configuración congelada) y ejecuta el pipeline de valoración: "
+        "instancia → ejecución → veredicto de due diligence → análisis de escenarios → informe ejecutivo.",
+    )
 
     base = default_config()
     _seed_services(st, base)
 
-    # ── Due Diligence → M4 gate (global, above tabs) ──────────────
-    _render_m4_gate(st)
-
     # ── tabs for the page ─────────────────────────────────────────
-    tab_new, tab_list = st.tabs(["➕ Nueva instancia", "📋 Instancias existentes"])
+    tab_new, tab_list = st.tabs(["Nueva instancia", "Instancias existentes"])
 
     # ──────────────────── TAB: Create ─────────────────────────────
     with tab_new:
@@ -334,9 +333,9 @@ def _render_create_tab(st, base: dict) -> None:
     st.markdown("#### Servicios")
     sc1, sc2 = st.columns(2)
     default_service = deepcopy(base["servicios"][0])
-    if sc1.button("➕ Agregar servicio"):
+    if sc1.button("Agregar servicio"):
         st.session_state["services"].append(deepcopy(default_service))
-    if sc2.button("➖ Quitar último") and len(st.session_state.get("services", [])) > 1:
+    if sc2.button("Quitar último") and len(st.session_state.get("services", [])) > 1:
         st.session_state["services"].pop()
 
     updated = []
@@ -355,14 +354,14 @@ def _render_create_tab(st, base: dict) -> None:
         l2.number_input("Caja mínima", value=0.0, step=1000.0, key="f_liq_value")
     l3.number_input("Solver time_limit (s)", value=int(base["solver"]["time_limit"]), min_value=10, step=10, key="f_time")
 
-    C.note(st, "El análisis de escenarios (M4) se ejecuta tras Due Diligence, según el veredicto "
-               "(automático si pasa limpio; con confirmación si hay advertencias).")
+    C.note(st, "El análisis de escenarios (M4) se decide en la página Due diligence tras el veredicto "
+               "(automático si aprueba limpio; con confirmación si hay advertencias).")
 
     # ── Create button ──
     st.markdown("---")
     c1, c2 = st.columns([1, 3])
     with c1:
-        if st.button("💾 Crear instancia", type="primary"):
+        if st.button("Crear instancia", type="primary"):
             try:
                 config = _build_config(st, base)
                 validate_config(config)
@@ -378,7 +377,7 @@ def _render_create_tab(st, base: dict) -> None:
 
     # ── Preview ──
     with c2:
-        if st.button("📄 Vista previa YAML"):
+        if st.button("Vista previa YAML"):
             try:
                 config = _build_config(st, base)
                 preview = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
@@ -406,105 +405,40 @@ def _render_list_tab(st) -> None:
                 st.markdown(f"**{meta['name']}**")
                 st.caption(f"ID: `{meta['id']}` · Creada: {meta['created_at']}")
             with cols[1]:
-                if st.button("▶️ Ejecutar", key=f"run_{meta['id']}"):
+                if st.button("Ejecutar", key=f"run_{meta['id']}"):
                     _trigger_execution(st, meta["id"], run_stochastic=True)
             with cols[2]:
-                if st.button("📋 Detalle", key=f"detail_{meta['id']}"):
+                if st.button("Detalle", key=f"detail_{meta['id']}"):
                     _show_instance_detail(st, meta["id"])
             with cols[3]:
-                if st.button("🗑️", key=f"del_{meta['id']}"):
+                if st.button("Eliminar", key=f"del_{meta['id']}"):
                     C.delete_instance(meta["id"])
                     st.rerun()
             st.markdown("---")
 
 
 def _trigger_execution(st, instance_id: str, run_stochastic: bool = True) -> None:
-    """Phase 1: run M1–M3 (deterministic plan + valuation + Due Diligence) only.
+    """Phase 1: run M1–M3 (deterministic plan + valuation + due diligence) only.
 
-    M4 (stochastic) is gated behind the DD verdict — see ``_render_m4_gate``.
+    M4 (stochastic) is gated behind the DD verdict; after phase 1 the UI
+    navigates to the Due diligence page, where the gate lives (P0-3 de la
+    auditoría UX: el veredicto se decide en el contexto del run, no sobre el
+    formulario de creación).
     """
     from adventure_capital.workflow_registry import run_execution as _run_exec
 
-    with st.spinner("Ejecutando plan determinista + valoración + Due Diligence…"):
+    with st.spinner("Ejecutando plan determinista, valoración y due diligence…"):
         try:
             record = _run_exec(instance_id, run_stochastic=False)
             st.session_state["current_run_id"] = record["id"]
             st.session_state["m4_gate_run_id"] = record["id"]
+            st.session_state["current_page"] = C.PAGE_DD
             st.rerun()
         except Exception as exc:
-            st.error(f"Error en la ejecución: {exc}")
+            st.error(f"La ejecución falló: {exc}. Revisa la configuración de la instancia e intenta de nuevo.")
             import traceback
-            st.code(traceback.format_exc())
-
-
-def _run_m4(st, run_id: str) -> None:
-    """Phase 2: run the stochastic analysis (M4) on an existing execution."""
-    from adventure_capital.workflow_registry import run_stochastic_only
-
-    with st.spinner("Ejecutando análisis de escenarios (M4)…"):
-        try:
-            run_stochastic_only(run_id)
-            st.session_state["current_run_id"] = run_id
-            st.session_state["m4_gate_run_id"] = None
-            st.success(f"Análisis de escenarios completado: {run_id}")
-            st.info("Ve a las páginas de resultados en el panel lateral.")
-        except Exception as exc:
-            st.error(f"Error en el análisis de escenarios: {exc}")
-            import traceback
-            st.code(traceback.format_exc())
-
-
-def _render_m4_gate(st) -> None:
-    """Show the DD verdict after phase 1 and gate the stochastic stage (M4).
-
-    - Blocking verdict → no M4, show reasons.
-    - Warning / minor verdict → require explicit confirmation to run M4.
-    - Clean pass → run M4 automatically.
-    """
-    from adventure_capital.workflow_registry import _CONFIRM_VERDICTS
-
-    run_id = st.session_state.get("m4_gate_run_id")
-    if not run_id:
-        return
-
-    dd = C.canonical_json(run_id, "due_diligence_report.json") or {}
-    verdict = dd.get("verdict", "—")
-    allows = dd.get("allows_stochastic")
-
-    st.markdown("### Resultado de Due Diligence")
-    C.badge(st, verdict, C.VERDICT_TONE.get(verdict, "muted"))
-    st.caption(f"Ejecución: `{run_id}`")
-
-    # Blocking verdict — M4 not allowed.
-    if not allows:
-        st.warning("El veredicto bloquea el análisis de escenarios (M4). Recalibra el caso.")
-        for reason in dd.get("blocking_reasons", []):
-            st.markdown(f"- ⛔ {reason}")
-        if st.button("Cerrar", key="m4_gate_close_blocked"):
-            st.session_state["m4_gate_run_id"] = None
-            st.rerun()
-        st.markdown("---")
-        return
-
-    # Warning / minor adjustment — require explicit confirmation.
-    if verdict in _CONFIRM_VERDICTS:
-        st.warning("Due Diligence con advertencias. Confirma para continuar con el análisis de escenarios (M4).")
-        for rec in dd.get("adjustment_recommendations", []):
-            msg = rec.get("recommendation") if isinstance(rec, dict) else rec
-            st.markdown(f"- 💡 {msg}")
-        c1, c2 = st.columns(2)
-        if c1.button("✅ Continuar con M4", type="primary", key="m4_gate_confirm"):
-            _run_m4(st, run_id)
-            st.rerun()
-        if c2.button("✋ Solo plan determinista", key="m4_gate_skip"):
-            st.session_state["m4_gate_run_id"] = None
-            st.rerun()
-        st.markdown("---")
-        return
-
-    # Clean pass — run M4 automatically.
-    _run_m4(st, run_id)
-    st.markdown("---")
+            with st.expander("Detalle técnico"):
+                st.code(traceback.format_exc())
 
 
 def _show_instance_detail(st, instance_id: str) -> None:
