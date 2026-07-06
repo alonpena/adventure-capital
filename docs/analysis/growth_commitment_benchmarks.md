@@ -37,6 +37,21 @@ Para demostrar que el mecanismo del piso funciona de forma independiente (y que 
 | beloop | piso aislado (sin ceiling) | **Unbounded** |
 | kavacomex | piso aislado (sin ceiling) | **Unbounded** |
 
+## Core nuevo: piso + envolvente agregada de adquisición (ADR 0014 enmienda)
+
+`growth_commitment (vc_minimum, x3, annual)` + `acquisition_envelope (max_plan_vc, slack 0.25 año 2 / 0.50 año 3)` con el log ceiling exógeno **desactivado**: la envolvente lo reemplaza como cota superior. A diferencia del ceiling (múltiplo de mercado exógeno), cada término de U_t es trazable: U_plan = momentum del plan consensuado de 12 meses; U_vc = adquisición requerida por la senda mínima VC neta de churn; slack = supuesto de tesis declarado. Esta corrida es la respuesta directa al contraste anterior: donde el piso aislado es Unbounded, el core completo queda acotado con significado de negocio.
+
+**Columna `U_t activa`**: meses (de los 24 optimizados) en que la solución queda pegada a la envolvente. 0 = la envolvente nunca recorta el óptimo (upside intacto); >0 = la envolvente es el freno efectivo en esos meses.
+
+| instancia | status | VAN | Δ vs target VAN | Ing Y1 | Ing Y3 | stock m12/m24/m36 | piso | U_t activa | min caja |
+|---|---|---:|---:|---:|---:|---|---|---|---:|
+| godemos | Optimal | 1,333,025 | -34% | 172,392 | 1,438,834 | 309/652/1,333 | m24 holgado / m36 holgado | 24/24 | -26,478 |
+| entrena-en-casa | Optimal | 24,670 | -98% | 75,235 | 384,232 | 86/172/339 | m24 holgado / m36 holgado | 24/24 | 6,217 |
+| beloop | Optimal | 17,622,545 | +816% | 238,597 | 16,026,221 | 55/238/1,252 | m24 holgado / m36 holgado | 24/24 | 181,668 |
+| kavacomex | Optimal | 685,840 | -62% | 46,608 | 1,426,322 | 92/540/4,993 | m24 holgado / m36 holgado | 16/24 | -106,510 |
+
+**Lectura de los deltas (vs `off` = baseline entrega-tesis, ceiling default-on)**: la envolvente NO es un recorte uniforme del ceiling — es una cota con otra forma. El log ceiling decae (mucho techo en m13, casi nada en año 3); U_plan crece geométricamente con el momentum del plan consensuado. Por eso el core puede dar MÁS valor que el baseline cuando el plan de año 1 trae momentum alto (godemos +13% VAN vs off; beloop ~5.6x — churn enterprise 0% + ramp 1→? del plan compone 24 meses; kavacomex pasa de VAN negativo a positivo porque la envolvente no lo estrangula en año 3 como el ceiling decreciente) y MENOS cuando el plan es conservador (entrena-en-casa -28% vs off). La columna `U_t activa` muestra que la envolvente es el freno efectivo (24/24 meses en 3 casos): sin ella estos casos son Unbounded (contraste anterior). Advertencia honesta para la defensa: extrapolar g_mom del plan 24 meses es un supuesto declarado — para planes con ramp año-1 agresivo (beloop) produce trayectorias año-3 exigentes; ahí el override custom de Alejandro (W4, con justificación) es la palanca prevista, no un ajuste oculto.
+
 ## Lectura por caso
 
 - **godemos**: caso más limpio (PRIORITY 1). VC=0 (operating_company), unit economics casi sin costo — el ceiling por defecto ya lleva el plan muy por encima del piso x3 (holgado en ambos checkpoints).

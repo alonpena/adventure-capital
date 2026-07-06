@@ -89,6 +89,18 @@ def _run_mode(config: dict) -> dict:
             "binding_36": binding_36,
         }
     )
+    # Envelope binding check: in how many optimized months does the solution
+    # sit against U_t (within 1e-3)? 0 = envelope never tight (upside intact).
+    envelope = inst.get("acquisition_envelope", {})
+    if envelope.get("enabled", False):
+        acq = df.groupby("t")["Adq_clientes"].sum()
+        tight = sum(
+            1
+            for t, u_t in envelope["path"].items()
+            if t in acq.index and float(acq.loc[t]) >= u_t - 1e-3
+        )
+        row["env_tight_months"] = tight
+        row["env_months"] = len(envelope["path"])
     return row
 
 
@@ -135,6 +147,22 @@ def _mode_vc_minimum_ceiling_off(seed: dict) -> dict:
     return cfg
 
 
+def _mode_core_envelope(seed: dict) -> dict:
+    """New core methodology (ADR 0014 amendment): growth_commitment floor +
+    aggregate acquisition envelope, with the legacy exogenous log ceiling OFF —
+    the envelope supersedes it as the upper bound (derived from the client plan
+    + VC benchmark + declared slack, not an exogenous market multiple)."""
+    cfg = _mode_vc_minimum(seed)
+    cfg["acquisition_ceiling"] = {"enabled": False}
+    cfg["acquisition_envelope"] = {
+        "enabled": True,
+        "source": "max_plan_vc",
+        "slack_year2": 0.25,
+        "slack_year3": 0.50,
+    }
+    return cfg
+
+
 def main() -> int:
     results: dict[str, dict[str, dict]] = {}
     kavacomex_diagnosis = None
@@ -171,8 +199,18 @@ def main() -> int:
         seed = _load(name)
         ceiling_off_results[name] = _run_mode(_mode_vc_minimum_ceiling_off(seed))
 
+    # New core methodology (ADR 0014 amendment): commitment + envelope,
+    # legacy ceiling off. This is THE run that shows the envelope closing the
+    # unbounded hole the isolated-floor contrast exposes above.
+    core_results = {}
+    for name in INSTANCES:
+        seed = _load(name)
+        core_results[name] = _run_mode(_mode_core_envelope(seed))
+        print(f"{name}: core (commitment+envelope, ceiling off) = "
+              f"{core_results[name]['status']}")
+
     out_path = Path("docs/analysis/growth_commitment_benchmarks.md")
-    _write_report(out_path, results, kavacomex_diagnosis, ceiling_off_results)
+    _write_report(out_path, results, kavacomex_diagnosis, ceiling_off_results, core_results)
     print(f"wrote {out_path}")
     return 0
 
@@ -201,6 +239,7 @@ def _write_report(
     results: dict,
     kavacomex_diagnosis: dict | None,
     ceiling_off_results: dict,
+    core_results: dict,
 ) -> None:
     # Cross-validation targets declared in each benchmark YAML's own header comments.
     targets = {
@@ -304,6 +343,68 @@ def _write_report(
     for name in INSTANCES:
         row = ceiling_off_results[name]
         lines.append(f"| {name} | piso aislado (sin ceiling) | **{row['status']}** |")
+    lines.append("")
+
+    lines.append("## Core nuevo: piso + envolvente agregada de adquisición (ADR 0014 enmienda)")
+    lines.append("")
+    lines.append(
+        "`growth_commitment (vc_minimum, x3, annual)` + `acquisition_envelope "
+        "(max_plan_vc, slack 0.25 año 2 / 0.50 año 3)` con el log ceiling exógeno "
+        "**desactivado**: la envolvente lo reemplaza como cota superior. A diferencia del "
+        "ceiling (múltiplo de mercado exógeno), cada término de U_t es trazable: "
+        "U_plan = momentum del plan consensuado de 12 meses; U_vc = adquisición requerida "
+        "por la senda mínima VC neta de churn; slack = supuesto de tesis declarado. "
+        "Esta corrida es la respuesta directa al contraste anterior: donde el piso aislado "
+        "es Unbounded, el core completo queda acotado con significado de negocio."
+    )
+    lines.append("")
+    lines.append(
+        "**Columna `U_t activa`**: meses (de los 24 optimizados) en que la solución queda "
+        "pegada a la envolvente. 0 = la envolvente nunca recorta el óptimo (upside intacto); "
+        ">0 = la envolvente es el freno efectivo en esos meses."
+    )
+    lines.append("")
+    lines.append(
+        "| instancia | status | VAN | Δ vs target VAN | Ing Y1 | Ing Y3 | stock m12/m24/m36 | piso | U_t activa | min caja |"
+    )
+    lines.append("|---|---|---:|---:|---:|---:|---|---|---|---:|")
+    for name in INSTANCES:
+        target = targets.get(name, {})
+        target_van = target.get("van")
+        row = core_results[name]
+        if row["status"] != "Optimal":
+            lines.append(f"| {name} | **{row['status']}** | | | | | | | | |")
+            continue
+        van = row["van"]
+        delta = f"{(van/target_van - 1):+.0%}" if target_van else "—"
+        stock = f"{_fmt(row['stock_m12'])}/{_fmt(row['stock_m24'])}/{_fmt(row['stock_m36'])}"
+        env_col = (
+            f"{row['env_tight_months']}/{row['env_months']}"
+            if row.get("env_months") is not None
+            else "—"
+        )
+        lines.append(
+            f"| {name} | {row['status']} | {_fmt(van)} | {delta} | "
+            f"{_fmt(row['rev_y1'])} | {_fmt(row['rev_y3'])} | {stock} | "
+            f"{_binding_str(row)} | {env_col} | {_fmt(row['min_cash'])} |"
+        )
+    lines.append("")
+    lines.append(
+        "**Lectura de los deltas (vs `off` = baseline entrega-tesis, ceiling default-on)**: "
+        "la envolvente NO es un recorte uniforme del ceiling — es una cota con otra forma. "
+        "El log ceiling decae (mucho techo en m13, casi nada en año 3); U_plan crece "
+        "geométricamente con el momentum del plan consensuado. Por eso el core puede dar "
+        "MÁS valor que el baseline cuando el plan de año 1 trae momentum alto "
+        "(godemos +13% VAN vs off; beloop ~5.6x — churn enterprise 0% + ramp 1→? del plan "
+        "compone 24 meses; kavacomex pasa de VAN negativo a positivo porque la envolvente "
+        "no lo estrangula en año 3 como el ceiling decreciente) y MENOS cuando el plan es "
+        "conservador (entrena-en-casa -28% vs off). La columna `U_t activa` muestra que la "
+        "envolvente es el freno efectivo (24/24 meses en 3 casos): sin ella estos casos son "
+        "Unbounded (contraste anterior). Advertencia honesta para la defensa: extrapolar "
+        "g_mom del plan 24 meses es un supuesto declarado — para planes con ramp año-1 "
+        "agresivo (beloop) produce trayectorias año-3 exigentes; ahí el override custom de "
+        "Alejandro (W4, con justificación) es la palanca prevista, no un ajuste oculto."
+    )
     lines.append("")
 
     lines.append("## Lectura por caso")
