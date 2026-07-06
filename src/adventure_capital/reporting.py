@@ -76,9 +76,17 @@ def _build_model_instance_artifact(instance: dict[str, Any]) -> dict[str, Any]:
             "descuento": {str(k): float(v) for k, v in instance.get("descuento", {}).items()},
         },
         "channels": instance.get("channels", {}),
+        "investment_thesis": instance.get("investment_thesis", {}),
         "acquisition_ceiling": {
             "log_ceiling": {str(k): float(v) for k, v in instance.get("log_ceiling", {}).items()},
             "ceiling_slack": float(instance.get("ceiling_slack", 0.0)),
+        },
+        "acquisition_envelope": {
+            "enabled": bool(instance.get("acquisition_envelope", {}).get("enabled", False)),
+            "path": {
+                str(k): float(v)
+                for k, v in instance.get("acquisition_envelope", {}).get("path", {}).items()
+            },
         },
     }
 

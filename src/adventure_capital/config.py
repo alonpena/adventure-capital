@@ -10,6 +10,13 @@ import yaml
 
 
 _FIXED_ACQUISITION_MONTHS = 12
+_DEFAULT_INVESTMENT_THESIS: dict[str, Any] = {
+    "multiple": 3.0,
+    "horizon_months": 36,
+    "base_month": 12,
+    "dd_revenue_gate_usd": 1_000_000,
+    "interpolation": "geometric",
+}
 
 
 _DEFAULT_CONFIG: dict[str, Any] = {
@@ -46,6 +53,7 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "ebitda_multiple": 1.0,
     "liquidity_policy": {"type": "none"},
     "working_capital": {"enabled": False, "floor_mode": "ticket"},
+    "investment_thesis": deepcopy(_DEFAULT_INVESTMENT_THESIS),
     # Logarithmic market-saturation growth law (ADR 0010). Default-on: the curve is
     # fitted so cumulative acquisition reaches target_stock_multiplier x the year-1 base
     # plan by t = H (the VC "triple your clients" benchmark). slack is the upward
@@ -87,6 +95,34 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "solver": {"name": "cbc", "time_limit": 300, "verbose": False},
     "commercial_productivity_lag": 0,
 }
+
+
+def resolve_investment_thesis(config: dict[str, Any]) -> dict[str, Any]:
+    """Return investment-thesis defaults plus backwards-compatible aliases.
+
+    ``growth_commitment.multiple_3y`` is kept as a deprecated alias for old
+    configs. New configs should set ``investment_thesis.multiple``.
+    """
+    raw = config.get("investment_thesis") or {}
+    thesis = deepcopy(_DEFAULT_INVESTMENT_THESIS)
+    thesis.update(raw)
+
+    growth_commitment = config.get("growth_commitment") or {}
+    if (
+        "multiple_3y" in growth_commitment
+        and (
+            "multiple" not in raw
+            or float(raw.get("multiple", 3.0)) == _DEFAULT_INVESTMENT_THESIS["multiple"]
+        )
+    ):
+        thesis["multiple"] = growth_commitment["multiple_3y"]
+
+    thesis["multiple"] = float(thesis["multiple"])
+    thesis["horizon_months"] = int(thesis["horizon_months"])
+    thesis["base_month"] = int(thesis["base_month"])
+    thesis["dd_revenue_gate_usd"] = float(thesis["dd_revenue_gate_usd"])
+    thesis["interpolation"] = str(thesis["interpolation"])
+    return thesis
 
 
 def default_config() -> dict[str, Any]:
@@ -179,6 +215,18 @@ def validate_config(config: dict[str, Any]) -> None:
         if working_capital.get("floor_mode", "ticket") not in {"ticket"}:
             raise ValueError("Unsupported working_capital.floor_mode (only 'ticket' supported).")
 
+    investment_thesis = resolve_investment_thesis(config)
+    if investment_thesis["multiple"] <= 1.0:
+        raise ValueError("investment_thesis.multiple / growth_commitment.multiple_3y must be > 1.0.")
+    if investment_thesis["base_month"] != _FIXED_ACQUISITION_MONTHS:
+        raise ValueError("investment_thesis.base_month must be 12 in the current monthly model.")
+    if investment_thesis["horizon_months"] <= investment_thesis["base_month"]:
+        raise ValueError("investment_thesis.horizon_months must be greater than base_month.")
+    if investment_thesis["interpolation"] != "geometric":
+        raise ValueError("investment_thesis.interpolation must be 'geometric'.")
+    if investment_thesis["dd_revenue_gate_usd"] < 0:
+        raise ValueError("investment_thesis.dd_revenue_gate_usd must be >= 0.")
+
     ceiling = config.get("acquisition_ceiling", {})
     if ceiling.get("enabled", False):
         multiplier = ceiling.get("target_stock_multiplier")
@@ -201,9 +249,9 @@ def validate_config(config: dict[str, Any]) -> None:
             raise ValueError(
                 f"growth_commitment.source must be one of {sorted(valid_sources)}, got {source!r}."
             )
-        multiple_3y = growth_commitment.get("multiple_3y", 3.0)
+        multiple_3y = investment_thesis["multiple"]
         if multiple_3y is None or multiple_3y <= 1.0:
-            raise ValueError("growth_commitment.multiple_3y must be > 1.0.")
+            raise ValueError("growth_commitment.multiple_3y / investment_thesis.multiple must be > 1.0.")
         checkpoints = growth_commitment.get("checkpoints", "annual")
         if checkpoints not in {"annual", "terminal"}:
             raise ValueError(

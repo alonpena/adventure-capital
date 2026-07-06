@@ -27,12 +27,12 @@ _ROOT = str(Path(__file__).resolve().parent.parent)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from adventure_capital.config import load_config
-from adventure_capital.instance import generate_instance
-from adventure_capital.model import build_model, solve_model
-from adventure_capital.results import extract_results
-from adventure_capital.valuation import calculate_dcf
-from scripts.diagnose_infeasibility import diagnose_infeasibility
+from adventure_capital.config import load_config  # noqa: E402
+from adventure_capital.instance import generate_instance  # noqa: E402
+from adventure_capital.model import build_model, solve_model  # noqa: E402
+from adventure_capital.results import extract_results  # noqa: E402
+from adventure_capital.valuation import calculate_dcf  # noqa: E402
+from scripts.diagnose_infeasibility import diagnose_infeasibility  # noqa: E402
 
 INSTANCES = ["godemos", "entrena-en-casa", "beloop", "kavacomex"]
 TIME_LIMIT = 120
@@ -84,6 +84,7 @@ def _run_mode(config: dict) -> dict:
             "stock_m36": stock_m36,
             "min_cash": float(df["Caja"].min()),
             "c12": c12,
+            "ratio_m36": stock_m36 / c12 if c12 else None,
             "checkpoint_targets": checkpoint_targets,
             "binding_24": binding_24,
             "binding_36": binding_36,
@@ -149,16 +150,27 @@ def _mode_vc_minimum_ceiling_off(seed: dict) -> dict:
 
 def _mode_core_envelope(seed: dict) -> dict:
     """New core methodology (ADR 0014 amendment): growth_commitment floor +
-    aggregate acquisition envelope, with the legacy exogenous log ceiling OFF —
-    the envelope supersedes it as the upper bound (derived from the client plan
-    + VC benchmark + declared slack, not an exogenous market multiple)."""
-    cfg = _mode_vc_minimum(seed)
+    aggregate acquisition envelope, with the legacy exogenous log ceiling OFF.
+    Demo profile pins growth to the VC-minimum path: U_vc with zero slack."""
+    cfg = copy.deepcopy(seed)
+    cfg["investment_thesis"] = {
+        "multiple": 3.0,
+        "horizon_months": 36,
+        "base_month": 12,
+        "dd_revenue_gate_usd": 1_000_000,
+        "interpolation": "geometric",
+    }
+    cfg["growth_commitment"] = {
+        "enabled": True,
+        "source": "vc_minimum",
+        "checkpoints": "annual",
+    }
     cfg["acquisition_ceiling"] = {"enabled": False}
     cfg["acquisition_envelope"] = {
         "enabled": True,
-        "source": "max_plan_vc",
-        "slack_year2": 0.25,
-        "slack_year3": 0.50,
+        "source": "vc_minimum",
+        "slack_year2": 0.0,
+        "slack_year3": 0.0,
     }
     return cfg
 
@@ -349,13 +361,13 @@ def _write_report(
     lines.append("")
     lines.append(
         "`growth_commitment (vc_minimum, x3, annual)` + `acquisition_envelope "
-        "(max_plan_vc, slack 0.25 año 2 / 0.50 año 3)` con el log ceiling exógeno "
+        "(vc_minimum, slack 0 año 2 / 0 año 3)` con el log ceiling exógeno "
         "**desactivado**: la envolvente lo reemplaza como cota superior. A diferencia del "
-        "ceiling (múltiplo de mercado exógeno), cada término de U_t es trazable: "
-        "U_plan = momentum del plan consensuado de 12 meses; U_vc = adquisición requerida "
-        "por la senda mínima VC neta de churn; slack = supuesto de tesis declarado. "
-        "Esta corrida es la respuesta directa al contraste anterior: donde el piso aislado "
-        "es Unbounded, el core completo queda acotado con significado de negocio."
+        "ceiling (múltiplo de mercado exógeno), U_vc queda trazado directamente a "
+        "`investment_thesis.multiple`: adquisición requerida por la senda mínima VC neta "
+        "de churn. Slack = 0: sin upside especulativo. Esta corrida es la respuesta directa "
+        "al contraste anterior: donde el piso aislado es Unbounded, el core completo queda "
+        "acotado con significado de negocio."
     )
     lines.append("")
     lines.append(
@@ -365,19 +377,18 @@ def _write_report(
     )
     lines.append("")
     lines.append(
-        "| instancia | status | VAN | Δ vs target VAN | Ing Y1 | Ing Y3 | stock m12/m24/m36 | piso | U_t activa | min caja |"
+        "| instancia | status | VAN | Δ vs target VAN | Ing Y1 | Ing Y3 | stock m36 | ratio m36/C12 | piso | U_t activa | min caja |"
     )
-    lines.append("|---|---|---:|---:|---:|---:|---|---|---|---:|")
+    lines.append("|---|---|---:|---:|---:|---:|---:|---:|---|---|---:|")
     for name in INSTANCES:
         target = targets.get(name, {})
         target_van = target.get("van")
         row = core_results[name]
         if row["status"] != "Optimal":
-            lines.append(f"| {name} | **{row['status']}** | | | | | | | | |")
+            lines.append(f"| {name} | **{row['status']}** | | | | | | | | | |")
             continue
         van = row["van"]
         delta = f"{(van/target_van - 1):+.0%}" if target_van else "—"
-        stock = f"{_fmt(row['stock_m12'])}/{_fmt(row['stock_m24'])}/{_fmt(row['stock_m36'])}"
         env_col = (
             f"{row['env_tight_months']}/{row['env_months']}"
             if row.get("env_months") is not None
@@ -385,25 +396,20 @@ def _write_report(
         )
         lines.append(
             f"| {name} | {row['status']} | {_fmt(van)} | {delta} | "
-            f"{_fmt(row['rev_y1'])} | {_fmt(row['rev_y3'])} | {stock} | "
+            f"{_fmt(row['rev_y1'])} | {_fmt(row['rev_y3'])} | {_fmt(row['stock_m36'])} | "
+            f"{row['ratio_m36']:.2f}× | "
             f"{_binding_str(row)} | {env_col} | {_fmt(row['min_cash'])} |"
         )
     lines.append("")
     lines.append(
         "**Lectura de los deltas (vs `off` = baseline entrega-tesis, ceiling default-on)**: "
-        "la envolvente NO es un recorte uniforme del ceiling — es una cota con otra forma. "
-        "El log ceiling decae (mucho techo en m13, casi nada en año 3); U_plan crece "
-        "geométricamente con el momentum del plan consensuado. Por eso el core puede dar "
-        "MÁS valor que el baseline cuando el plan de año 1 trae momentum alto "
-        "(godemos +13% VAN vs off; beloop ~5.6x — churn enterprise 0% + ramp 1→? del plan "
-        "compone 24 meses; kavacomex pasa de VAN negativo a positivo porque la envolvente "
-        "no lo estrangula en año 3 como el ceiling decreciente) y MENOS cuando el plan es "
-        "conservador (entrena-en-casa -28% vs off). La columna `U_t activa` muestra que la "
-        "envolvente es el freno efectivo (24/24 meses en 3 casos): sin ella estos casos son "
-        "Unbounded (contraste anterior). Advertencia honesta para la defensa: extrapolar "
-        "g_mom del plan 24 meses es un supuesto declarado — para planes con ramp año-1 "
-        "agresivo (beloop) produce trayectorias año-3 exigentes; ahí el override custom de "
-        "Alejandro (W4, con justificación) es la palanca prevista, no un ajuste oculto."
+        "la envolvente VC-minimum con δ=0 elimina el upside especulativo y fuerza una "
+        "lectura de cumplimiento de tesis. El ratio m36/C12 queda cercano a ×3 en las "
+        "cuatro instancias (las desviaciones vienen de la agregación de churn usada para "
+        "U_vc frente a la dinámica exacta por servicio del MILP). La columna `U_t activa` "
+        "muestra que la envolvente es el freno efectivo: sin ella estos casos son Unbounded "
+        "(contraste anterior). VAN y MoM son consecuencias del plan comprometido, no "
+        "parámetros calibrados."
     )
     lines.append("")
 

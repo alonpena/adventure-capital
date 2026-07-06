@@ -306,3 +306,33 @@ def test_dd_chain_emits_w_warnings_and_survives_infeasible(tmp_path):
     dd17 = next(f for f in result_inf["verdict"].findings if f.id == "DD17")
     assert dd17.evidence["solver_status"] in {"Infeasible", "Undefined"}
     assert Path(result_inf["artifacts"]["json"]).exists()
+
+
+def test_dd18_flags_conservative_core_plan():
+    from adventure_capital.due_diligence.rules import rule_conservative_plan_diagnostic
+
+    config = load_config("configs/demo-growth-core.yaml")
+    finding = rule_conservative_plan_diagnostic(config)
+    assert finding is not None
+    assert finding.id == "DD18"
+    assert finding.passed is True
+    assert finding.evidence["classification"] == "Conservative"
+    assert finding.evidence["M_star_feasible"] > finding.evidence["target_multiple"]
+    assert finding.evidence["upper_bound_hit"] is True
+    assert "feasible up to tested cap" in finding.message
+
+
+def test_dd18_does_not_fire_when_higher_m_is_van_destructive():
+    from adventure_capital.due_diligence.rules import rule_conservative_plan_diagnostic
+
+    config = load_config("configs/demo-growth-core.yaml")
+    config["servicios"][0]["ticket"] = 80
+    config["servicios"][0]["c_u"] = 70
+    config["rem_v"] = 5000
+    config["rem_l"] = 7000
+    config["g_adm"] = 5000
+    finding = rule_conservative_plan_diagnostic(config)
+    assert finding is not None
+    assert finding.id == "DD18"
+    assert finding.passed is True
+    assert finding.evidence["classification"] == "Calibrated"

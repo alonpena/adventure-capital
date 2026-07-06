@@ -149,8 +149,12 @@ The baseline single-scenario MILP that optimizes the growth plan against point-e
 _Avoid_: Stochastic model, point model
 
 **Stochastic Model**:
-The M4 two-stage SAA model that optimizes one first-stage PCA across LHS **Scenarios** using a downside-risk valuation objective, default **CVaR Valuation Objective** over VAN. It requires deterministic channel parity and scenario-dependent realized acquisition and **Active Client Pool**.
+The M4 two-stage SAA model that optimizes one first-stage PCA across LHS **Scenarios** using a downside-risk valuation objective, currently a mean-CVaR objective over VAN. It requires deterministic channel parity and scenario-dependent realized acquisition and **Active Client Pool**. In the thesis MVP, its artifacts are read as a **Stochastic Robustness Analysis**, not as the source of the official growth plan.
 _Avoid_: Risk-neutral-only SAA, simplified Monte Carlo, fixed-traction simulation
+
+**Stochastic Robustness Analysis**:
+The business-facing use of M4 in the thesis MVP: an official robustness artifact that reports the distribution of VAN, downside value, funding gap, and growth-target hit probability under LHS uncertainty. It supports the **Deterministic Model** plan but does not replace it as the official plan.
+_Avoid_: Official stochastic plan, final stochastic recommendation, replacement plan
 
 ## Stochastic optimization
 
@@ -205,6 +209,7 @@ _Avoid_: Cash deficit (ambiguous), loss
 - A **Document YAML** does not define optimization assumptions.
 - **Due Diligence** wraps the **Deterministic Model** and may reuse **Calibration** outputs as inputs; the two remain conceptually distinct and are not merged.
 - The canonical **Stochastic Model** runs only when the **Due Diligence Verdict** is `passed`, `passed_with_warnings`, or `requires_minor_adjustment`; `requires_major_adjustment` and `rejected_for_stochastic` return to YAML recalibration before M4.
+- In the thesis MVP, the **Deterministic Model** remains the official source of the growth plan and valuation; the **Stochastic Model** produces a **Stochastic Robustness Analysis** artifact.
 - Business/financial risk (negative cash, **Funding Gap**, low runway, weak unit economics) shapes the verdict, **Valuation Mode**, and recalibration recommendations; severe venture-scale failures should be resolved before running canonical M4.
 - A `requires_major_adjustment` verdict means the case is not yet venture-scale eligible (e.g. insufficient revenue growth, no credible EBITDA regime by year 3) and blocks canonical M4 until the instance is recalibrated.
 - A **First-Stage Decision** is identical across all **Scenarios**; a **Recourse Decision** may differ per **Scenario**.

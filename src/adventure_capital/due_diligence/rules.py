@@ -396,6 +396,73 @@ def rule_growth_commitment_infeasible(
     )
 
 
+def rule_conservative_plan_diagnostic(config: dict[str, Any]) -> Finding | None:
+    """DD18: parameter-sweep diagnostic for conservative committed growth.
+
+    The sweep changes ``investment_thesis.multiple`` between solves. It never
+    introduces ratio/M variables into the MILP and never calibrates VAN directly.
+    """
+    if not (config.get("growth_commitment") or {}).get("enabled", False):
+        return None
+    if not (config.get("acquisition_envelope") or {}).get("enabled", False):
+        return None
+
+    from adventure_capital.growth_diagnostics import compute_conservative_plan_diagnostic
+
+    diagnostic = compute_conservative_plan_diagnostic(config, max_iterations=8)
+    classification = diagnostic.get("classification")
+    evidence = {
+        "classification": classification,
+        "target_multiple": diagnostic.get("target_multiple"),
+        "M_star_feasible": diagnostic.get("M_star_feasible"),
+        "upper_multiple": diagnostic.get("upper_multiple"),
+        "upper_bound_hit": diagnostic.get("upper_bound_hit"),
+        "thesis_gap": diagnostic.get("thesis_gap"),
+        "van_at_probe": diagnostic.get("van_at_probe"),
+    }
+    if classification == "Infeasible":
+        return Finding(
+            id="DD18",
+            name="conservative_plan_diagnostic",
+            severity_class=WARNING,
+            passed=False,
+            message="La tesis declarada no es factible bajo el barrido conservador de M.",
+            evidence=evidence,
+            recommendation="Revisar el múltiplo de tesis, caja/costos o capacidad comercial antes de usar el plan como demo.",
+        )
+    if classification == "Conservative":
+        cap_phrase = (
+            " El barrido fue feasible up to tested cap; este valor es un límite "
+            "probado, no un máximo de mercado."
+            if evidence["upper_bound_hit"]
+            else " El valor reportado es el mayor múltiplo factible encontrado por el barrido, no un máximo de mercado."
+        )
+        return Finding(
+            id="DD18",
+            name="conservative_plan_diagnostic",
+            severity_class=OK,
+            passed=True,
+            message=(
+                "El plan parece conservador: existe headroom factible para un múltiplo "
+                "mayor y el VAN no disminuye en los probes superiores."
+                + cap_phrase
+            ),
+            evidence=evidence,
+            recommendation=(
+                "Reportar el headroom como diagnóstico; no recalibrar VAN, solo decidir "
+                "si la tesis de crecimiento declarada debe subir."
+            ),
+        )
+    return Finding(
+        id="DD18",
+        name="conservative_plan_diagnostic",
+        severity_class=OK,
+        passed=True,
+        message="La tesis de crecimiento está calibrada: sin headroom VAN-acretivo claro.",
+        evidence=evidence,
+    )
+
+
 # ----- Liquidity diagnostic (reported, not pass/fail eligibility) ----------
 
 

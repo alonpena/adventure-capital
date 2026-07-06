@@ -103,4 +103,9 @@ Sin merge con UI, sin tocar UI, sin rebaseline, sin flip de defaults
 ## Firma
 
 - Revisor (Fable): PARTIAL→PASS-pendiente-de-firma, 2026-07-06.
-- Alonso: ☐ APPROVED (PASS) / ☐ MANTENER EXPERIMENTAL — pendiente.
+- Alonso: ☑ APPROVED (PASS) / ☐ MANTENER EXPERIMENTAL — 2026-07-06.
+
+Scope aprobado: **demo=vc_minimum, δ=0; growth pinned to committed thesis;
+U_plan and ceiling×M documented as rejected; DD reports scale honestly +
+diagnoses conservative plans.** No merge, no UI, no rebaseline, no default flip in
+this commit.

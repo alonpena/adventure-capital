@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from adventure_capital.config import validate_config
+from adventure_capital.config import resolve_investment_thesis, validate_config
 
 
 def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
@@ -17,6 +17,7 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
     service_count = len(services)
     annual_discount = config["beta"]
     monthly_discount = (1 + annual_discount) ** (1 / 12) - 1
+    investment_thesis = resolve_investment_thesis(config)
 
     periods = list(range(1, H + 1))
     fixed_periods = list(range(1, 13))
@@ -189,18 +190,26 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         elif source == "plan_mom":
             g_annual = _stock_mom_annual(base_acquisition, survival, service_count, fixed_periods)
             m = (1.0 + g_annual) ** 2
-        else:  # vc_minimum or none: use the declared multiple directly
-            m = float(growth_commitment_cfg.get("multiple_3y", 3.0))
+        else:  # vc_minimum or none: use the investment-thesis multiple directly
+            m = float(investment_thesis["multiple"])
 
         checkpoint_targets: dict[int, float] = {}
+        base_month = int(investment_thesis["base_month"])
+        horizon_month = int(investment_thesis["horizon_months"])
+        span_months = horizon_month - base_month
         if checkpoints_mode == "annual":
-            checkpoint_targets[24] = (1.0 - floor_slack) * math.sqrt(m) * c12_stock
-        checkpoint_targets[36] = (1.0 - floor_slack) * m * c12_stock
+            checkpoint_month = base_month + 12
+            checkpoint_targets[checkpoint_month] = (
+                (1.0 - floor_slack)
+                * m ** ((checkpoint_month - base_month) / span_months)
+                * c12_stock
+            )
+        checkpoint_targets[horizon_month] = (1.0 - floor_slack) * m * c12_stock
 
         growth_commitment.update(
             {
                 "source": source,
-                "multiple_3y": float(growth_commitment_cfg.get("multiple_3y", 3.0)),
+                "multiple_3y": float(investment_thesis["multiple"]),
                 "checkpoints": checkpoints_mode,
                 "floor_slack": floor_slack,
                 "m": m,
@@ -262,8 +271,12 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
                     monthly_churn[(s, t)] for s in range(service_count)
                 ) / service_count
 
-        # VC-minimum multiple: reuse the growth_commitment declaration (default x3).
-        m_env = float(growth_commitment_cfg.get("multiple_3y", 3.0))
+        # VC-minimum multiple: single source of truth is investment_thesis.multiple
+        # (growth_commitment.multiple_3y remains a deprecated config alias).
+        m_env = float(investment_thesis["multiple"])
+        thesis_base_month = int(investment_thesis["base_month"])
+        thesis_horizon_month = int(investment_thesis["horizon_months"])
+        thesis_span = thesis_horizon_month - thesis_base_month
 
         u_plan: dict[int, float] = {}
         u_vc: dict[int, float] = {}
@@ -276,7 +289,7 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
             b_prev = c12_stock
             for t in range(13, H + 1):
                 u_plan[t] = abar12 * (1.0 + g_mom) ** (t - 12)
-                b_t = c12_stock * m_env ** ((t - 12) / 24.0)
+                b_t = c12_stock * m_env ** ((t - thesis_base_month) / thesis_span)
                 u_vc[t] = max(0.0, b_t - b_prev * (1.0 - churn_env[t]))
                 b_prev = b_t
                 if env_source == "plan_mom":
@@ -411,6 +424,7 @@ def generate_instance(config: dict[str, Any]) -> dict[str, Any]:
         "com_v": config["com_v"],
         "com_l": config["com_l"],
         "tax": config["tax"],
+        "investment_thesis": investment_thesis,
         "parametros": config,
         "g_max_suavizado": config.get("g_max_suavizado", 0.25),
         "commercial_productivity_lag": config.get("commercial_productivity_lag", 0),
@@ -473,6 +487,7 @@ def compute_growth_suggestions(config: dict[str, Any]) -> dict[str, Any]:
       (only if the YAML declares that optional key).
     """
     validate_config(config)
+    investment_thesis = resolve_investment_thesis(config)
     services = config["servicios"]
     service_count = len(services)
     H = config["H"]
@@ -507,9 +522,9 @@ def compute_growth_suggestions(config: dict[str, Any]) -> dict[str, Any]:
         for cohort in fixed_periods
     )
 
-    growth_commitment_cfg = config.get("growth_commitment", {})
-    multiple_3y = float(growth_commitment_cfg.get("multiple_3y", 3.0))
-    g_vc_minimum = multiple_3y ** 0.5 - 1.0
+    multiple_3y = float(investment_thesis["multiple"])
+    thesis_span = int(investment_thesis["horizon_months"]) - int(investment_thesis["base_month"])
+    g_vc_minimum = multiple_3y ** (12.0 / thesis_span) - 1.0
 
     # Auxiliary: raw acquisition MoM (geometric mean over months 1..12 of a
     # single representative service — service 0 — matching the plan's own units).
@@ -529,13 +544,15 @@ def compute_growth_suggestions(config: dict[str, Any]) -> dict[str, Any]:
         "schema_version": "1.0",
         "C12": c12_stock,
         "multiple_3y": multiple_3y,
+        "investment_thesis": investment_thesis,
         "g_vc_minimum": g_vc_minimum,
         "g_plan_mom_acquisition": g_plan_mom_acquisition,
         "g_plan_mom_stock": g_plan_mom_stock,
         "g_plan_mom_monthly_acquisition": g_mom_acq_monthly,
         "notes": (
             "g_vc_minimum is the annual growth implied by the x{:.1f}-in-3-years VC "
-            "benchmark, applied as annual checkpoints (sqrt(m) at year 2, m at year 3). "
+            "benchmark, applied with geometric interpolation between base_month and "
+            "horizon_month. "
             "g_plan_mom_stock is the comparable number for W1/W2 (the commitment binds "
             "on client STOCK); g_plan_mom_acquisition is auxiliary only (raw A_base MoM)."
         ).format(multiple_3y),
@@ -559,6 +576,14 @@ def compute_growth_suggestions(config: dict[str, Any]) -> dict[str, Any]:
             "U_t": {str(t): v for t, v in instance_envelope["path"].items()},
             "custom_justification": instance_envelope["custom_justification"],
         }
+        if (config.get("growth_commitment") or {}).get("enabled", False):
+            from adventure_capital.growth_diagnostics import compute_conservative_plan_diagnostic
+
+            diagnostic = compute_conservative_plan_diagnostic(config, max_iterations=8)
+            suggestions["conservative_plan_diagnostic"] = diagnostic
+            suggestions["M_star_feasible"] = diagnostic.get("M_star_feasible")
+            suggestions["van_at_probe"] = diagnostic.get("van_at_probe")
+            suggestions["thesis_gap"] = diagnostic.get("thesis_gap")
 
     target_revenue_y3 = config.get("target_revenue_y3")
     if target_revenue_y3 is not None and c12_stock > 0:

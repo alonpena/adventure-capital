@@ -306,6 +306,22 @@ delta_t  = slack_year2 (t<=24) / slack_year3 (t>24) — DECLARED THESIS ASSUMPTI
 custom   = Alejandro's override: verbatim monthly path, custom_justification REQUIRED (W4)
 ```
 
+Amendment 2 closure (2026-07-06): the **demo/core profile** uses `source=vc_minimum`
+and `delta_t=0` (no speculative upside). The old `max_plan_vc` and positive slack
+profile remains implemented as an opt-in sensitivity path, not the demo core. The
+investment-thesis multiple is centralized in `investment_thesis.multiple` (default
+3.0 over months 12->36); `growth_commitment.multiple_3y` remains a deprecated
+backwards-compatible alias.
+
+Explored and rejected for the demo core:
+
+- `U_plan` / `max_plan_vc`: treats MoM from the consensuated plan as an input driver
+  and can create a large compounded acquisition artifact. Rejected because MoM must
+  be a consequence of the committed path, not the source of value.
+- ADR 0010 `acquisition_ceiling.target_stock_multiplier`: useful legacy guardrail,
+  but its exogenous M is exactly the arbitrary value-driver problem this closure
+  avoids. Rejected as demo core; retained as default-on legacy behavior only.
+
 Terminology: *aggregate acquisition envelope / planning envelope / growth plausibility
 envelope*. Technical honesty: mathematically it is an upper bound; the defensible
 difference vs. the ADR 0010 ceiling is **traceability** (client plan + VC benchmark +
@@ -325,8 +341,10 @@ deterministic scenario (`tests/test_acquisition_envelope.py::test_parity_det_sto
 
 Coexistence with the ADR 0010 log ceiling: **allowed and documented** — when both are
 active the tighter bound binds at each t (verified in
-`test_envelope_coexists_with_log_ceiling`). In the core methodology the envelope
-supersedes the ceiling (benchmarks below run ceiling-off).
+`test_envelope_coexists_with_log_ceiling`). ADR 0010 remains legacy default-on behavior
+inside `generate_instance()` when the block is absent. The demo/core profile therefore
+sets `acquisition_ceiling.enabled: false` explicitly; the envelope supersedes the
+ceiling in that profile.
 
 ### Third-party unbounded path closed (MVP)
 
@@ -347,14 +365,19 @@ committee commitment). The implementation stays (opt-in, default-off, tested) as
 
 ### Benchmarks under the new core
 
-`scripts/growth_commitment_benchmarks.py` adds the core mode (commitment + envelope,
-ceiling off) over the four `benchmark_v0` instances: **all four Optimal** — exactly
-where the isolated floor was `Unbounded`, the envelope bounds the problem with
-business meaning. The envelope is the effective brake (binding 24/24 optimized months
-in three cases, 16/24 in kavacomex). Deltas vs. the `off` baseline are explained in
-`growth_commitment_benchmarks.md` (the envelope is not a uniform cut of the ceiling:
-it grows with plan momentum where the log ceiling decays, so high-momentum plans gain
-value and conservative plans lose some).
+`scripts/growth_commitment_benchmarks.py` adds the demo/core mode (commitment +
+VC-minimum envelope, `delta=0`, ceiling off) over the four `benchmark_v0` instances:
+**all four Optimal** — exactly where the isolated floor was `Unbounded`, the envelope
+bounds the problem with business meaning. Deltas vs. the `off` baseline are explained
+in `growth_commitment_benchmarks.md`: the optimizer's job is resource-optimal
+attainment of the committed path; VAN and MoM are consequences, not calibration
+targets.
+
+DD18 (`conservative_plan_diagnostic`) is experimental/advisory only. A
+`Conservative` result is returned as passed/ok so it never blocks stochastic
+valuation or changes the DD verdict. If the bisection reaches the configured
+upper cap, it reports "feasible up to tested cap"; the reported `M_star_feasible`
+is not a market maximum.
 
 ### Rollback (closes review gap 3)
 

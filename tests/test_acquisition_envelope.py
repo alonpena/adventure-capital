@@ -270,3 +270,34 @@ def test_envelope_exported_in_growth_suggestions():
     config_off = _base_config()
     suggestions_off = compute_growth_suggestions(config_off)
     assert "acquisition_envelope" not in suggestions_off
+
+
+def test_envelope_vc_path_uses_investment_thesis_multiple():
+    config = _base_config(
+        investment_thesis={
+            "multiple": 4.0,
+            "horizon_months": 36,
+            "base_month": 12,
+            "dd_revenue_gate_usd": 1_000_000,
+            "interpolation": "geometric",
+        },
+        acquisition_ceiling={"enabled": False},
+        growth_commitment={"enabled": True, "source": "vc_minimum", "checkpoints": "annual"},
+        acquisition_envelope={"enabled": True, "source": "vc_minimum"},
+    )
+    inst = generate_instance(config)
+    c12 = inst["growth_commitment"]["C12"]
+    assert inst["growth_commitment"]["checkpoint_targets"][36] == pytest.approx(4.0 * c12)
+    assert inst["acquisition_envelope"]["multiple_3y"] == pytest.approx(4.0)
+    suggestions = compute_growth_suggestions(config)
+    assert suggestions["investment_thesis"]["multiple"] == pytest.approx(4.0)
+
+
+def test_demo_growth_core_profile_flags():
+    config = load_config("configs/demo-growth-core.yaml")
+    inst = generate_instance(config)
+    assert inst["log_ceiling"] == {}
+    assert inst["acquisition_envelope"]["enabled"] is True
+    assert inst["acquisition_envelope"]["source"] == "vc_minimum"
+    assert inst["acquisition_envelope"]["slack_year2"] == 0.0
+    assert inst["acquisition_envelope"]["slack_year3"] == 0.0

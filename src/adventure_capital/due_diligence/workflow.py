@@ -43,6 +43,7 @@ from adventure_capital.due_diligence.rules import (
     evaluate_synthesis_rules,
     map_calibration_findings,
     resolve_thresholds,
+    rule_conservative_plan_diagnostic,
     rule_exit_roi,
     rule_growth_commitment_infeasible,
     rule_growth_commitment_warnings,
@@ -214,6 +215,9 @@ def run_due_diligence(
     w3_inline = rule_growth_commitment_infeasible(solver_status, config)
     if w3_inline is not None:
         synthesis_findings.append(w3_inline)
+    dd18 = rule_conservative_plan_diagnostic(config)
+    if dd18 is not None:
+        synthesis_findings.append(dd18)
     liquidity = compute_liquidity_diagnostic(optimized, config)
     if wc_diagnostic and wc_diagnostic.get("feasible") is False:
         liquidity.update(
