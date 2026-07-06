@@ -1,5 +1,13 @@
 # Dinámica de crecimiento — decisión final
 
+> **SUPERSEDIDO EN LA RECOMENDACIÓN (2026-07-06, corrección de Alonso):** la
+> fricción de contratación NO es el mecanismo core de acotamiento — queda como
+> feature opcional experimental/de sensibilidad. El core vigente es
+> `growth_commitment` (piso) + `acquisition_envelope` (envolvente agregada de
+> adquisición derivada del plan consensuado). Ver
+> `NEXT_AGENT_HANDOFF_GROWTH_CORE.md` y ADR 0014 (enmienda). La EVIDENCIA de
+> este documento (E1-E4, causa económica del unbounded) sigue válida.
+
 Fecha: 2026-07-05 · Evidencia: `threshold_analysis.md` (E1–E4),
 `growth_band_experiment.md` (B), `growth_dynamics_audit.md` (auditoría previa).
 Criterio rector: el crecimiento NO puede depender de ceiling ×8 arbitrario; si el

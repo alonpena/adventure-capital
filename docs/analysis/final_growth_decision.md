@@ -67,3 +67,40 @@ default-on comparta el múltiplo ×3. Piso sin ceiling = Unbounded en las 4
 
 - Revisor (Fable): PARTIAL, 2026-07-05.
 - Alonso: ☐ APPROVED PARA REBASELINE / ☐ MANTENER EXPERIMENTAL — pendiente.
+
+---
+
+# RE-VEREDICTO (2026-07-06) — core implementado: commitment + acquisition_envelope
+
+Branch revisado: `growth-law-adr14` (post-handoff, envelope implementado) ·
+Implementador/revisor: Fable · **Gate de rebaseline sigue siendo la firma de Alonso.**
+
+## Veredicto: **PARTIAL → listo para PASS con firma de Alonso**
+
+Todos los criterios técnicos del PASS están cumplidos; lo único pendiente es la
+aprobación humana de este documento (por diseño, el gate no es automatizable).
+
+| criterio PASS | resultado |
+|---|---|
+| Suite verde | ✅ **182 passed, 3 skipped** (baseline branch 172; +10 tests envelope) |
+| No-op garantizado | ✅ `test_envelope_off_is_noop` (objetivo idéntico + columnas iguales); commitment/hiring ya testeados |
+| Envolvente se comporta según diseño | ✅ U_t=max(U_plan,U_vc)·(1+δ) verificada; solución respeta U_t todos los meses; conflicto con piso ⇒ error temprano con diagnóstico de negocio |
+| Paridad det/estocástico | ✅ U_t sobre plan primera etapa; V-path idéntico (`test_parity_det_stoch_envelope`) |
+| Benchmarks explicados | ✅ core (commitment+envelope, ceiling off) **Optimal en las 4** donde el piso aislado era Unbounded; deltas vs off explicados en `growth_commitment_benchmarks.md` |
+| Third-party | ✅ agujero unbounded cerrado (`A_tp_cap` obligatorio + cap en ambos modelos) |
+| Hiring re-etiquetado | ✅ ADR 0014 Enmienda 1: experimental/sensibilidad, NO core; supersedes marcados en los 3 docs |
+| Rollback documentado | ✅ ADR 0014 Enmienda 1 §Rollback (cierra gap 3 del review) |
+| Docs actualizados | ✅ ADR enmendado, WORKLOG, banners de supersedido, este doc |
+
+Gaps 1-3 del veredicto anterior: **todos cerrados** (1-2 en d95ab61; 3 en la enmienda).
+
+## Qué NO se hizo (guardrails intactos)
+
+Sin merge con UI, sin tocar UI, sin rebaseline, sin flip de defaults
+(`acquisition_envelope.enabled: false` de fábrica), sin tocar `entrega-tesis`
+(`dd0cc08`), sin presentar hiring como core, sin "ceiling ×8".
+
+## Firma
+
+- Revisor (Fable): PARTIAL→PASS-pendiente-de-firma, 2026-07-06.
+- Alonso: ☐ APPROVED (PASS) / ☐ MANTENER EXPERIMENTAL — pendiente.

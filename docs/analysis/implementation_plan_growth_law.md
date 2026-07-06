@@ -1,5 +1,12 @@
 # Plan de implementación — ley de crecimiento (REV 2, decisiones de Alonso resueltas)
 
+> **SUPERSEDIDO EN §1 (2026-07-06, corrección de Alonso):** la recomendación de
+> fricción de contratación como mecanismo por defecto queda sin efecto — hiring
+> es feature experimental/de sensibilidad, NO core. El core vigente es
+> `growth_commitment` + `acquisition_envelope` (implementado, ver ADR 0014
+> enmienda y `NEXT_AGENT_HANDOFF_GROWTH_CORE.md`). El resto del plan (piso,
+> checkpoints, W1-W5, diagnóstico) sigue vigente y está implementado.
+
 Fecha: 2026-07-05 (rev 2, post-decisiones) · Reemplaza REV 1 del mismo día.
 Evidencia: `threshold_analysis.md` (E1–E4), `growth_band_experiment.md`,
 `growth_dynamics_final.md`, `objective_sweep.md`, `saa_here_and_now_final.md`.

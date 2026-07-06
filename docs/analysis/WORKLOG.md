@@ -173,3 +173,21 @@ claves) — sin código a revertir, el no-op está verificado por test
   de defensa). Recomendaciones previas de fricción-como-default SUPERSEDIDAS.
 - Branch: KEEP con modificaciones (nada se revierte; envelope se agrega). Sin
   merge, sin UI, sin rebaseline. entrega-tesis intacto (`dd0cc08`, 161 tests).
+
+## Rev 2026-07-06 — implementación del core: aggregate acquisition envelope (ADR 0014 enmienda 1)
+
+| tarea | estado | notas |
+|---|---|---|
+| `acquisition_envelope` config + validación | ✅ | schema §2 del handoff (source enum, slack≥0, custom_path largo H−12 + justificación obligatoria W4). Default `enabled: false` |
+| U_t precomputada en `instance.py` | ✅ | U_plan (Abar12·(1+g_mom)^(t−12), TOTAL entre servicios — decisión Alonso), U_vc (senda B_t=C12·m^((t−12)/24) neta de churn ponderado por stock C12), U_t=max·(1+δ_t), δ=0.25/0.50 declarado. Chequeo temprano envolvente-vs-piso: si U_t no alcanza un checkpoint ⇒ ValueError con mensaje de diagnóstico de negocio (sin pagar solve) |
+| Restricción `Σ_s A[s,t] ≤ U_t` (t≥13) | ✅ | `model.py` bloque aditivo opt-in; coexistencia con log ceiling permitida y documentada (gana la cota más apretada — decisión Alonso) |
+| Paridad estocástica | ✅ | mismo U_t sobre `plan_total` primera etapa; V-path idéntico verificado |
+| Third-party: agujero unbounded cerrado | ✅ | `A_tp_cap` obligatorio si `third_party.active` (error de validación si falta); cap `Σ_s A_tp ≤ A_tp_cap` t≥13 en ambos modelos. 2 tests existentes actualizados con el cap |
+| Tests nuevos | ✅ | `tests/test_acquisition_envelope.py` (10): no-op off, construcción U_t, U_t respetada, coexistencia ceiling, conflicto piso⇒diagnóstico temprano, core end-to-end, paridad det/stoch, validaciones, tp sin cap ⇒ error, export a growth_suggestions. Suite **182 passed, 3 skipped** |
+| growth_suggestions.json | ✅ | bloque `acquisition_envelope` (U_plan/U_vc/U_t/g_mom/slacks) cuando enabled — derivación auditable en el artefacto |
+| Benchmarks core nuevo | ✅ | modo `core` (commitment+envelope, ceiling OFF) en las 4 instancias: **Optimal en las 4** — donde el piso aislado era Unbounded. U_t freno efectivo (24/24 meses binding en 3 casos). Deltas vs off explicados (envolvente crece con momentum del plan donde el ceiling decae): godemos +13%, beloop ~5.6×, kavacomex VAN −378k→+686k, entrena −28% |
+| Docs | ✅ | ADR 0014 Enmienda 1 (core = commitment+envelope; hiring experimental NO core; rollback — cierra gap 3); banners de supersedido en `growth_dynamics_final.md`, `implementation_plan_growth_law.md` §1, `unbounded_path_diagnosis.md` §0; `final_growth_decision.md` re-veredicto |
+
+**No tocado (guardrails)**: entrega-tesis, UI, defaults globales, goldens, rebaseline.
+**Rollback**: `acquisition_envelope.enabled: false` (+ commitment/hiring off) = no-op
+total testeado; branch-level = abandonar `growth-law-adr14` (fallback `dd0cc08`).

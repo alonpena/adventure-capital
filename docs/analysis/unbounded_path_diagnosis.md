@@ -1,5 +1,12 @@
 # Diagnóstico del camino Unbounded (modo destino)
 
+> **SUPERSEDIDO EN EL FRAMING §0 (2026-07-06, corrección de Alonso):** el "modo
+> destino" ya NO es piso + fricción de contratación — la fricción queda como
+> feature experimental/de sensibilidad, no core. El core vigente es
+> `growth_commitment` + `acquisition_envelope` (ADR 0014 enmienda); el agujero
+> third-party de §5-6 quedó cerrado con la validación `A_tp_cap` obligatoria.
+> La evidencia técnica de este documento sigue válida.
+
 Fecha: 2026-07-05 · Branch: `growth-law-adr14` · Script reproducible:
 `scripts/unbounded_path_matrix.py` (correr DESDE este branch/worktree).
 Configuración auditada: `acquisition_ceiling.enabled=false` +

@@ -265,3 +265,111 @@ Full results and per-case reading: `docs/analysis/growth_commitment_benchmarks.m
 - **Raising the log ceiling's default multiplier ("x8") as part of this feature.**
   Explicitly rejected per review — the ceiling is not made core to the commitment; the
   commitment must (and does) work correctly with the ceiling disabled.
+
+---
+
+## Amendment 1 (2026-07-06) — core = commitment + aggregate acquisition envelope; hiring re-labeled experimental
+
+**Status: accepted (Alonso, 2026-07-05/06). Supersedes any framing in this ADR or in
+`growth_dynamics_final.md` / `implementation_plan_growth_law.md` REV 2 §1 /
+`unbounded_path_diagnosis.md` §0 that presents hiring friction as the core
+growth-control mechanism.**
+
+### The core methodology
+
+The thesis-core growth mechanism is the pairing:
+
+1. **`growth_commitment`** — the investment-thesis FLOOR (unchanged, above):
+   `C24 >= sqrt(3)*C12`, `C36 >= 3*C12`, anchored on the consensuated 12-month plan.
+2. **`acquisition_envelope`** — the **aggregate acquisition envelope**: an upper path
+   `sum_s A[s,t] <= U_t` for `t >= 13`, precomputed in `instance.py` as constants
+   (MILP stays linear; same pattern as `checkpoint_targets`).
+
+Everything projected is anchored in the consensuated 12-month plan. If that plan
+cannot support the VC benchmarks, the model is not wrong: the entrepreneur's
+metrics/plan are insufficient and must be recalibrated. **Infeasible is a business
+diagnosis, not a solver failure.**
+
+### Envelope construction (all terms traceable, none exogenous)
+
+```text
+U_plan_t = Abar12 * (1 + g_mom)^(t-12)      Abar12, g_mom from the TOTAL year-1
+                                             consensuated acquisition plan (all services)
+U_vc_t   = max(0, B_t - B_{t-1}*(1-churn_t)) with B_t = C12 * m^((t-12)/24)
+                                             (acquisition required by the VC-minimum
+                                             stock path, net of churn; churn_t =
+                                             C12-stock-weighted aggregate monthly churn)
+U_t      = base(source) * (1 + delta_t)      source: plan_mom | vc_minimum |
+                                             max_plan_vc (default) | custom
+delta_t  = slack_year2 (t<=24) / slack_year3 (t>24) — DECLARED THESIS ASSUMPTION
+           (defaults 0.25 / 0.50), never hidden tuning
+custom   = Alejandro's override: verbatim monthly path, custom_justification REQUIRED (W4)
+```
+
+Terminology: *aggregate acquisition envelope / planning envelope / growth plausibility
+envelope*. Technical honesty: mathematically it is an upper bound; the defensible
+difference vs. the ADR 0010 ceiling is **traceability** (client plan + VC benchmark +
+churn + declared slack, not an exogenous market multiple M) and that it ships paired
+with a floor.
+
+Config schema and validation: `acquisition_envelope` block in `config.py` (source enum,
+slack >= 0, custom_path length/values, mandatory custom_justification). An early
+compatibility check in `instance.py` simulates the maximum reachable stock under U_t;
+if a commitment checkpoint is unreachable it raises immediately with the
+business-diagnosis message (recalibrate plan / raise justified slack / lower multiple)
+instead of paying for a MILP solve.
+
+Stochastic parity: U_t binds the first-stage `plan_total` (planned-first-stage
+criterion, same as the commitment floor). Verified: identical V-path, single
+deterministic scenario (`tests/test_acquisition_envelope.py::test_parity_det_stoch_envelope`).
+
+Coexistence with the ADR 0010 log ceiling: **allowed and documented** — when both are
+active the tighter bound binds at each t (verified in
+`test_envelope_coexists_with_log_ceiling`). In the core methodology the envelope
+supersedes the ceiling (benchmarks below run ceiling-off).
+
+### Third-party unbounded path closed (MVP)
+
+`channels.third_party.active: true` now REQUIRES an explicit `A_tp_cap` (monthly cap,
+enforced for t >= 13 in both models); missing key is a validation error. Third-party
+has no own capacity mechanism, so leaving it uncapped was a documented unbounded
+path (`unbounded_path_diagnosis.md` §5-6). Third-party is deliberately NOT modeled
+further — it is not central to the target business models.
+
+### Hiring friction: experimental / sensitivity-analysis only, NOT core
+
+Alonso explicitly rejected hiring friction as the main growth-camping mechanism:
+(a) empirically the NPV scales ~linearly in h, making h THE value driver — the same
+objection that killed the ceiling's M; (b) it de-anchors the projection from the
+consensuated plan (25-50 sellers in year 3 over 1-2-seller plans is indefensible as a
+committee commitment). The implementation stays (opt-in, default-off, tested) as an
+**optional sensitivity/experimental feature**. Do not present it as the thesis core.
+
+### Benchmarks under the new core
+
+`scripts/growth_commitment_benchmarks.py` adds the core mode (commitment + envelope,
+ceiling off) over the four `benchmark_v0` instances: **all four Optimal** — exactly
+where the isolated floor was `Unbounded`, the envelope bounds the problem with
+business meaning. The envelope is the effective brake (binding 24/24 optimized months
+in three cases, 16/24 in kavacomex). Deltas vs. the `off` baseline are explained in
+`growth_commitment_benchmarks.md` (the envelope is not a uniform cut of the ceiling:
+it grows with plan momentum where the log ceiling decays, so high-momentum plans gain
+value and conservative plans lose some).
+
+### Rollback (closes review gap 3)
+
+- **Feature-level**: `acquisition_envelope.enabled: false` + `growth_commitment.enabled:
+  false` + `hiring.enabled: false` (or delete the keys) => total no-op, bit-for-bit
+  identical solve (tested for all three: `*_off_is_noop`). No residual effect, no
+  goldens touched, no defaults flipped.
+- **Branch-level**: abandon `growth-law-adr14`; `entrega-tesis` (HEAD `dd0cc08`) is the
+  stable fallback (161-test suite green, working demo).
+- **Third-party gate**: reverting only the `A_tp_cap` requirement = removing the
+  validation block in `config.py` (configs with `third_party.active: false` — all
+  shipped configs — are unaffected either way).
+
+### Gate before any merge/rebaseline (unchanged)
+
+PASS verdict + Alonso's signature in `final_growth_decision.md` + rebaseline per plan
+§8 criteria + default flips as a separate commit. NO merge, NO UI, NO rebaseline in
+this phase.
