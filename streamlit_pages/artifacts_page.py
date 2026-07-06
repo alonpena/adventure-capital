@@ -42,7 +42,7 @@ _CATALOG: dict[str, tuple[str, str]] = {
     "stochastic_scenarios.csv": ("M4_STOCHASTIC", "Escenarios generados con VAN y variables realizadas"),
     "stochastic_summary.csv": ("M4_STOCHASTIC", "Estadísticos de la distribución (E[VAN], P50, CVaR)"),
     "stochastic_diagnostics.json": ("M4_STOCHASTIC", "Método, objetivo y diagnóstico del análisis"),
-    "saa_solution.json": ("M4_STOCHASTIC", "Solución de primera etapa del modelo SAA"),
+    "saa_solution.json": ("M4_STOCHASTIC", "Artefacto técnico SAA (no es el plan oficial)"),
     "stochastic_unit_economics.csv": ("M4_STOCHASTIC", "Unit economics por escenario"),
     "report_data.json": ("M5_REPORT", "Paquete de datos render-ready del reporte estándar"),
     "report.html": ("M5_REPORT", "Informe ejecutivo (documento oficial del caso)"),

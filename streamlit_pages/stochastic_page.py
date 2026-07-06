@@ -1,4 +1,4 @@
-"""Análisis de Escenarios — M4 con vocabulario de producto, no académico.
+"""Análisis de robustez (LHS) — M4 con vocabulario de producto, no académico.
 
 Superficie: escenarios generados, distribución de VAN, probabilidades, brecha
 de financiamiento. Los términos técnicos (CVaR, SAA, LHS) se dejan en tooltips
@@ -37,12 +37,12 @@ def _load_scenarios(run_id: str):
 def render(st) -> None:
     run_id = C.require_execution(st)
     if run_id is None:
-        st.title("Análisis de escenarios")
+        st.title("Análisis de robustez (LHS)")
         return
 
     C.page_header(
         st,
-        "Análisis de escenarios",
+        "Análisis de robustez (LHS)",
         "Distribución de resultados bajo incertidumbre — escenarios generados, probabilidades y brechas.",
         run_id=run_id,
     )

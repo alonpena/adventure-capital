@@ -1,0 +1,72 @@
+# Gold candidate — services / consulting / advisory hybrid.
+# Costos de capacidad (c_min/u_max) intencionalmente relevantes para mostrar
+# la mecánica floor/max de costos operacionales.
+
+H: 36
+VC: 420000
+beta: 0.32
+g_max_suavizado: 0.20
+
+servicios:
+  - nombre: Programa_Hibrido
+    ticket: 1450
+    frecuencia: 2
+    alpha: 0.82
+    churn_anual: [0.28, 0.20, 0.14]
+    c_u: 280
+    c_min: 9000
+    u_max: 70
+    A_base: [8, 9, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28]
+
+  - nombre: Asesoria_Premium
+    ticket: 3600
+    frecuencia: 6
+    alpha: 0.72
+    churn_anual: [0.24, 0.16, 0.10]
+    c_u: 900
+    c_min: 6500
+    u_max: 24
+    A_base: [2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7]
+
+meta: 22
+sup: 4
+rem_v: 1900
+rem_l: 3000
+com_v: 0.08
+com_l: 0.03
+g_adm: 6000
+RRHH_mensual: [22000, 28000, 36000]
+ciclo_op: [120, 90, 60]
+buffer_caja: 0
+tax: 0.125
+
+liquidity_policy:
+  type: none
+
+investment_thesis:
+  multiple: 3.0
+  horizon_months: 36
+  base_month: 12
+  dd_revenue_gate_usd: 1000000
+  interpolation: geometric
+
+growth_commitment:
+  enabled: true
+  source: vc_minimum
+  checkpoints: annual
+
+acquisition_ceiling:
+  enabled: false
+
+acquisition_envelope:
+  enabled: true
+  source: vc_minimum
+  slack_year2: 0.0
+  slack_year3: 0.0
+
+solver:
+  name: cbc
+  time_limit: 120
+  verbose: false
+
+commercial_productivity_lag: 1

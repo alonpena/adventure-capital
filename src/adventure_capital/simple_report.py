@@ -1,4 +1,4 @@
-"""M5 — simple Spanish HTML report from canonical flat M4 artifacts.
+"""M5 — professional MVP Spanish HTML report from canonical flat artifacts.
 
 This is the MVP delivery report. It deliberately does *not* depend on the
 ``standard_report`` package or on ``postprocessed_results``: it reads the
@@ -10,7 +10,8 @@ completed, omitted, blocked and failed M4 states alike.
 Artifacts consumed (all optional):
 ``growth_plan_summary.json``, ``valuation_summary.json``, ``unit_economics.csv``,
 ``due_diligence_report.json``, ``assessment_summary.json``,
-``stochastic_summary.csv``, ``stochastic_diagnostics.json``, ``saa_solution.json``.
+``stochastic_summary.csv``, ``stochastic_diagnostics.json``, ``saa_solution.json``,
+``optimized_results.csv`` and ``dashboard.png``.
 """
 
 from __future__ import annotations
@@ -23,14 +24,62 @@ from pathlib import Path
 from typing import Any
 
 REPORT_FILENAME = "report.html"
+REPORT_PRINT_FILENAME = "report_print.html"
+
+_TEXT = {
+    "subtitle": "Valorización determinista, plan de crecimiento target-driven y análisis de robustez.",
+    "deterministic": (
+        "El plan oficial del MVP se obtiene con el modelo determinista target-driven: "
+        "la tesis de inversión fija el crecimiento objetivo y el optimizador calcula "
+        "la ejecución eficiente en recursos para alcanzarlo."
+    ),
+    "robustness": (
+        "M4 evalúa la robustez del plan bajo incertidumbre mediante escenarios LHS. "
+        "Reporta distribución de VAN, CVaR, probabilidad de VAN negativo y brecha de caja. "
+        "No reemplaza el plan determinista oficial."
+    ),
+    "dd": (
+        "La Due Diligence estructura los hallazgos de escalabilidad, caja y consistencia "
+        "del modelo. Su objetivo es recomendar recalibraciones, no emitir una recomendación "
+        "de inversión."
+    ),
+    "limitations": (
+        "Los casos con logística, downgrades, setup o base instalada requieren extensiones "
+        "estructurales. Se reportan como diagnóstico y trabajo futuro, no como fallas silenciosas."
+    ),
+    "footer": (
+        "Reporte MVP generado por Adventure Capital. Material de apoyo para tesis/demo; "
+        "no constituye recomendación de inversión."
+    ),
+}
 
 # Canonical flat artifacts, in display order, for the closing file listing.
 _ARTIFACT_FILES = [
+    "config.yaml",
+    "execution.json",
+    "report.html",
+    "report.pdf",
+    "report_print.html",
+    "financial_report.md",
+    "dashboard.png",
+    "optimized_results.csv",
+    "fixed_cashflow.csv",
+    "dcf_cashflow.csv",
+    "dcf_annual_summary.csv",
     "growth_plan_summary.json",
     "valuation_summary.json",
     "unit_economics.csv",
+    "multiples_valuation.csv",
     "due_diligence_report.json",
+    "due_diligence_report.md",
+    "calibration_report.md",
     "assessment_summary.json",
+    "growth_suggestions.json",
+    "sensitivity_wacc_multiple.csv",
+    "sensitivity_variables.csv",
+    "breakeven_variables.csv",
+    "mapvalue.json",
+    "model_instance.json",
     "stochastic_summary.csv",
     "stochastic_diagnostics.json",
     "saa_solution.json",
@@ -95,6 +144,13 @@ def _pct(value: Any) -> str:
         return "—"
 
 
+def _float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _kpi(label: str, value: str) -> str:
     return (
         '<div class="kpi"><div class="kpi-value">'
@@ -112,6 +168,110 @@ def _table(headers: list[str], rows: list[list[str]]) -> str:
         "<tr>" + "".join(f"<td>{_esc(c)}</td>" for c in row) + "</tr>" for row in rows
     )
     return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+
+
+def _paragraph(text: str) -> str:
+    return f'<p class="lead">{_esc(text)}</p>'
+
+
+def _dashboard_image(output_dir: Path) -> str:
+    if not (output_dir / "dashboard.png").exists():
+        return ""
+    return (
+        '<figure class="figure"><img src="dashboard.png" alt="Dashboard financiero" />'
+        "<figcaption>Dashboard generado desde artefactos canónicos del plan.</figcaption></figure>"
+    )
+
+
+def _svg_chart(
+    rows: list[dict[str, str]],
+    *,
+    title: str,
+    series: list[tuple[str, str, str]],
+    height: int = 240,
+) -> str:
+    """Small dependency-free SVG chart from monthly optimized results."""
+    if not rows:
+        return ""
+    points_by_series: list[tuple[str, str, list[tuple[float, float]]]] = []
+    values: list[float] = []
+    months: list[float] = []
+    for label, col, color in series:
+        pts: list[tuple[float, float]] = []
+        for row in rows:
+            t = _float(row.get("t"))
+            y = _float(row.get(col))
+            if t is None or y is None:
+                continue
+            pts.append((t, y))
+            months.append(t)
+            values.append(y)
+        if pts:
+            points_by_series.append((label, color, pts))
+    if not points_by_series or not months or not values:
+        return ""
+
+    width = 820
+    pad_l, pad_r, pad_t, pad_b = 58, 20, 26, 38
+    plot_w = width - pad_l - pad_r
+    plot_h = height - pad_t - pad_b
+    min_x, max_x = min(months), max(months)
+    min_y, max_y = min(values), max(values)
+    if min_y == max_y:
+        min_y -= 1.0
+        max_y += 1.0
+    if min_y > 0:
+        min_y = 0.0
+
+    def xy(point: tuple[float, float]) -> tuple[float, float]:
+        x, y = point
+        sx = pad_l + (x - min_x) / max(1.0, (max_x - min_x)) * plot_w
+        sy = pad_t + (max_y - y) / max(1.0, (max_y - min_y)) * plot_h
+        return sx, sy
+
+    zero_y = xy((min_x, 0.0))[1] if min_y <= 0 <= max_y else height - pad_b
+    lines = [
+        f'<div class="chart"><h3>{_esc(title)}</h3>',
+        f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="{_esc(title)}">',
+        f'<line x1="{pad_l}" y1="{zero_y:.1f}" x2="{width-pad_r}" y2="{zero_y:.1f}" class="axis zero" />',
+        f'<line x1="{pad_l}" y1="{pad_t}" x2="{pad_l}" y2="{height-pad_b}" class="axis" />',
+        f'<line x1="{pad_l}" y1="{height-pad_b}" x2="{width-pad_r}" y2="{height-pad_b}" class="axis" />',
+        f'<text x="{pad_l}" y="{height-12}" class="tick">m1</text>',
+        f'<text x="{width-pad_r-26}" y="{height-12}" class="tick">m{int(max_x)}</text>',
+        f'<text x="8" y="{pad_t+5}" class="tick">{_esc(_money(max_y))}</text>',
+        f'<text x="8" y="{height-pad_b}" class="tick">{_esc(_money(min_y))}</text>',
+    ]
+    legend = []
+    for label, color, pts in points_by_series:
+        path = " ".join(
+            ("M" if i == 0 else "L") + f"{xy(pt)[0]:.1f},{xy(pt)[1]:.1f}"
+            for i, pt in enumerate(pts)
+        )
+        lines.append(f'<path d="{path}" fill="none" stroke="{color}" stroke-width="2.5" />')
+        legend.append(f'<span><i style="background:{color}"></i>{_esc(label)}</span>')
+    lines.append("</svg>")
+    lines.append('<div class="legend">' + "".join(legend) + "</div></div>")
+    return "".join(lines)
+
+
+def _compact_monthly_table(rows: list[dict[str, str]]) -> str:
+    if not rows:
+        return ""
+    pick_months = {1, 6, 12, 18, 24, 30, 36}
+    selected = [r for r in rows if int(float(r.get("t", 0) or 0)) in pick_months]
+    table_rows = []
+    for r in selected:
+        table_rows.append(
+            [
+                _num(r.get("t")),
+                _num(r.get("Adq_clientes")),
+                _num(r.get("Clientes_activos")),
+                _money(r.get("Ingresos")),
+                _money(r.get("EBITDA")),
+                _money(r.get("Caja")),
+            ]
+        )
+    return _table(["Mes", "Adq.", "Clientes", "Ingresos", "EBITDA", "Caja"], table_rows)
 
 
 def _portada(assessment: dict[str, Any] | None, output_dir: Path) -> str:
@@ -148,13 +308,18 @@ def _resumen_ejecutivo(
         kpis.append(_kpi("CVaR 5% (M4)", _money(stoch_summary.get("cvar_5"))))
     if not kpis:
         return _section("Resumen ejecutivo", "<p>Sin KPIs disponibles.</p>")
-    return _section("Resumen ejecutivo", '<div class="kpi-grid">' + "".join(kpis) + "</div>")
+    body = _paragraph(_TEXT["subtitle"]) + '<div class="kpi-grid">' + "".join(kpis) + "</div>"
+    return _section("Resumen ejecutivo", body)
 
 
-def _m1_growth(growth: dict[str, Any] | None) -> str:
+def _m1_growth(
+    growth: dict[str, Any] | None,
+    optimized_rows: list[dict[str, str]],
+    output_dir: Path,
+) -> str:
     if not growth:
         return _section(
-            "M1 — Plan de Crecimiento Acelerado (determinista)",
+            "M1 — Plan determinista oficial",
             "<p>Artefacto <code>growth_plan_summary.json</code> no disponible.</p>",
         )
     channels = growth.get("enabled_channels") or []
@@ -169,9 +334,34 @@ def _m1_growth(growth: dict[str, Any] | None) -> str:
         ["Líderes máx.", _num(growth.get("max_leaders"))],
         ["Canales activos", ", ".join(channels) if channels else "—"],
     ]
+    charts = _dashboard_image(output_dir)
+    charts += _svg_chart(
+        optimized_rows,
+        title="Ingresos, EBITDA y caja mensual",
+        series=[
+            ("Ingresos", "Ingresos", "#2563EB"),
+            ("EBITDA", "EBITDA", "#059669"),
+            ("Caja", "Caja", "#D97706"),
+        ],
+    )
+    charts += _svg_chart(
+        optimized_rows,
+        title="Adquisición y clientes activos",
+        series=[
+            ("Adquisición", "Adq_clientes", "#7C3AED"),
+            ("Clientes activos", "Clientes_activos", "#0891B2"),
+        ],
+    )
+    compact = _compact_monthly_table(optimized_rows)
+    body = (
+        _paragraph(_TEXT["deterministic"])
+        + _table(["Métrica", "Valor"], rows)
+        + charts
+        + ("<h3>Tabla de aceleración</h3>" + compact if compact else "")
+    )
     return _section(
-        "M1 — Plan de Crecimiento Acelerado (determinista)",
-        _table(["Métrica", "Valor"], rows),
+        "M1 — Plan determinista oficial",
+        body,
     )
 
 
@@ -230,7 +420,7 @@ def _m3_due_diligence(dd: dict[str, Any] | None) -> str:
         ["Nivel de ajuste", dd.get("adjustment_level", "—")],
         ["Veredicto calibración", dd.get("calibration_verdict", "—")],
     ]
-    body = _table(["Métrica", "Valor"], rows)
+    body = _paragraph(_TEXT["dd"]) + _table(["Métrica", "Valor"], rows)
 
     blocking = dd.get("blocking_reasons") or []
     if blocking:
@@ -248,19 +438,20 @@ def _m3_due_diligence(dd: dict[str, Any] | None) -> str:
 
 def _m4_status_note(assessment: dict[str, Any] | None) -> str:
     """Explain why M4 is absent when there is no stochastic summary."""
+    intro = _paragraph(_TEXT["robustness"])
     stoch = (assessment or {}).get("stochastic")
     if not stoch:
-        return "<p>El análisis estocástico (M4) no se ejecutó en esta corrida.</p>"
+        return intro + "<p>El análisis de robustez (M4) no se ejecutó en esta corrida.</p>"
     if stoch.get("ran") is False:
         reason = stoch.get("reason", "desconocido")
-        return (
-            "<p>El análisis estocástico (M4) <strong>no se ejecutó</strong>. "
+        return intro + (
+            "<p>El análisis de robustez (M4) <strong>no se ejecutó</strong>. "
             f"Motivo: <code>{_esc(reason)}</code>. Modo de valorización: "
             f"<code>{_esc(stoch.get('valuation_mode', 'none'))}</code>.</p>"
         )
     status = stoch.get("status", "desconocido")
-    return (
-        "<p>El análisis estocástico (M4) corrió pero no alcanzó solución óptima. "
+    return intro + (
+        "<p>El análisis de robustez (M4) corrió pero no alcanzó solución óptima. "
         f"Estado del solver: <code>{_esc(status)}</code>. Reintentar con mayor "
         "<code>--stochastic-time-limit</code>.</p>"
     )
@@ -271,7 +462,7 @@ def _m4_stochastic(
     saa: dict[str, Any] | None,
     assessment: dict[str, Any] | None,
 ) -> str:
-    title = "M4 — Valorización Estocástica (SAA + CVaR)"
+    title = "M4 — Análisis de robustez (LHS)"
     if not stoch_summary:
         return _section(title, _m4_status_note(assessment))
 
@@ -296,7 +487,12 @@ def _m4_stochastic(
         ["Gap de financiamiento máximo", _money(s.get("max_funding_gap"))],
         ["Prob. caja bajo el piso", _pct(s.get("prob_cash_below_floor"))],
     ]
-    return _section(title, _table(["Métrica", "Valor"], rows))
+    note = (
+        _paragraph(_TEXT["robustness"])
+        + '<p class="note"><strong>Artefacto técnico:</strong> <code>saa_solution.json</code> '
+        "documenta la estrategia SAA. No es el plan oficial; el plan oficial es determinista.</p>"
+    )
+    return _section(title, note + _table(["Métrica", "Valor"], rows))
 
 
 def _artifacts_listing(output_dir: Path) -> str:
@@ -307,26 +503,92 @@ def _artifacts_listing(output_dir: Path) -> str:
     return _section("Artefactos canónicos", _table(["Archivo", "Estado"], rows))
 
 
+def _limitations_section() -> str:
+    return _section("Limitaciones y alcance", _paragraph(_TEXT["limitations"]))
+
+
 _STYLE = """
-body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0;
-  color: #1a1a2e; background: #f4f6fb; }
-.container { max-width: 960px; margin: 0 auto; padding: 24px; }
-h1 { font-size: 28px; margin-bottom: 4px; }
-.subtitle { color: #667; margin-top: 0; }
-section { background: #fff; border-radius: 10px; padding: 20px 24px; margin: 16px 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-h2 { font-size: 20px; border-bottom: 2px solid #e2e8f5; padding-bottom: 8px; }
-h3 { font-size: 16px; color: #334; margin-top: 20px; }
-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eef; font-size: 14px; }
-th { background: #f0f3fa; }
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px; margin-top: 8px; }
-.kpi { background: #f0f3fa; border-radius: 8px; padding: 14px; text-align: center; }
-.kpi-value { font-size: 20px; font-weight: 700; color: #2E86AB; }
-.kpi-label { font-size: 12px; color: #667; margin-top: 4px; }
-code { background: #eef; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
-footer { text-align: center; color: #99a; font-size: 12px; padding: 16px; }
+:root {
+  --ink: #232019;
+  --muted: #6f6a60;
+  --line: #e6dfd4;
+  --paper: #fffaf1;
+  --card: #ffffff;
+  --accent: #9d6b2f;
+  --blue: #2563eb;
+  --green: #059669;
+  --warn: #d97706;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0; color: var(--ink);
+  background: linear-gradient(180deg, #f7f1e7 0%, #f8fafc 44%, #f3f4f6 100%);
+}
+.container { max-width: 1120px; margin: 0 auto; padding: 28px; }
+.hero {
+  padding: 34px 0 18px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 38px; line-height: 1.05; margin: 0 0 8px;
+}
+.subtitle { color: var(--muted); margin: 0; max-width: 840px; font-size: 16px; }
+section {
+  background: rgba(255,255,255,.92); border: 1px solid var(--line);
+  border-radius: 12px; padding: 22px 26px; margin: 18px 0;
+  box-shadow: 0 12px 32px rgba(36, 28, 18, .07);
+}
+h2 {
+  font-size: 21px; margin: 0 0 14px;
+  border-bottom: 1px solid var(--line); padding-bottom: 10px;
+}
+h3 { font-size: 16px; color: #383226; margin: 20px 0 10px; }
+.lead { color: #4d463b; font-size: 15px; line-height: 1.6; margin: 0 0 14px; }
+.note {
+  background: #fff7e6; border: 1px solid #f1d49d; border-radius: 8px;
+  padding: 10px 12px; color: #4a3820;
+}
+table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+th, td {
+  text-align: left; padding: 9px 10px; border-bottom: 1px solid #eee8dc;
+  font-size: 13.5px; vertical-align: top;
+}
+th { background: #f4efe6; color: #3c352a; font-weight: 700; }
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px; margin-top: 12px;
+}
+.kpi {
+  background: linear-gradient(180deg, #fff 0%, #f9f5ed 100%);
+  border: 1px solid var(--line); border-radius: 10px;
+  padding: 16px; text-align: left;
+}
+.kpi-value { font-size: 22px; font-weight: 800; color: var(--accent); }
+.kpi-label { font-size: 12px; color: var(--muted); margin-top: 5px; }
+.figure { margin: 16px 0; }
+.figure img { width: 100%; border-radius: 10px; border: 1px solid var(--line); }
+figcaption { color: var(--muted); font-size: 12px; margin-top: 6px; }
+.chart {
+  margin: 16px 0; border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px; background: #fffdf9;
+}
+.chart svg { width: 100%; height: auto; display: block; }
+.axis { stroke: #c9c0b3; stroke-width: 1; }
+.zero { stroke-dasharray: 4 4; }
+.tick { fill: var(--muted); font-size: 11px; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: 12px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 5px; }
+code { background: #f1eadf; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+footer { text-align: center; color: #8b8377; font-size: 12px; padding: 18px; }
+@media print {
+  body { background: #fff; }
+  .container { max-width: none; padding: 12mm; }
+  section { break-inside: avoid; box-shadow: none; }
+  .hero { padding-top: 0; }
+}
 """
 
 
@@ -345,14 +607,16 @@ def build_simple_report(output_dir: str | Path) -> Path:
     saa = _load_json(out / "saa_solution.json")
     stoch_summary = _load_csv_first_row(out / "stochastic_summary.csv")
     unit_rows = _load_csv_rows(out / "unit_economics.csv")
+    optimized_rows = _load_csv_rows(out / "optimized_results.csv")
 
     sections = [
         _portada(assessment, out),
         _resumen_ejecutivo(growth, valuation, stoch_summary),
-        _m1_growth(growth),
+        _m1_growth(growth, optimized_rows, out),
         _m2_valuation(valuation, unit_rows),
         _m3_due_diligence(dd),
         _m4_stochastic(stoch_summary, saa, assessment),
+        _limitations_section(),
         _artifacts_listing(out),
     ]
 
@@ -361,14 +625,14 @@ def build_simple_report(output_dir: str | Path) -> Path:
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         "<title>Adventure Capital — Reporte</title>"
         f"<style>{_STYLE}</style></head><body><div class=\"container\">"
-        "<h1>Adventure Capital — Reporte de Valorización</h1>"
-        "<p class=\"subtitle\">Plan de Crecimiento Acelerado · Due Diligence · "
-        "Valorización Estocástica</p>"
+        "<div class=\"hero\"><h1>Adventure Capital — Reporte de Valorización</h1>"
+        f"<p class=\"subtitle\">{_esc(_TEXT['subtitle'])}</p></div>"
         + "".join(sections)
-        + "<footer>Generado por Adventure Capital · reporte simple (M5)</footer>"
+        + f"<footer>{_esc(_TEXT['footer'])}</footer>"
         "</div></body></html>"
     )
 
     report_path = out / REPORT_FILENAME
     report_path.write_text(document, encoding="utf-8")
+    (out / REPORT_PRINT_FILENAME).write_text(document, encoding="utf-8")
     return report_path

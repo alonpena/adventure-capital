@@ -24,7 +24,9 @@ def _run_m4(st, run_id: str) -> None:
             run_stochastic_only(run_id)
             st.session_state["current_run_id"] = run_id
             st.session_state["m4_gate_run_id"] = None
-            st.success("Análisis de escenarios completado. Revisa la página Análisis de escenarios.")
+            st.success(
+                "Análisis de robustez (LHS) completado. Revisa la página de robustez."
+            )
         except Exception as exc:
             st.error(f"El análisis de escenarios falló: {exc}. El plan determinista sigue disponible.")
             import traceback
@@ -63,12 +65,12 @@ def _render_m4_gate(st, run_id: str) -> None:
     # Warning / minor adjustment — require explicit confirmation.
     if verdict in _CONFIRM_VERDICTS:
         st.warning("Due diligence aprobó con advertencias. Decide si continuar con el análisis "
-                   "de escenarios (M4) o quedarte con el plan determinista.")
+                   "de robustez (M4/LHS) o quedarte con el plan determinista oficial.")
         for rec in dd.get("adjustment_recommendations", []):
             msg = rec.get("recommendation") if isinstance(rec, dict) else rec
             st.markdown(f"- {msg}")
         c1, c2 = st.columns(2)
-        if c1.button("Continuar con análisis de escenarios", type="primary", key="m4_gate_confirm"):
+        if c1.button("Continuar con análisis de robustez", type="primary", key="m4_gate_confirm"):
             _run_m4(st, run_id)
             st.rerun()
         if c2.button("Mantener solo plan determinista", key="m4_gate_skip"):

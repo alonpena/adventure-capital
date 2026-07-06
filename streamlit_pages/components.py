@@ -312,7 +312,7 @@ STAGE_LABELS: dict[str, str] = {
     "M1_DETERMINISTIC": "Plan determinista",
     "M2_VALUATION": "Valoración",
     "M3_DUE_DILIGENCE": "Due diligence",
-    "M4_STOCHASTIC": "Análisis de escenarios",
+    "M4_STOCHASTIC": "Análisis de robustez (LHS)",
     "M5_REPORT": "Reporte",
 }
 
@@ -363,7 +363,7 @@ PAGE_REPORT = "Informe ejecutivo"
 PAGE_GROWTH = "Plan de crecimiento"
 PAGE_VALUATION = "Valoración"
 PAGE_DD = "Due diligence"
-PAGE_STOCH = "Análisis de escenarios"
+PAGE_STOCH = "Análisis de robustez (LHS)"
 PAGE_ARTIFACTS = "Artefactos"
 
 NAV_PAGES = [PAGE_REPORT, PAGE_GROWTH, PAGE_VALUATION, PAGE_DD, PAGE_STOCH, PAGE_ARTIFACTS]
