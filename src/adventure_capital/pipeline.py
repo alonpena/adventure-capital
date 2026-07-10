@@ -55,7 +55,7 @@ def run_pipeline(
         if doc_path.exists():
             doc = yaml.safe_load(doc_path.read_text(encoding="utf-8")) or {}
             dcf_params = doc.get("dcf", {})
-            
+
             # WACC propagation
             tasa_descuento = dcf_params.get("tasa_descuento")
             if tasa_descuento is None:
@@ -66,15 +66,15 @@ def run_pipeline(
                 country_risk = float(dcf_params.get("country_risk", 0.0))
                 risk_penalty = float(dcf_params.get("castigo_riesgo", 0.0))
                 tasa_descuento = rf + beta_capm * (rm - rf) + country_risk + risk_penalty
-            
+
             # Update WACC & beta in instance
             instance["beta_anual"] = float(tasa_descuento)
             instance["beta"] = (1 + instance["beta_anual"]) ** (1 / 12) - 1
-            
+
             # Re-calculate discount factors
             periods = instance.get("T", [])
             instance["descuento"] = {t: 1 / (1 + instance["beta"]) ** t for t in periods}
-            
+
             # Merge DCF parameters into params/parametros
             for p_key in ["parametros", "params"]:
                 if p_key in instance:

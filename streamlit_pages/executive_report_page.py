@@ -1,135 +1,147 @@
 """Informe Ejecutivo — primary client-facing deliverable.
 
-Embeds ``report.html`` inline via ``st.components.v1.html()``. If the standard
-report hasn't been generated yet, offers a button to build it. All data shown
-matches what the drill-down tabs display — they read from the same canonical
-artifacts.
+The page shows the *simple report* (``report.html``, built by
+``simple_report.build_simple_report`` during every run) inline, and offers the
+*standard report* (``standard_report.html`` + ``report.pdf``) as a separate,
+downloadable artifact that can be generated on demand. The standard report
+never overwrites the simple one.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-import streamlit as st
-
 from streamlit_pages import components as C
+
+STANDARD_FILENAME = "standard_report.html"
 
 
 def render(st) -> None:
-    st.title("Informe Ejecutivo")
-    st.caption("Reporte de valoración y plan de crecimiento — documento oficial del caso.")
-
     run_id = C.require_execution(st)
     if run_id is None:
+        st.title("Informe ejecutivo")
         return
 
-    exe = C.get_execution(run_id)
-    if exe is None:
-        return
-
-    _render_instance_header(st, run_id, exe)
-    _render_report_view(st, run_id)
-
-
-# --------------------------------------------------------------------------- #
-# Instance header
-# --------------------------------------------------------------------------- #
-
-
-def _render_instance_header(st, run_id: str, exe: dict) -> None:
-    c1, c2, c3 = st.columns([2, 1, 1])
-    with c1:
-        name = exe.get("instance_name", exe.get("name", run_id))
-        st.markdown(f"**Caso:** {name}")
-        st.caption(f"Ejecución: `{run_id}`")
-    with c2:
-        status = exe.get("status", "—")
-        icon = C.STATUS_ICON.get(status, "⚪")
-        st.metric("Estado", f"{icon} {status}")
-    with c3:
-        stages = exe.get("stages", {})
-        completed = sum(1 for s in stages.values() if s == "completed")
-        total = len(stages)
-        st.metric("Etapas completadas", f"{completed}/{total}")
-
-    # Stage status badges
-    stages = exe.get("stages", {})
-    badges = []
-    for stage_key in ["M1_DETERMINISTIC", "M2_VALUATION", "M3_DUE_DILIGENCE", "M4_STOCHASTIC", "M5_REPORT"]:
-        label = C.STAGE_LABELS.get(stage_key, stage_key)
-        state = stages.get(stage_key, "—")
-        icon = C.STATUS_ICON.get(state, "⚪")
-        badges.append(f"{icon} {label}")
-    st.markdown(" | ".join(badges))
-
-
-# --------------------------------------------------------------------------- #
-# Report view — embed report.html inline
-# --------------------------------------------------------------------------- #
-
-
-def _render_report_view(st, run_id: str) -> None:
-    report_path = C.report_html_path(run_id)
-
-    if report_path is None:
-        st.warning("El reporte no se ha generado aún para esta ejecución.")
-        _render_build_report_section(st, run_id)
-        return
-
-    # Check if standard report (report_data.json exists) or simple
-    report_data = C.canonical_json(run_id, "report_data.json")
-    has_standard = report_data is not None
-
-    if has_standard:
-        st.success("Reporte estándar disponible")
-    else:
-        C.note(st, "Reporte simple disponible. Genera el reporte estándar para obtener el documento completo.")
-
-    # Read and embed the report HTML
-    html_content = report_path.read_text(encoding="utf-8")
-    st.components.v1.html(html_content, height=800, scrolling=True)
-
-    # Download buttons
-    st.markdown("#### Descargar")
-    d1, d2 = st.columns(2)
-    with d1:
-        C.download_html_button(st, run_id, label="📄 Descargar HTML")
-    with d2:
-        C.download_pdf_button(st, run_id, label="📕 Descargar PDF")
-
-    if not has_standard:
-        st.markdown("---")
-        _render_build_report_section(st, run_id)
-
-
-# --------------------------------------------------------------------------- #
-# Build standard report
-# --------------------------------------------------------------------------- #
-
-
-def _render_build_report_section(st, run_id: str) -> None:
-    st.markdown("#### Generar reporte estándar")
-    C.note(st, "El reporte estándar incluye narrativa parametrizada, gráficos por servicio, "
-               "matriz de sensibilidad WACC × múltiplo y diagrama MapValue. Requiere un documento YAML de narrativa.")
-
-    doc_path = st.text_input(
-        "Ruta del documento YAML de narrativa",
-        value="reports/valuation-base.yaml",
-        key="exec_report_doc_path",
+    C.page_header(
+        st,
+        "Informe ejecutivo",
+        "Documento oficial de valoración y plan de crecimiento del caso.",
+        run_id=run_id,
     )
 
-    if st.button("🚀 Generar reporte estándar", type="primary", key="build_std_report"):
-        _build_standard_report(st, run_id, doc_path)
+    exe_dir = C.execution_path(run_id)
+    _repair_legacy_layout(st, exe_dir)
+    _render_simple_report(st, run_id, exe_dir)
+    st.markdown("---")
+    _render_standard_report_section(st, run_id, exe_dir)
 
 
-def _build_standard_report(st, run_id: str, doc_path: str) -> None:
+# --------------------------------------------------------------------------- #
+# Legacy repair — older runs where the standard report overwrote report.html
+# --------------------------------------------------------------------------- #
+
+
+def _repair_legacy_layout(st, exe_dir: Path) -> None:
+    """If report.html holds the standard report, move it aside and rebuild the simple one."""
+    report = exe_dir / "report.html"
+    standard = exe_dir / STANDARD_FILENAME
+    if not report.exists() or standard.exists():
+        return
+    head = report.read_text(encoding="utf-8", errors="ignore")[:4000]
+    if 'class="section-tag"' not in head and "section-tag" not in head:
+        return  # already the simple report
+    report.rename(standard)
+    try:
+        from adventure_capital.simple_report import build_simple_report
+
+        build_simple_report(exe_dir)
+    except Exception as exc:
+        st.warning(f"No se pudo regenerar el informe simple: {exc}")
+
+
+# --------------------------------------------------------------------------- #
+# Simple report — the executive document
+# --------------------------------------------------------------------------- #
+
+
+def _render_simple_report(st, run_id: str, exe_dir: Path) -> None:
+    report_path = exe_dir / "report.html"
+
+    if not report_path.exists():
+        st.warning("El informe ejecutivo no se ha generado aún para esta ejecución.")
+        if st.button("Generar informe ejecutivo", type="primary", key="build_simple_report"):
+            from adventure_capital.simple_report import build_simple_report
+
+            with st.spinner("Generando informe ejecutivo…"):
+                try:
+                    build_simple_report(exe_dir)
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"Error generando el informe: {exc}")
+        return
+
+    t1, _ = st.columns([1, 5])
+    with t1:
+        C.download_html_button(st, run_id, label="Descargar informe (HTML)")
+
+    C.embed_report_html(st, report_path, height=1100)
+    C.source_caption(st, "M5_REPORT", "report.html")
+
+
+# --------------------------------------------------------------------------- #
+# Standard report — downloadable artifact, generated on demand
+# --------------------------------------------------------------------------- #
+
+
+def _render_standard_report_section(st, run_id: str, exe_dir: Path) -> None:
+    st.markdown("### Reporte estándar")
+    st.caption(
+        "Documento extendido con narrativa parametrizada, gráficos por servicio, "
+        "sensibilidad WACC × múltiplo y diagrama MapValue."
+    )
+
+    standard = exe_dir / STANDARD_FILENAME
+    pdf = exe_dir / "report.pdf"
+
+    if standard.exists():
+        c1, c2, _ = st.columns([1, 1, 4])
+        with c1:
+            C.download_html_button(
+                st, run_id, label="Descargar estándar (HTML)", filename=STANDARD_FILENAME
+            )
+        with c2:
+            if pdf.exists():
+                C.download_pdf_button(st, run_id, label="Descargar estándar (PDF)")
+        with st.expander("Ver reporte estándar"):
+            C.embed_report_html(st, standard, height=1000)
+        C.source_caption(st, "M5_REPORT", STANDARD_FILENAME)
+        with st.expander("Regenerar reporte estándar"):
+            _render_build_form(st, run_id, exe_dir)
+    else:
+        _render_build_form(st, run_id, exe_dir)
+
+
+def _render_build_form(st, run_id: str, exe_dir: Path) -> None:
+    default_doc_path = (
+        "reports/gold-b2b-saas.yaml"
+        if Path("reports/gold-b2b-saas.yaml").exists()
+        else "reports/valuation-base.yaml"
+    )
+    doc_path = st.text_input(
+        "Documento YAML de narrativa",
+        value=default_doc_path,
+        key="exec_report_doc_path",
+    )
+    if st.button("Generar reporte estándar", type="primary", key="build_std_report"):
+        _build_standard_report(st, exe_dir, doc_path)
+
+
+def _build_standard_report(st, exe_dir: Path, doc_path: str) -> None:
     from adventure_capital.standard_report import build_report_data_package, render_report
 
-    exe_dir = C.execution_path(run_id)
     if not exe_dir.exists():
         st.error(f"Directorio de ejecución no encontrado: {exe_dir}")
         return
-
     doc = Path(doc_path)
     if not doc.exists():
         st.error(f"Documento YAML no encontrado: {doc_path}")
@@ -146,10 +158,21 @@ def _build_standard_report(st, run_id: str, doc_path: str) -> None:
             st.error(f"Error construyendo paquete de datos: {exc}")
             return
 
-    with st.spinner("Renderizando reporte HTML…"):
+    with st.spinner("Renderizando reporte estándar…"):
+        # WeasyPrint needs Homebrew's shared libraries on macOS.
+        import os
+
+        os.environ.setdefault("DYLD_FALLBACK_LIBRARY_PATH", "/opt/homebrew/lib")
         try:
-            render_report(str(exe_dir))
-            st.success("Reporte estándar generado exitosamente.")
-            st.rerun()
-        except Exception as exc:
-            st.error(f"Error renderizando reporte: {exc}")
+            render_report(str(exe_dir), filename=STANDARD_FILENAME, pdf=True)
+        except Exception:
+            # PDF backend (WeasyPrint) may be unavailable — keep the HTML.
+            try:
+                render_report(str(exe_dir), filename=STANDARD_FILENAME)
+                st.info("Reporte estándar generado (PDF no disponible: requiere WeasyPrint).")
+            except Exception as exc:
+                st.error(f"Error renderizando reporte: {exc}")
+                return
+        else:
+            st.success("Reporte estándar generado (HTML + PDF).")
+        st.rerun()

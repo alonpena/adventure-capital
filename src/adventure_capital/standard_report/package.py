@@ -65,6 +65,20 @@ def _load_instance(instance_path: str | Path | None) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+def _load_stochastic_summary(out: Path) -> dict[str, Any]:
+    path = out / "stochastic_summary.csv"
+    if not path.exists():
+        return {}
+    try:
+        df = pd.read_csv(path)
+    except Exception:
+        return {}
+    if df.empty:
+        return {}
+    row = df.iloc[0].to_dict()
+    return {str(key): value for key, value in row.items() if pd.notna(value)}
+
+
 def _optional_artifacts(out: Path) -> dict[str, str]:
     candidates = {
         "summary": "summary.json",
@@ -147,6 +161,10 @@ def build_report_data_package(
 
     document = load_document(document_path)
     instance = _load_instance(instance_path)
+    if instance is None:
+        instance = _load_instance(out / "model_instance.json")
+    if instance is None:
+        instance = _load_instance(out / "config.yaml")
     created_at = datetime.now(timezone.utc).isoformat()
     summary = _build_summary(out)
     derived_paths = write_derived_artifacts(out, document)
@@ -194,7 +212,7 @@ def build_report_data_package(
         "created_at": created_at,
         "document": {
             "title": document.get("document", {}).get("title", "Informe de Valorización"),
-            "company_name": document.get("document", {}).get("company_name") or document.get("empresa", {}).get("nombre", "Empresa Demo SpA"),
+            "company_name": document.get("document", {}).get("company_name") or document.get("empresa", {}).get("nombre", "Instancia Adventure Capital"),
             "report_date": document.get("document", {}).get("report_date") or document.get("report", {}).get("date") or document.get("fecha_referencia", ""),
             "author": document.get("document", {}).get("author") or document.get("report", {}).get("author", "Adventure Capital"),
             "scope": scope,
@@ -213,6 +231,7 @@ def build_report_data_package(
             "method": document.get("sensitivity", {}).get("method", "calculation"),
             "include_ltv_cac_reference": document.get("sensitivity", {}).get("include_ltv_cac_reference", False),
         },
+        "stochastic_summary": _load_stochastic_summary(out),
     }
 
     manifest_artifacts = {

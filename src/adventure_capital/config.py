@@ -10,6 +10,13 @@ import yaml
 
 
 _FIXED_ACQUISITION_MONTHS = 12
+_DEFAULT_INVESTMENT_THESIS: dict[str, Any] = {
+    "multiple": 3.0,
+    "horizon_months": 36,
+    "base_month": 12,
+    "dd_revenue_gate_usd": 1_000_000,
+    "interpolation": "geometric",
+}
 
 
 _DEFAULT_CONFIG: dict[str, Any] = {
@@ -46,6 +53,7 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "ebitda_multiple": 1.0,
     "liquidity_policy": {"type": "none"},
     "working_capital": {"enabled": False, "floor_mode": "ticket"},
+    "investment_thesis": deepcopy(_DEFAULT_INVESTMENT_THESIS),
     # Logarithmic market-saturation growth law (ADR 0010). Default-on: the curve is
     # fitted so cumulative acquisition reaches target_stock_multiplier x the year-1 base
     # plan by t = H (the VC "triple your clients" benchmark). slack is the upward
@@ -54,6 +62,21 @@ _DEFAULT_CONFIG: dict[str, Any] = {
         "enabled": True,
         "target_stock_multiplier": 3.0,
         "slack": 0.15,
+    },
+    # Aggregate acquisition envelope (ADR 0014 amendment): maximum acquisition
+    # path derived from the consensuated 12-month plan (U_plan), the VC-minimum
+    # stock path net of churn (U_vc), and a declared growing slack. Opt-in,
+    # default off — pairs with the growth_commitment floor as the core growth
+    # methodology. Never framed as an arbitrary market ceiling: every term of
+    # U_t is traceable to the client plan, the investment thesis, or a declared
+    # thesis assumption (slack_year2/slack_year3).
+    "acquisition_envelope": {
+        "enabled": False,
+        "source": "max_plan_vc",  # plan_mom | vc_minimum | max_plan_vc | custom
+        "slack_year2": 0.25,  # declared thesis assumption, not hidden tuning
+        "slack_year3": 0.50,
+        "custom_path": None,  # optional monthly list for months 13..H (override)
+        "custom_justification": None,
     },
     "channels": {
         "salesforce": {"active": True, "min_share": 0.0, "max_share": 1.0},
@@ -72,6 +95,34 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "solver": {"name": "cbc", "time_limit": 300, "verbose": False},
     "commercial_productivity_lag": 0,
 }
+
+
+def resolve_investment_thesis(config: dict[str, Any]) -> dict[str, Any]:
+    """Return investment-thesis defaults plus backwards-compatible aliases.
+
+    ``growth_commitment.multiple_3y`` is kept as a deprecated alias for old
+    configs. New configs should set ``investment_thesis.multiple``.
+    """
+    raw = config.get("investment_thesis") or {}
+    thesis = deepcopy(_DEFAULT_INVESTMENT_THESIS)
+    thesis.update(raw)
+
+    growth_commitment = config.get("growth_commitment") or {}
+    if (
+        "multiple_3y" in growth_commitment
+        and (
+            "multiple" not in raw
+            or float(raw.get("multiple", 3.0)) == _DEFAULT_INVESTMENT_THESIS["multiple"]
+        )
+    ):
+        thesis["multiple"] = growth_commitment["multiple_3y"]
+
+    thesis["multiple"] = float(thesis["multiple"])
+    thesis["horizon_months"] = int(thesis["horizon_months"])
+    thesis["base_month"] = int(thesis["base_month"])
+    thesis["dd_revenue_gate_usd"] = float(thesis["dd_revenue_gate_usd"])
+    thesis["interpolation"] = str(thesis["interpolation"])
+    return thesis
 
 
 def default_config() -> dict[str, Any]:
@@ -164,6 +215,18 @@ def validate_config(config: dict[str, Any]) -> None:
         if working_capital.get("floor_mode", "ticket") not in {"ticket"}:
             raise ValueError("Unsupported working_capital.floor_mode (only 'ticket' supported).")
 
+    investment_thesis = resolve_investment_thesis(config)
+    if investment_thesis["multiple"] <= 1.0:
+        raise ValueError("investment_thesis.multiple / growth_commitment.multiple_3y must be > 1.0.")
+    if investment_thesis["base_month"] != _FIXED_ACQUISITION_MONTHS:
+        raise ValueError("investment_thesis.base_month must be 12 in the current monthly model.")
+    if investment_thesis["horizon_months"] <= investment_thesis["base_month"]:
+        raise ValueError("investment_thesis.horizon_months must be greater than base_month.")
+    if investment_thesis["interpolation"] != "geometric":
+        raise ValueError("investment_thesis.interpolation must be 'geometric'.")
+    if investment_thesis["dd_revenue_gate_usd"] < 0:
+        raise ValueError("investment_thesis.dd_revenue_gate_usd must be >= 0.")
+
     ceiling = config.get("acquisition_ceiling", {})
     if ceiling.get("enabled", False):
         multiplier = ceiling.get("target_stock_multiplier")
@@ -173,9 +236,96 @@ def validate_config(config: dict[str, Any]) -> None:
         if slack < 0.0:
             raise ValueError("acquisition_ceiling.slack must be >= 0.")
 
+    # Growth commitment (ADR 0014): investment-thesis FLOOR on the client stock —
+    # never a ceiling, never a default. Opt-in; absent block / enabled: false is a
+    # bit-for-bit no-op. C36 >= multiple_3y * C12 means "triple the client stock
+    # between the end of the consensuated year 1 (month 12) and the end of year 3
+    # (month 36)".
+    growth_commitment = config.get("growth_commitment", {})
+    if growth_commitment.get("enabled", False):
+        source = growth_commitment.get("source", "vc_minimum")
+        valid_sources = {"vc_minimum", "plan_mom", "custom", "none"}
+        if source not in valid_sources:
+            raise ValueError(
+                f"growth_commitment.source must be one of {sorted(valid_sources)}, got {source!r}."
+            )
+        multiple_3y = investment_thesis["multiple"]
+        if multiple_3y is None or multiple_3y <= 1.0:
+            raise ValueError("growth_commitment.multiple_3y / investment_thesis.multiple must be > 1.0.")
+        checkpoints = growth_commitment.get("checkpoints", "annual")
+        if checkpoints not in {"annual", "terminal"}:
+            raise ValueError(
+                f"growth_commitment.checkpoints must be 'annual' or 'terminal', got {checkpoints!r}."
+            )
+        floor_slack = growth_commitment.get("floor_slack", 0.0)
+        if floor_slack is None or not (0.0 <= floor_slack < 1.0):
+            raise ValueError("growth_commitment.floor_slack must be in [0, 1).")
+        if source == "custom":
+            custom_g_annual = growth_commitment.get("custom_g_annual")
+            if custom_g_annual is None or custom_g_annual <= 0.0:
+                raise ValueError(
+                    "growth_commitment.custom_g_annual must be > 0 when source is 'custom'."
+                )
+        # Ceiling/commitment coexistence (known trap, WORKLOG): if the exogenous
+        # log ceiling is active at the same time, it must not make the ×multiple
+        # floor structurally unreachable (ceiling target < commitment target).
+        if ceiling.get("enabled", False):
+            ceiling_multiplier = float(ceiling.get("target_stock_multiplier", 3.0))
+            if ceiling_multiplier < float(multiple_3y):
+                raise ValueError(
+                    "growth_commitment is infeasible by construction: acquisition_ceiling."
+                    f"target_stock_multiplier ({ceiling_multiplier}) < growth_commitment."
+                    f"multiple_3y ({multiple_3y}). Raise the ceiling multiplier, disable the "
+                    "ceiling, or lower the commitment multiple."
+                )
+
+    # Aggregate acquisition envelope (ADR 0014 amendment): opt-in upper path on
+    # TOTAL acquisition for t >= 13, derived from the consensuated plan and/or
+    # the VC-minimum stock path. Absent block / enabled: false is a no-op.
+    envelope = config.get("acquisition_envelope", {})
+    if envelope.get("enabled", False):
+        env_source = envelope.get("source", "max_plan_vc")
+        valid_env_sources = {"plan_mom", "vc_minimum", "max_plan_vc", "custom"}
+        if env_source not in valid_env_sources:
+            raise ValueError(
+                f"acquisition_envelope.source must be one of {sorted(valid_env_sources)}, "
+                f"got {env_source!r}."
+            )
+        for slack_key in ("slack_year2", "slack_year3"):
+            slack_value = envelope.get(slack_key, 0.0)
+            if slack_value is None or slack_value < 0.0:
+                raise ValueError(f"acquisition_envelope.{slack_key} must be >= 0.")
+        if env_source == "custom":
+            custom_path = envelope.get("custom_path")
+            expected_len = config["H"] - _FIXED_ACQUISITION_MONTHS
+            if not isinstance(custom_path, (list, tuple)) or len(custom_path) != expected_len:
+                raise ValueError(
+                    "acquisition_envelope.custom_path must be a list with one value per "
+                    f"optimized month (months 13..H = {expected_len} values) when source "
+                    "is 'custom'."
+                )
+            if any(v is None or float(v) < 0.0 for v in custom_path):
+                raise ValueError("acquisition_envelope.custom_path values must be >= 0.")
+            justification = envelope.get("custom_justification")
+            if not justification or not str(justification).strip():
+                raise ValueError(
+                    "acquisition_envelope.custom_justification is required when source is "
+                    "'custom' (W4: every override must carry an explicit justification)."
+                )
+
+    hiring = config.get("hiring", {})
+    if hiring.get("enabled", False):
+        max_sellers = hiring.get("max_new_sellers_per_month", 1)
+        max_leaders = hiring.get("max_new_leaders_per_month", 1)
+        if max_sellers is None or max_sellers < 0:
+            raise ValueError("hiring.max_new_sellers_per_month must be >= 0.")
+        if max_leaders is None or max_leaders < 0:
+            raise ValueError("hiring.max_new_leaders_per_month must be >= 0.")
+
     channels = config.get("channels")
     if channels is not None:
         active_max_share_sum = 0.0
+        active_min_share_sum = 0.0
         any_active = False
         for name in ("salesforce", "advertising", "third_party"):
             ch = channels.get(name)
@@ -191,14 +341,33 @@ def validate_config(config: dict[str, Any]) -> None:
                     f"channels.{name}: require 0 <= min_share <= max_share <= 1."
                 )
             active_max_share_sum += max_share
+            active_min_share_sum += min_share
         if any_active and active_max_share_sum < 1.0:
             raise ValueError(
                 "Sum of max_share across active channels must be >= 1.0 (mix otherwise infeasible)."
             )
+        if any_active and active_min_share_sum > 1.0:
+            raise ValueError(
+                "Sum of min_share across active channels must be <= 1.0 (mix otherwise infeasible)."
+            )
 
         third_party = channels.get("third_party", {})
-        if third_party.get("active", False) and third_party.get("commission", 0.0) < 0:
-            raise ValueError("channels.third_party.commission must be >= 0.")
+        if third_party.get("active", False):
+            if third_party.get("commission", 0.0) < 0:
+                raise ValueError("channels.third_party.commission must be >= 0.")
+            # Third-party has no own capacity mechanism (no salesforce meta, no
+            # advertising recta), so an active third-party channel without an
+            # explicit cap is a documented unbounded-growth path
+            # (unbounded_path_diagnosis §5-6). MVP decision: require the cap.
+            tp_cap = third_party.get("A_tp_cap")
+            if tp_cap is None:
+                raise ValueError(
+                    "channels.third_party.A_tp_cap is required when third_party is "
+                    "active: the channel has no own capacity, so an explicit monthly "
+                    "acquisition cap must be declared (or deactivate the channel)."
+                )
+            if float(tp_cap) < 0:
+                raise ValueError("channels.third_party.A_tp_cap must be >= 0.")
 
         advertising = channels.get("advertising", {})
         if advertising.get("active", False):

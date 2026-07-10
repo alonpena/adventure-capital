@@ -2,8 +2,8 @@
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  background: #0B1020;
-  color: #F9FAFB;
+  background: #FDFCF7;
+  color: #2D2924;
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
   font-size: 13px;
   line-height: 1.5;
@@ -14,18 +14,18 @@ body {
   page-break-after: always;
   padding: 38px 44px 56px;
   position: relative;
-  background: linear-gradient(135deg, #0B1020 0%, #111827 100%);
-  border-bottom: 1px solid #1F2937;
+  background: linear-gradient(135deg, #FDFCF7 0%, #FAF9F5 100%);
+  border-bottom: 1px solid #EBE6DC;
 }
 
 .cover {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background: radial-gradient(ellipse at top left, #1E293B 0%, #0B1020 60%);
+  background: radial-gradient(ellipse at top left, #FAF9F5 0%, #FDFCF7 60%);
 }
 .cover .brand {
-  color: #F59E0B;
+  color: #D97706;
   letter-spacing: 0.18em;
   font-size: 14px;
   text-transform: uppercase;
@@ -36,17 +36,17 @@ body {
   font-size: 62px;
   line-height: 1.0;
   margin: 0 0 12px;
-  color: #F9FAFB;
+  color: #2D2924;
 }
 .cover .hero {
   font-size: 48px;
-  color: #F59E0B;
+  color: #D97706;
   font-weight: 800;
   margin: 8px 0 12px;
 }
 .cover .subtitle {
   font-size: 18px;
-  color: #D1D5DB;
+  color: #4D4944;
   margin-bottom: 40px;
 }
 .cover-meta {
@@ -56,51 +56,51 @@ body {
   max-width: 720px;
 }
 .cover-meta > div {
-  background: #111827;
-  border: 1px solid #1F2937;
+  background: #FFFFFF;
+  border: 1px solid #EBE6DC;
   border-radius: 12px;
   padding: 16px 18px;
 }
 .cover-meta .label {
   display: block;
-  color: #9CA3AF;
+  color: #7A756D;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 6px;
 }
 .cover-meta .value {
-  color: #F9FAFB;
+  color: #2D2924;
   font-size: 16px;
   font-weight: 600;
 }
 
 .section-tag {
   display: inline-block;
-  color: #F59E0B;
+  color: #D97706;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   font-size: 11px;
   font-weight: 700;
   padding: 4px 10px;
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  border: 1px solid rgba(217, 119, 6, 0.35);
   border-radius: 999px;
   margin-bottom: 14px;
-  background: rgba(245, 158, 11, 0.05);
+  background: rgba(217, 119, 6, 0.05);
 }
 
-h1 { font-size: 56px; margin: 0 0 18px; color: #F59E0B; }
-h2 { font-size: 30px; margin: 0 0 16px; color: #F9FAFB; }
+h1 { font-size: 56px; margin: 0 0 18px; color: #D97706; }
+h2 { font-size: 30px; margin: 0 0 16px; color: #2D2924; }
 h3 {
-  color: #22D3EE;
+  color: #0891B2;
   margin: 22px 0 10px;
   font-size: 15px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 700;
 }
-p, li { color: #D1D5DB; font-size: 13px; line-height: 1.55; }
-p.muted { color: #9CA3AF; font-style: italic; }
+p, li { color: #4D4944; font-size: 13px; line-height: 1.55; }
+p.muted { color: #7A756D; font-style: italic; }
 
 .grid {
   display: grid;
@@ -118,23 +118,23 @@ p.muted { color: #9CA3AF; font-style: italic; }
 .tile-grid.three { grid-template-columns: repeat(3, 1fr); }
 
 .tile {
-  background: #111827;
-  border: 1px solid #1F2937;
+  background: #FFFFFF;
+  border: 1px solid #EBE6DC;
   border-radius: 12px;
   padding: 16px 18px;
 }
 .tile.primary {
-  border-color: rgba(245, 158, 11, 0.4);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, #111827 60%);
+  border-color: rgba(217, 119, 6, 0.4);
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.04) 0%, #FFFFFF 60%);
 }
 .tile .label {
-  color: #9CA3AF;
+  color: #7A756D;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 .tile .value {
-  color: #F9FAFB;
+  color: #D97706;
   font-size: 26px;
   font-weight: 800;
   margin-top: 8px;
@@ -145,8 +145,8 @@ img.chart {
   width: 100%;
   max-height: 360px;
   border-radius: 12px;
-  border: 1px solid #1F2937;
-  background: #0B1020;
+  border: 1px solid #EBE6DC;
+  background: #FDFCF7;
   margin: 8px 0 12px;
   object-fit: contain;
 }
@@ -155,20 +155,20 @@ img.chart {
 table.aggregation {
   width: 100%;
   border-collapse: collapse;
-  background: #0F172A;
+  background: #FFFFFF;
   border-radius: 10px;
   overflow: hidden;
   font-size: 12px;
   margin-bottom: 10px;
-  border: 1px solid #1F2937;
+  border: 1px solid #EBE6DC;
 }
 table.aggregation thead th {
-  background: #111827;
-  color: #F59E0B;
+  background: #FAF9F5;
+  color: #D97706;
   font-weight: 700;
   text-align: right;
   padding: 9px 10px;
-  border-bottom: 1px solid #1F2937;
+  border-bottom: 1px solid #EBE6DC;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -179,38 +179,38 @@ table.aggregation thead th:first-child {
 table.aggregation tbody th,
 table.aggregation tbody td {
   padding: 8px 10px;
-  border-bottom: 1px solid #1F2937;
-  color: #E5E7EB;
+  border-bottom: 1px solid #EBE6DC;
+  color: #2D2924;
   text-align: right;
 }
 table.aggregation tbody th {
   text-align: left;
-  color: #F9FAFB;
+  color: #2D2924;
   font-weight: 600;
   font-size: 12px;
 }
 table.aggregation tbody tr:last-child td,
 table.aggregation tbody tr:last-child th { border-bottom: none; }
 table.aggregation tr.totals {
-  background: rgba(245, 158, 11, 0.08);
+  background: rgba(217, 119, 6, 0.05);
 }
 table.aggregation tr.totals th,
 table.aggregation tr.totals td {
-  color: #F59E0B;
+  color: #D97706;
   font-weight: 700;
-  border-top: 1px solid rgba(245, 158, 11, 0.35);
+  border-top: 1px solid rgba(217, 119, 6, 0.25);
   border-bottom: none;
 }
 
 .narrative {
   margin-top: 18px;
   padding: 16px 20px;
-  background: rgba(34, 211, 238, 0.06);
-  border-left: 3px solid #22D3EE;
+  background: rgba(8, 145, 178, 0.05);
+  border-left: 3px solid #0891B2;
   border-radius: 0 12px 12px 0;
 }
 .narrative-headline {
-  color: #22D3EE;
+  color: #0891B2;
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.04em;
@@ -219,34 +219,30 @@ table.aggregation tr.totals td {
 }
 .narrative p {
   margin: 6px 0;
-  color: #E5E7EB;
+  color: #4D4944;
 }
-.narrative strong { color: #F59E0B; }
+.narrative strong { color: #D97706; }
 
 .footer {
   position: absolute;
   bottom: 18px;
   left: 44px;
   right: 44px;
-  color: #6B7280;
+  color: #7A756D;
   font-size: 11px;
   display: flex;
   justify-content: space-between;
-  border-top: 1px solid #1F2937;
+  border-top: 1px solid #EBE6DC;
   padding-top: 10px;
 }
 
 ul { padding-left: 18px; }
 ul li { margin: 4px 0; }
 
-/* ================================================================
-   Formula blocks — pseudocódigo matemático
-   No usar MathJax/KaTeX: WeasyPrint no ejecuta JS
-   ================================================================ */
 .formula-container {
   margin: 0.75rem 0 1rem 0;
-  border-left: 3px solid #2563EB;  /* azul Adventure Capital */
-  background: #0F172A;             /* slate-900 */
+  border-left: 3px solid #2563EB;
+  background: #FAF9F5;
   border-radius: 0 4px 4px 0;
   padding: 0.75rem 1rem;
   page-break-inside: avoid;
@@ -256,7 +252,7 @@ ul li { margin: 4px 0; }
   display: block;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   font-size: 0.65rem;
-  color: #64748B;  /* slate-500 */
+  color: #7A756D;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-bottom: 0.4rem;
@@ -265,20 +261,17 @@ ul li { margin: 4px 0; }
 .formula {
   font-family: 'JetBrains Mono', 'Courier New', monospace;
   font-size: 0.72rem;
-  color: #E2E8F0;  /* slate-200 */
+  color: #2D2924;
   margin: 0;
   white-space: pre-wrap;
   line-height: 1.6;
 }
 
-/* ================================================================
-   Valor Residual summary box
-   ================================================================ */
 .vr-summary {
   margin: 1rem 0;
-  background: #111827;
-  border: 1px solid #1F2937;
-  border-left: 3px solid #F59E0B; /* Golden color */
+  background: #FFFFFF;
+  border: 1px solid #EBE6DC;
+  border-left: 3px solid #D97706;
   border-radius: 0 12px 12px 0;
   padding: 16px 20px;
   page-break-inside: avoid;
@@ -286,7 +279,7 @@ ul li { margin: 4px 0; }
 
 .vr-summary h4 {
   margin: 0 0 8px;
-  color: #F59E0B;
+  color: #D97706;
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -295,13 +288,13 @@ ul li { margin: 4px 0; }
 .vr-method {
   margin: 4px 0;
   font-size: 13px;
-  color: #F9FAFB;
+  color: #2D2924;
 }
 
 .vr-note {
   margin: 4px 0 8px;
   font-size: 11px;
-  color: #9CA3AF;
+  color: #7A756D;
   font-style: italic;
 }
 
@@ -309,10 +302,10 @@ ul li { margin: 4px 0; }
   margin: 4px 0;
   font-size: 13px;
   font-weight: 600;
-  color: #38BDF8; /* sky-400 */
+  color: #0891B2;
 }
 
 .vr-warning {
-  color: #F87171; /* red-400 */
+  color: #DC2626;
   font-weight: 500;
 }

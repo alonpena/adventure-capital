@@ -80,6 +80,7 @@ def test_third_party_cost_wired():
             "commission": 0.1,
             "min_share": 0.2,
             "max_share": 0.5,
+            "A_tp_cap": 1000,
         },
     }
     instance = generate_instance(config)

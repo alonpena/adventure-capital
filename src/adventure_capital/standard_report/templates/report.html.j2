@@ -8,7 +8,7 @@
 <body>
   {% macro footer(page, total) -%}
   <div class="footer">
-    <span>Confidencial · Adventure Capital · {{ data.document.report_date }}</span>
+    <span>Confidencial · Adventure Capital · julio 2026</span>
     <span>{{ page }}{% if total %} / {{ total }}{% endif %}</span>
   </div>
   {%- endmacro %}
@@ -22,18 +22,6 @@
       {% endfor %}
     </div>
     {% endif %}
-  {% endmacro %}
-
-  {# ================================================================
-     Macro: formula_block
-     Renderiza un bloque de fórmulas monoespaciado con label.
-     Uso: {{ formula_block("Clientes", "Clientes_t = Clientes_{t-1} × (1-churn) + Nuevos_t") }}
-     ================================================================ #}
-  {% macro formula_block(label, equation) %}
-  <div class="formula-container">
-    <span class="formula-label">{{ label }}</span>
-    <pre class="formula">{{ equation }}</pre>
-  </div>
   {% endmacro %}
 
   {% macro render_table(table, kind="numeric") %}
@@ -74,32 +62,19 @@
     {% endif %}
   {% endmacro %}
 
-  {% set total_pages = 14 if data.document.scope == "ev_only" else 15 %}
+  {% set total_pages = 14 %}
 
+  {# --- Page 1: Cover --- #}
   <section class="page cover">
-    {% if data.document.scope == "ev_only" %}
-      {# Portada minimalista: solo identificadores cuantitativos #}
-      <div class="brand">Adventure Capital</div>
-      <h1 class="cover-title">{{ data.document.title }}</h1>
-      <div class="cover-company" style="font-size: 48px; color: #F59E0B; font-weight: 800; margin: 8px 0 12px;">{{ data.document.company_name }}</div>
-      <div class="cover-method" style="font-size: 18px; color: #D1D5DB; margin-bottom: 40px;">Metodología MapValue · DCF · CAPM</div>
-      <div class="cover-meta">
-        <div><span class="label">Autor</span><span class="value">{{ data.document.author }}</span></div>
-        <div><span class="label">Fecha</span><span class="value">{{ data.document.report_date }}</span></div>
-        <div><span class="label">Horizonte</span><span class="value">{{ data.dcf.horizonte_meses }} meses</span></div>
-        <div><span class="label">WACC</span><span class="value">{{ (data.dcf.tasa_descuento * 100) | round(1) }}%</span></div>
-      </div>
-    {% else %}
-      <div class="brand">Adventure Capital</div>
-      <h1>{{ data.document.title }}</h1>
-      <div class="hero">{{ data.document.company_name }}</div>
-      <div class="subtitle">Plan de aceleración · Valorización · Unit Economics</div>
-      <div class="cover-meta">
-        <div><span class="label">Autor</span><span class="value">{{ data.document.author }}</span></div>
-        <div><span class="label">Fecha</span><span class="value">{{ data.document.report_date }}</span></div>
-        <div><span class="label">Método</span><span class="value">DCF · CAPM · Múltiplos</span></div>
-      </div>
-    {% endif %}
+    <div class="brand">Adventure Capital</div>
+    <h1 class="cover-title">Informe de Valorización</h1>
+    <div class="cover-company" style="font-size: 42px; color: #D97706; font-weight: 800; margin: 20px 0;">{{ data.document.company_name }}</div>
+    <div class="cover-meta">
+      <div><span class="label">Autor</span><span class="value">{{ data.document.author }}</span></div>
+      <div><span class="label">Fecha</span><span class="value">julio 2026</span></div>
+      <div><span class="label">Horizonte de evaluación</span><span class="value">{{ data.dcf.horizonte_meses | default(36) }} meses</span></div>
+      <div><span class="label">Tasa de descuento (WACC)</span><span class="value">{{ ((data.dcf.tasa_descuento | default(0)) * 100) | round(1) }}%</span></div>
+    </div>
     {{ footer(1, total_pages) }}
   </section>
 
@@ -145,7 +120,6 @@
       <img class="chart" src="{{ data.figures.acquisition_year1 }}" alt="Adquisición año 1">
       <img class="chart" src="{{ data.figures.clients_evolution_36m }}" alt="Evolución de stock de clientes">
     </div>
-    {{ formula_block("Clientes", "Clientes_t  = Clientes_{t-1} * (1 - churn_rate) + Nuevos_t\nNuevos_t    = eff_sales * active_vendedores_t\nActivos_t   = Activos_{t-1} + hires_t - exits_t") }}
     <h3>Agregación anual</h3>
     {{ render_table(data.tables.clientes.summary) }}
     <h3>Adquisición por servicio</h3>
@@ -173,7 +147,6 @@
         </div>
       </div>
     </div>
-    {{ formula_block("Servicios", "Mix_s_t     = Clientes_s_t / Clientes_total_t            [fraccion por servicio s]\nPenetration_s_t = Clientes_s_t / TAM_s                   [si TAM disponible]") }}
     <h3>Parámetros por servicio</h3>
     {{ render_table(data.tables.servicios.parameters) }}
     <h3>Agregación anual</h3>
@@ -190,7 +163,6 @@
     <h2>Ingresos: composición por servicio</h2>
     <img class="chart" src="{{ data.figures.revenue_breakdown_3y }}" alt="Ingresos anuales por servicio">
     <img class="chart" src="{{ data.figures.revenue_monthly_composition }}" alt="Ingresos mensuales por servicio">
-    {{ formula_block("Ingresos", "Ingresos_t  = Sum_s [ Clientes_s_t * ARPU_s ]\nARPU_s      = precio_base_s * (1 + upsell_rate_s)        [si aplica]") }}
     <h3>Agregación anual</h3>
     {{ render_table(data.tables.ingresos.summary) }}
     {{ narrative_block(data.narratives.ingresos) }}
@@ -200,9 +172,8 @@
   {# --- Page 6: CAC --- #}
   <section class="page">
     <div class="section-tag">04 · CAC</div>
-    <h2>CAC: componentes de venta</h2>
+    <h2>CAC: componentes de venta (Fuerza de ventas)</h2>
     <img class="chart" src="{{ data.figures.cac_components }}" alt="Componentes del CAC anual">
-    {{ formula_block("CAC", "CAC_t       = Costo_adquisicion_t / Nuevos_t\nCosto_adq_t = salarios_ventas_t + marketing_t + overhead_ventas_t") }}
     <h3>Agregación anual</h3>
     {{ render_table(data.tables.cac.summary) }}
     {{ narrative_block(data.narratives.cac) }}
@@ -217,7 +188,6 @@
       <img class="chart" src="{{ data.figures.op_cost_composition }}" alt="Costos operacionales por servicio">
       <img class="chart" src="{{ data.figures.gross_margin_progression }}" alt="Cascada margen bruto">
     </div>
-    {{ formula_block("Costos operacionales", "Costo_op_t  = Sum_s [ Clientes_s_t * costo_unitario_s ]\nMargen_op_s = 1 - (costo_unitario_s / ARPU_s)") }}
     <h3>Parámetros operativos por servicio</h3>
     {{ render_table(data.tables.costos_operacionales.parameters) }}
     <h3>Agregación anual</h3>
@@ -238,7 +208,7 @@
   {# --- Page 9: RR.HH. --- #}
   <section class="page">
     <div class="section-tag">07 · Recursos humanos</div>
-    <h2>Planilla y equipo comercial</h2>
+    <h2>Planilla de personal (base no comercial)</h2>
     {{ render_table(data.tables.rrhh.summary) }}
     {{ narrative_block(data.narratives.rrhh) }}
     {{ footer(9, total_pages) }}
@@ -250,7 +220,6 @@
     <h2>Estructura de resultados</h2>
     <img class="chart" src="{{ data.figures.cashflow_monthly }}" alt="Cashflow mensual">
     <img class="chart" src="{{ data.figures.pnl_waterfall }}" alt="Cascada P&L último año">
-    {{ formula_block("P&L", "EBITDA_t    = Ingresos_t - Costo_op_t - CAC_t - G_adm_t - RRHH_t\nEBITDA_pct_t  = EBITDA_t / Ingresos_t") }}
     <h3>P&L anual</h3>
     {{ render_table(data.tables.pnl.summary) }}
     {{ footer(10, total_pages) }}
@@ -258,35 +227,18 @@
 
   {# --- Page 11: Valorización --- #}
   <section class="page">
-    <div class="section-tag">09 · Valorización</div>
-    <h2>Valorización</h2>
-    <img class="chart" src="{{ data.figures.valuation_methods }}" alt="Valorización por método">
-    {{ formula_block("Valorización DCF", "EV          = Sum_{t=1}^{T} [ FCF_t / (1 + WACC)^t ] + VR / (1 + WACC)^T\nWACC        = Rf + beta * (Rm - Rf) + Rp          [CAPM model]\nVR          = según método configurado (ver Fase E)") }}
-    <h3>Resultados</h3>
+    <div class="section-tag">09 · Valorización DCF</div>
+    <h2>Valorización por Flujos de Caja Descontados</h2>
+    <h3>Resumen de Valorización</h3>
     {{ render_table(data.tables.valorizacion.summary) }}
 
     <div class="vr-summary">
       <h4>Valor Residual</h4>
-      <p class="vr-method">
-        Método: <strong>{{ (data.dcf.valor_residual_metodo | default('none')) | upper }}</strong>
-      </p>
-      {% if (data.dcf.valor_residual_metodo | default('none')) == "none" %}
-        <p class="vr-note">VR = 0 (enfoque conservador Maureira — recomendado para etapas seed/pre-seed)</p>
-      {% elif (data.dcf.valor_residual_metodo | default('none')) == "ebitda_multiple" %}
-        <p class="vr-note">VR = EBITDA<sub>T</sub> × 12 × {{ data.dcf.ebitda_multiple }}×</p>
-        <p class="vr-value">VR (no descontado): {{ data.valuation.vr_nominal | money }}</p>
-        <p class="vr-value">VR (VP): {{ data.valuation.vr_pv | money }}</p>
-      {% elif (data.dcf.valor_residual_metodo | default('none')) == "gordon" %}
-        <p class="vr-note">VR = EBITDA<sub>T</sub> × (1+g) / (WACC−g), g = {{ ((data.dcf.gordon_g | default(0)) * 100) | round(1) }}%</p>
-        <p class="vr-note vr-warning">⚠ Limitación: EBITDA usado como proxy de FCF</p>
-        <p class="vr-value">VR (no descontado): {{ data.valuation.vr_nominal | money }}</p>
-        <p class="vr-value">VR (VP): {{ data.valuation.vr_pv | money }}</p>
-      {% endif %}
+      <p class="vr-note">VR = 1× EBITDA anualizado (Valor de desecho en base a EBITDA del último año de operaciones, sin crecimiento a perpetuidad adicional).</p>
+      <p class="vr-value">VR nominal: {{ data.valuation.vr_nominal | money }}</p>
+      <p class="vr-value">VR descontado (VP): {{ data.valuation.vr_pv | money }}</p>
     </div>
 
-    <h3>Componentes WACC</h3>
-    {{ render_table(data.tables.valorizacion.wacc) }}
-    <img class="chart" src="{{ data.figures.mapvalue_diagram }}" alt="MapValue">
     {{ narrative_block(data.narratives.valorizacion) }}
     {{ footer(11, total_pages) }}
   </section>
@@ -296,7 +248,6 @@
     <div class="section-tag">10 · Unit Economics</div>
     <h2>Unit Economics</h2>
     <img class="chart" src="{{ data.figures.unit_economics_grid }}" alt="Dashboard unit economics">
-    {{ formula_block("Unit Economics", "LTV_s       = ARPU_s * GP_s / churn_rate_s      [vida util = 1/churn]\nLTV/CAC_s   = LTV_s / CAC_t                     [ratio de adquisicion]\nPayback_s   = CAC_t / (ARPU_s * GP_s)           [recuperacion CAC]\nGP_s        = 1 - (costo_unitario_s / ARPU_s)   [margen bruto]") }}
     <h3>Agregación anual</h3>
     {{ render_table(data.tables.unit_economics.annual) }}
     <h3>Detalle por métrica</h3>
@@ -305,113 +256,82 @@
     {{ footer(12, total_pages) }}
   </section>
 
-  {# --- Page 13: Alertas del Modelo (10-bis) --- #}
+  {# --- Page 13: Robustez LHS ex-post --- #}
   <section class="page">
-    <div class="section-tag">10-bis · Alertas del Modelo</div>
-    <h2>Alertas del Modelo (Due Diligence & Calibración)</h2>
-    
-    <div class="tile-grid three">
-      <div class="tile {% if data.due_diligence.verdict == 'passed_with_warnings' or data.due_diligence.verdict == 'ok' %}primary{% endif %}">
-        <div class="label">Veredicto Due Diligence</div>
-        <div class="value" style="font-size: 15px; text-transform: uppercase;">{{ data.due_diligence.verdict | default('sin veredicto') | replace('_', ' ') }}</div>
-      </div>
-      <div class="tile">
-        <div class="label">Fallas / Alertas</div>
-        <div class="value">{{ data.due_diligence.summary.failing | default(0) }}</div>
-      </div>
-      <div class="tile">
-        <div class="label">Calibración Técnica</div>
-        <div class="value" style="font-size: 18px;">{{ data.due_diligence.calibration_verdict | default('N/A') }}</div>
-      </div>
-    </div>
-
-    <h3>Fallas y Alertas Detectadas</h3>
+    <div class="section-tag">11 · Robustez LHS ex-post</div>
+    <h2>Análisis de Robustez (LHS ex-post)</h2>
+    <p class="lead">Evaluación de la viabilidad financiera bajo incertidumbre mediante escenarios simulados por muestreo de hipercubo latino (LHS).</p>
+    {% if data.stochastic_summary %}
     <table class="aggregation">
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Regla / Nombre</th>
-          <th>Severidad</th>
-          <th>Mensaje / Evidencia</th>
-          <th>Recomendación</th>
+          <th>Métrica de Robustez</th>
+          <th>Valor</th>
         </tr>
       </thead>
       <tbody>
-        {% set ns = namespace(has_alerts=false) %}
-        {% if data.due_diligence and data.due_diligence.findings %}
-          {% for finding in data.due_diligence.findings %}
-            {% if not finding.passed %}
-              {% set ns.has_alerts = true %}
-              <tr>
-                <th scope="row">{{ finding.id }}</th>
-                <td><strong>{{ finding.name }}</strong></td>
-                <td style="color: {% if finding.severity_class == 'structural' or finding.severity_class == 'major' %}#EF4444{% elif finding.severity_class == 'minor' or finding.severity_class == 'warning' %}#F59E0B{% else %}#38BDF8{% endif %}; font-weight: 700;">
-                  {{ finding.severity_class | upper }}
-                </td>
-                <td>{{ finding.message }}</td>
-                <td>{{ finding.recommendation | default('—') }}</td>
-              </tr>
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-        {% if not ns.has_alerts %}
-          <tr>
-            <td colspan="5" style="text-align: center; color: #10B981; font-weight: 700; padding: 20px;">
-              ✔ No se detectaron alertas críticas ni fallas de calibración en el modelo.
-            </td>
-          </tr>
-        {% endif %}
+        <tr>
+          <th scope="row">VAN esperado (promedio de escenarios)</th>
+          <td>{{ data.stochastic_summary.expected_van | money }}</td>
+        </tr>
+        <tr>
+          <th scope="row">VAN P10 (Escenario desfavorable)</th>
+          <td>{{ data.stochastic_summary.van_p10 | money }}</td>
+        </tr>
+        <tr>
+          <th scope="row">VAN P50 (Mediana)</th>
+          <td>{{ data.stochastic_summary.van_p50 | money }}</td>
+        </tr>
+        <tr>
+          <th scope="row">VAN P90 (Escenario favorable)</th>
+          <td>{{ data.stochastic_summary.van_p90 | money }}</td>
+        </tr>
+        <tr>
+          <th scope="row">CVaR (Riesgo de cola / Promedio del 5% peor)</th>
+          <td>{{ data.stochastic_summary.cvar_5 | money }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Probabilidad de VAN negativo (VAN &lt; 0)</th>
+          <td>{{ (data.stochastic_summary.prob_van_negative | float * 100) | round(1) }}%</td>
+        </tr>
+        <tr>
+          <th scope="row">Brecha de caja esperada (Funding Gap)</th>
+          <td>{{ data.stochastic_summary.expected_funding_gap | money }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Clientes activos finales P50</th>
+          <td>{{ data.stochastic_summary.final_active_clients_p50 | number }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Mes de Breakeven P50</th>
+          <td>{{ data.stochastic_summary.breakeven_month_p50 | number }} meses</td>
+        </tr>
       </tbody>
     </table>
-
+    {% else %}
+    <p>El análisis de robustez estocástico no se ejecutó en esta corrida o no hay datos disponibles en <code>stochastic_summary.csv</code>.</p>
+    {% endif %}
+    <div class="note" style="margin-top: 15px;">
+      <strong>Aviso de robustez:</strong> M4 evalúa robustez; no define el plan oficial de inversión.
+    </div>
     {{ footer(13, total_pages) }}
   </section>
 
   {# --- Page 14: Sensibilidad --- #}
   <section class="page">
-    <div class="section-tag">11 · Sensibilidad</div>
-    <h2>Análisis de Sensibilidad</h2>
-    {{ formula_block("Sensibilidad", "dEV/dWACC   = dEV/dWACC  [numerical sensitivity]\ndEV/dmult   = EV(mult+1) - EV(mult)\nBreakeven   = t_star such that EBITDA_acum_{t_star} = 0") }}
+    <div class="section-tag">12 · Sensibilidad</div>
+    <h2>Análisis de Sensibilidad Operativa</h2>
     <h3>Matriz WACC × múltiplo de EBITDA</h3>
     <img class="chart" src="{{ data.figures.sensitivity_heatmap }}" alt="Heatmap sensibilidad WACC × múltiplo">
     {{ render_table(data.tables.sensibilidad.wacc) }}
-    <h3>Variables operativas (tornado)</h3>
+    <h3>Sensibilidad operativa ±20% (tornado)</h3>
     <img class="chart" src="{{ data.figures.sensitivity_tornado }}" alt="Tornado de sensibilidad operativa">
     {{ render_table(data.tables.sensibilidad.variables) }}
-    <h3>Variables para EBITDA = 0</h3>
+    <h3>Breakeven operativo (EBITDA = 0)</h3>
     <img class="chart" src="{{ data.figures.breakeven_chart }}" alt="Variables breakeven">
     {{ render_table(data.tables.sensibilidad.breakeven) }}
     {{ narrative_block(data.narratives.sensibilidad) }}
     {{ footer(14, total_pages) }}
   </section>
-
-  {# --- Page 15: Anexos --- #}
-  {% if data.document.scope == "full" %}
-  <section class="page">
-    <div class="section-tag">12 · Anexos</div>
-    <h2>Antecedentes generales</h2>
-    <div class="grid two">
-      <div>
-        <h3>¿Qué hace la empresa?</h3>
-        <p>{{ data.narrative.empresa.descripcion }}</p>
-        <h3>Beneficios</h3>
-        <ul>{% for item in data.narrative.empresa.beneficios %}<li>{{ item }}</li>{% endfor %}</ul>
-      </div>
-      <div>
-        <h3>Mercado objetivo</h3>
-        <p>Tipo: <strong>{{ data.narrative.target_market.tipo }}</strong></p>
-        <ul>
-          {% for seg in data.narrative.target_market.segmentos %}
-          <li>{{ seg.nombre }} — rango {{ seg.rango_min }}–{{ seg.rango_max }} ({{ seg.id }})</li>
-          {% endfor %}
-        </ul>
-        <h3>Modelo de negocio</h3>
-        <p><strong>{{ data.narrative.modelo_negocio.principal.nombre }}</strong> · {{ data.narrative.modelo_negocio.principal.descripcion }}</p>
-        <p class="muted">{{ data.narrative.modelo_negocio.principal.ticket_descripcion }}</p>
-      </div>
-    </div>
-    {{ footer(15, total_pages) }}
-  </section>
-  {% endif %}
 </body>
 </html>

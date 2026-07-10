@@ -1,0 +1,72 @@
+# DD showcase — same B2B business underfunded.
+# Expected: liquidity/runway/funding-gap findings. This is not an investment
+# recommendation; it proves DD explains financing pressure.
+
+H: 36
+VC: 10000
+beta: 0.30
+g_max_suavizado: 0.20
+
+servicios:
+  - nombre: Licencia_SaaS
+    ticket: 1800
+    frecuencia: 1
+    alpha: 0.94
+    churn_anual: [0.18, 0.12, 0.08]
+    c_u: 120
+    c_min: 3000
+    u_max: 180
+    A_base: [2, 3, 4, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+  - nombre: Implementacion_Advisory
+    ticket: 4500
+    frecuencia: 6
+    alpha: 0.55
+    churn_anual: [0.20, 0.14, 0.10]
+    c_u: 1200
+    c_min: 4500
+    u_max: 28
+    A_base: [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
+
+meta: 7
+sup: 4
+rem_v: 2200
+rem_l: 3200
+com_v: 0.07
+com_l: 0.03
+g_adm: 4500
+RRHH_mensual: [18000, 24000, 32000]
+ciclo_op: [120, 90, 60]
+buffer_caja: 0
+tax: 0.125
+
+liquidity_policy:
+  type: none
+
+investment_thesis:
+  multiple: 3.0
+  horizon_months: 36
+  base_month: 12
+  dd_revenue_gate_usd: 1000000
+  interpolation: geometric
+
+growth_commitment:
+  enabled: true
+  source: vc_minimum
+  checkpoints: annual
+
+acquisition_ceiling:
+  enabled: false
+
+acquisition_envelope:
+  enabled: true
+  source: vc_minimum
+  slack_year2: 0.0
+  slack_year3: 0.0
+
+solver:
+  name: cbc
+  time_limit: 120
+  verbose: false
+
+commercial_productivity_lag: 1

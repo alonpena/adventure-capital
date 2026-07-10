@@ -11,6 +11,7 @@ Numeric values stay as ``float`` so the renderer can decide formatting.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -285,46 +286,34 @@ def build_admin_table(optimized: pd.DataFrame, parameters: dict[str, Any]) -> di
 
 
 def build_hr_table(optimized: pd.DataFrame, parameters: dict[str, Any]) -> dict[str, Any]:
-    """Planilla anual y composición comercial."""
+    """Planilla anual de RR.HH. no comercial.
+
+    La fuerza comercial pertenece al CAC del modelo y se reporta en la sección
+    CAC; aquí se muestra solo la planilla base para evitar doble lectura.
+    """
     years = sorted(optimized[YEAR_LABEL].unique())
     rrhh_monthly_cfg = list(parameters.get("RRHH_mensual", []))
-    rem_v = float(parameters.get("rem_v", 0.0))
-    rem_l = float(parameters.get("rem_l", 0.0))
 
     columns = [
         YEAR_LABEL,
-        "Planilla base mensual (USD)",
-        "Planilla base anual (USD)",
-        "Vendedores avg (FTE)",
-        "Líderes avg (FTE)",
-        "Costo comercial anual (USD)",
-        "Planilla + comercial (USD)",
+        "RR.HH. base mensual (USD)",
+        "RR.HH. base anual (USD)",
+        "% de ingresos",
     ]
     rows: list[tuple[Any, ...]] = []
     total_planilla = 0.0
-    total_comercial = 0.0
+    total_revenue = 0.0
     for idx, year in enumerate(years):
         year_df = optimized[optimized[YEAR_LABEL] == year]
         idx_clipped = min(idx, max(len(rrhh_monthly_cfg) - 1, 0)) if rrhh_monthly_cfg else 0
         monthly_base = float(rrhh_monthly_cfg[idx_clipped]) if rrhh_monthly_cfg else float(year_df["RRHH"].mean())
         annual_base = float(year_df["RRHH"].sum())
-        vendedores = float(year_df["Vendedores"].mean())
-        lideres = float(year_df["Lideres"].mean())
-        annual_comercial = float(year_df["Vendedores"].sum() * rem_v + year_df["Lideres"].sum() * rem_l)
-        rows.append(
-            (
-                f"Año {int(year)}",
-                monthly_base,
-                annual_base,
-                vendedores,
-                lideres,
-                annual_comercial,
-                annual_base + annual_comercial,
-            )
-        )
+        revenue = float(year_df["Ingresos"].sum()) if "Ingresos" in year_df else 0.0
+        pct = annual_base / revenue if revenue > 0 else float("nan")
+        rows.append((f"Año {int(year)}", monthly_base, annual_base, pct))
         total_planilla += annual_base
-        total_comercial += annual_comercial
-    totals = (TOTAL_LABEL, None, total_planilla, None, None, total_comercial, total_planilla + total_comercial)
+        total_revenue += revenue
+    totals = (TOTAL_LABEL, None, total_planilla, total_planilla / total_revenue if total_revenue > 0 else None)
     return {"summary": _to_table(columns, rows, totals=totals, unit="USD")}
 
 
@@ -372,34 +361,27 @@ def build_valuation_table(
     document: dict[str, Any],
     base_wacc: float,
     final_cash: float,
+    valuation_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Resumen de valorización + parámetros WACC."""
-    columns = ["Método", "Base (USD)", "Múltiplo", "Valorización (USD)"]
+    """Resumen de valorización DCF (excluyendo múltiplos)."""
+    columns = ["Componente de Valorización", "Métrica de base", "Valor (USD)"]
     rows: list[tuple[Any, ...]] = []
-    if not multiples.empty:
-        for _, row in multiples.iterrows():
-            base = float(row.get("Base", 0.0))
-            multiplier = float(row.get("Múltiplo", 0.0))
-            valuation = float(row.get("Valorización", 0.0))
-            rows.append((str(row.get("Método", "—")), base, multiplier, valuation))
 
-    pv_flows = float(dcf_summary["FC_desc"].sum()) if "FC_desc" in dcf_summary.columns else 0.0
-    last_ebitda_year = float(dcf_summary["EBITDA"].iloc[-1]) if "EBITDA" in dcf_summary.columns else 0.0
-    rows.append(("VAN (suma flujos descontados)", pv_flows, None, pv_flows))
-    rows.append(("Caja final + flujos", final_cash + pv_flows, None, final_cash + pv_flows))
+    val_sum = valuation_summary or {}
+    vp_flujos = val_sum.get("vp_flujos") or (float(dcf_summary["FC_desc"].sum()) if "FC_desc" in dcf_summary.columns else 0.0)
+    vr_nominal = val_sum.get("vr_nominal") or val_sum.get("valor_desecho_nominal") or 0.0
+    vr_pv = val_sum.get("vr_pv") or val_sum.get("valor_desecho_vp") or 0.0
+    vc_invested = val_sum.get("vc_invested") or 0.0
+    van = val_sum.get("van") or (vp_flujos + vr_pv - vc_invested)
+
+    rows.append(("Valor Presente de Flujos Descontados (VP)", "Flujos del horizonte", vp_flujos))
+    rows.append(("Valor Residual (nominal)", "1x EBITDA anualizado", vr_nominal))
+    rows.append(("Valor Residual Descontado (VP)", "Descontado a WACC", vr_pv))
+    rows.append(("Capital Invertido (Caja inicial)", "Bootstrapping / VC", vc_invested))
+    rows.append(("Valor Actual Neto (VAN)", "VP Flujos + VP Residual - Inversión", van))
 
     wacc_columns = ["Componente", "Valor"]
-    dcf = document.get("dcf", {})
-    wacc_rows = [
-        ("Rf (US-T)", float(dcf.get("Rf_us", 0.0))),
-        ("Rf (BCP local)", float(dcf.get("Rf_local", 0.0))),
-        ("Rm", float(dcf.get("Rm", 0.0))),
-        ("β CAPM", float(dcf.get("beta_capm", 0.0))),
-        ("Country risk", float(dcf.get("country_risk", 0.0))),
-        ("Castigo de riesgo", float(dcf.get("castigo_riesgo", 0.0))),
-        ("WACC base", base_wacc),
-        ("EBITDA último año", last_ebitda_year),
-    ]
+    wacc_rows = []
     return {
         "summary": _to_table(columns, rows, unit="USD"),
         "wacc": _to_table(wacc_columns, wacc_rows),
@@ -439,7 +421,7 @@ def build_unit_economics_table(unit_economics: pd.DataFrame, optimized: pd.DataF
                     valor_str = f"{val_f:,.2f}" if val_f % 1 != 0 else f"{int(val_f):,}"
             else:
                 valor_str = "—"
-            
+
             detail_rows.append(
                 (
                     str(row.get("Unit Economic", "")),
@@ -540,6 +522,15 @@ def build_all_tables(
     base_wacc = _document_wacc(document)
     final_cash = float(optimized["Caja"].iloc[-1])
 
+    val_sum_path = out / "valuation_summary.json"
+    val_sum = None
+    if val_sum_path.exists():
+        try:
+            with val_sum_path.open("r", encoding="utf-8") as f:
+                val_sum = json.load(f)
+        except Exception:
+            pass
+
     return {
         "clientes": build_clients_table(optimized, services),
         "servicios": build_services_table(optimized, services),
@@ -549,7 +540,7 @@ def build_all_tables(
         "administracion": build_admin_table(optimized, parameters),
         "rrhh": build_hr_table(optimized, parameters),
         "pnl": build_pnl_table(annual),
-        "valorizacion": build_valuation_table(multiples, annual, document, base_wacc=base_wacc, final_cash=final_cash),
+        "valorizacion": build_valuation_table(multiples, annual, document, base_wacc=base_wacc, final_cash=final_cash, valuation_summary=val_sum),
         "unit_economics": build_unit_economics_table(unit_econ, optimized, parameters),
         "sensibilidad": build_sensitivity_tables(wacc_matrix, variables, breakeven),
         "wacc_base": base_wacc,

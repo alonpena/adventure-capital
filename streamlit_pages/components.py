@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import streamlit as _st
 
 # --------------------------------------------------------------------------- #
 # Paths
@@ -271,11 +270,13 @@ def require_execution(st) -> str | None:
     """Get run_id from session_state, or show a guard message."""
     run_id = st.session_state.get("current_run_id")
     if not run_id:
-        st.info("Selecciona o ejecuta un caso desde el **Gestor de Instancias**.")
+        st.info("Sin caso seleccionado. Elige una ejecución en el panel lateral "
+                "o crea una en el Gestor de instancias.")
         return None
     rec = get_execution(run_id)
     if rec is None:
-        st.warning(f"La ejecución {run_id} no se encuentra en el registro.")
+        st.warning(f"La ejecución `{run_id}` ya no está en el registro. "
+                   "Selecciona otra en el panel lateral.")
         return None
     return run_id
 
@@ -310,17 +311,62 @@ STATUS_TONE: dict[str, str] = {
 STAGE_LABELS: dict[str, str] = {
     "M1_DETERMINISTIC": "Plan determinista",
     "M2_VALUATION": "Valoración",
-    "M3_DUE_DILIGENCE": "Due Diligence",
-    "M4_STOCHASTIC": "Análisis de escenarios",
+    "M3_DUE_DILIGENCE": "Due diligence",
+    "M4_STOCHASTIC": "Análisis de robustez (LHS)",
     "M5_REPORT": "Reporte",
 }
 
-STATUS_ICON: dict[str, str] = {
-    "completed": "🟢",
-    "failed": "🔴",
-    "blocked": "🟡",
-    "pending": "⚪",
+STAGE_SHORT: dict[str, str] = {
+    "M1_DETERMINISTIC": "M1",
+    "M2_VALUATION": "M2",
+    "M3_DUE_DILIGENCE": "M3",
+    "M4_STOCHASTIC": "M4",
+    "M5_REPORT": "M5",
 }
+
+# Glifos monocromos — identidad Memorando: estados discretos, sin semáforos emoji.
+STATUS_ICON: dict[str, str] = {
+    "completed": "●",
+    "failed": "✕",
+    "blocked": "◐",
+    "pending": "○",
+}
+
+STATUS_LABELS: dict[str, str] = {
+    "completed": "Completada",
+    "failed": "Fallida",
+    "blocked": "Bloqueada",
+    "pending": "Pendiente",
+}
+
+# Etiquetas de negocio en español; el término técnico se conserva como caption.
+VERDICT_LABELS: dict[str, str] = {
+    "passed": "Aprobado",
+    "passed_with_warnings": "Aprobado con advertencias",
+    "requires_minor_adjustment": "Requiere ajuste menor",
+    "requires_major_adjustment": "Requiere ajuste mayor",
+    "rejected_for_stochastic": "Rechazado para escenarios",
+}
+
+VALUATION_MODE_LABELS: dict[str, str] = {
+    "final": "Final",
+    "warning": "Preliminar",
+    "diagnostic": "Diagnóstico",
+    "none": "No ejecutado",
+}
+
+# Nombres canónicos de páginas — el router de app.py y cualquier página que
+# navegue deben usar estas constantes (nunca strings sueltos: ya hubo un bug
+# de navegación por un prefijo emoji desalineado).
+PAGE_INSTANCES = "instancias"
+PAGE_REPORT = "Informe ejecutivo"
+PAGE_GROWTH = "Plan de crecimiento"
+PAGE_VALUATION = "Valoración"
+PAGE_DD = "Due diligence"
+PAGE_STOCH = "Análisis de robustez (LHS)"
+PAGE_ARTIFACTS = "Artefactos"
+
+NAV_PAGES = [PAGE_REPORT, PAGE_GROWTH, PAGE_VALUATION, PAGE_DD, PAGE_STOCH, PAGE_ARTIFACTS]
 
 
 def money(value: Any) -> str:
@@ -344,6 +390,68 @@ def pct(value: Any, decimals: int = 1) -> str:
         return "—"
 
 
+def page_header(st, title: str, subtitle: str = "", run_id: str | None = None) -> None:
+    """Render the page title with the current case context pinned top-right.
+
+    Keeps the user oriented when navigating between drill-down pages
+    (which execution am I looking at?) without repeating status boxes.
+    """
+    case_html = ""
+    if run_id:
+        rec = get_execution(run_id)
+        if rec:
+            name = rec.get("instance_name", rec.get("name", run_id))
+            status = rec.get("status", "—")
+            icon = STATUS_ICON.get(status, "○")
+            status_label = STATUS_LABELS.get(status, status)
+            config_hash = rec.get("config_hash", "")
+            hash_html = f" · config <code>{config_hash}</code>" if config_hash else ""
+            case_html = (
+                f'<span class="case"><b>{name}</b><br/>'
+                f'{icon} {status_label}{hash_html}<br/>'
+                f'<code>{run_id}</code></span>'
+            )
+    st.markdown(
+        f'<div class="ac-page-head">{case_html}'
+        f'<div class="title">{title}</div>'
+        f'<div class="subtitle">{subtitle}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def risk_band(st, title: str, items: list[tuple[str, str, str]]) -> None:
+    """Render the Risk Band: grouped downside KPIs inside one visual band.
+
+    ``items`` is a list of (label, value, sub) tuples.
+    """
+    cells = "".join(
+        f'<div class="ac-kpi"><div class="label">{label}</div>'
+        f'<div class="value">{value}</div>'
+        f'<div class="sub">{sub}</div></div>'
+        for label, value, sub in items
+    )
+    st.markdown(
+        f'<div class="ac-riskband"><div class="band-title">{title}</div>'
+        f'<div style="display:flex;gap:.6rem;flex-wrap:wrap;">'
+        f'{cells}</div></div>',
+        unsafe_allow_html=True,
+    )
+
+
+def source_caption(st, stage_key: str, *files: str) -> None:
+    """Trazabilidad por bloque: qué artefactos alimentan lo que se muestra.
+
+    Renderiza p. ej. ``Fuente: valuation_summary.json · M2 — Valoración``.
+    """
+    short = STAGE_SHORT.get(stage_key, stage_key)
+    label = STAGE_LABELS.get(stage_key, "")
+    names = ", ".join(files)
+    st.markdown(
+        f'<div class="ac-source">Fuente: {names} · {short} — {label}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def kpi(st, label: str, value: str, sub: str = "", tone: str = "") -> None:
     cls = f"ac-kpi {tone}".strip()
     st.markdown(
@@ -360,6 +468,47 @@ def badge(st, text: str, tone: str = "muted") -> None:
 
 def note(st, text: str) -> None:
     st.markdown(f'<div class="ac-note">{text}</div>', unsafe_allow_html=True)
+
+
+# --------------------------------------------------------------------------- #
+# Report HTML helpers — inline local images so the document is self-contained
+# --------------------------------------------------------------------------- #
+
+
+def inline_report_html(path: Path) -> str:
+    """Return the report HTML with local image references inlined as data URIs.
+
+    Reports reference charts as ``figures/*.png`` relative paths. Those resolve
+    when the file is opened from its own directory, but break inside a Streamlit
+    embed and in downloaded copies. Inlining makes the HTML self-contained.
+    """
+    import base64
+    import re
+
+    html_text = path.read_text(encoding="utf-8")
+    base = path.parent
+
+    def _repl(match: "re.Match[str]") -> str:
+        src = match.group(1)
+        if src.startswith(("data:", "http:", "https:", "//")):
+            return match.group(0)
+        img = base / src
+        if not img.is_file():
+            return match.group(0)
+        ext = img.suffix.lstrip(".").lower() or "png"
+        if ext == "svg":
+            ext = "svg+xml"
+        b64 = base64.b64encode(img.read_bytes()).decode("ascii")
+        return match.group(0).replace(src, f"data:image/{ext};base64,{b64}", 1)
+
+    return re.sub(r'src="([^"]+)"', _repl, html_text)
+
+
+def embed_report_html(st, path: Path, height: int = 1100) -> None:
+    """Embed a report HTML file inline with its charts visible."""
+    import streamlit.components.v1 as components
+
+    components.html(inline_report_html(Path(path)), height=height, scrolling=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -416,19 +565,20 @@ def download_pdf_button(st, run_id: str, label: str = "Descargar PDF") -> None:
         )
 
 
-def download_html_button(st, run_id: str, label: str = "Descargar HTML") -> None:
-    """Render a download button for report.html if it exists."""
+def download_html_button(st, run_id: str, label: str = "Descargar HTML",
+                         filename: str = "report.html") -> None:
+    """Render a download button for a report HTML artifact (self-contained copy)."""
     exe = _exec_path(run_id)
     if exe is None:
         return
-    html_path = exe / "report.html"
+    html_path = exe / filename
     if not html_path.exists():
         st.info("HTML no disponible.")
         return
-    with html_path.open("r", encoding="utf-8") as f:
-        st.download_button(
-            label=label,
-            data=f,
-            file_name="report.html",
-            mime="text/html",
-        )
+    st.download_button(
+        label=label,
+        data=inline_report_html(html_path),
+        file_name=filename,
+        mime="text/html",
+        key=f"dl_{filename}_{run_id}",
+    )

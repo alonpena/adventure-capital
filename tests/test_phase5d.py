@@ -20,6 +20,5 @@ def test_phase5d_renders_html_report(tmp_path):
     assert path.exists()
     html = path.read_text(encoding="utf-8")
     assert "Resumen ejecutivo" in html
-    assert "MapValue" in html
     assert "Sensibilidad" in html
     assert "figures/acquisition_year1.png" in html

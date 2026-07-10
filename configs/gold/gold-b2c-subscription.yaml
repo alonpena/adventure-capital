@@ -1,0 +1,80 @@
+# Gold candidate — B2C subscription / digital platform.
+# Volumen alto, ticket bajo, churn mayor. Canal publicitario acotado con recta.
+
+H: 36
+VC: 320000
+beta: 0.34
+g_max_suavizado: 0.18
+
+servicios:
+  - nombre: Membresia_Digital
+    ticket: 48
+    frecuencia: 1
+    alpha: 0.88
+    churn_anual: [0.45, 0.34, 0.25]
+    c_u: 6
+    c_min: 4200
+    u_max: 4500
+    A_base: [70, 85, 100, 115, 130, 150, 170, 190, 210, 230, 250, 275]
+
+meta: 380
+sup: 6
+rem_v: 1500
+rem_l: 2600
+com_v: 0.04
+com_l: 0.02
+g_adm: 9000
+RRHH_mensual: [18000, 23000, 30000]
+ciclo_op: [60, 45, 30]
+buffer_caja: 0
+tax: 0.125
+
+liquidity_policy:
+  type: none
+
+channels:
+  salesforce:
+    active: true
+    min_share: 0.15
+    max_share: 1.0
+  advertising:
+    active: true
+    I_min: 0
+    I_max: 30000
+    A_min: 0
+    A_max: 950
+    A_ad_cap: 1200
+    min_share: 0.0
+    max_share: 0.85
+  third_party:
+    active: false
+    min_share: 0.0
+    max_share: 1.0
+
+investment_thesis:
+  multiple: 3.0
+  horizon_months: 36
+  base_month: 12
+  dd_revenue_gate_usd: 1000000
+  interpolation: geometric
+
+growth_commitment:
+  enabled: true
+  source: vc_minimum
+  checkpoints: annual
+
+acquisition_ceiling:
+  enabled: false
+
+acquisition_envelope:
+  enabled: true
+  source: vc_minimum
+  slack_year2: 0.0
+  slack_year3: 0.0
+
+solver:
+  name: cbc
+  time_limit: 120
+  verbose: false
+
+commercial_productivity_lag: 0

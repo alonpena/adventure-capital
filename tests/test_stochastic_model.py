@@ -37,6 +37,7 @@ def _three_channel_config() -> dict:
         "commission": 0.1,
         "min_share": 0.2,
         "max_share": 0.4,
+        "A_tp_cap": 1000,
     }
     config["stochastic"] = {"saa_scenario_count": 5, "seed_saa": 3}
     return config

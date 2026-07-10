@@ -11,14 +11,10 @@ Landing page of the Streamlit UI. Users can:
 
 from __future__ import annotations
 
-import json
-import tempfile
 from copy import deepcopy
-from pathlib import Path
+from typing import Any
 
 import yaml
-import streamlit as st
-
 from adventure_capital.config import default_config, validate_config
 from streamlit_pages import components as C
 
@@ -78,34 +74,34 @@ def _channels_form(st, base: dict) -> dict:
     st.markdown("#### Canales comerciales")
 
     sf = channels["salesforce"]
-    sf["active"] = st.checkbox("Fuerza de ventas (salesforce)", value=sf["active"])
+    sf["active"] = st.checkbox("Fuerza de ventas (salesforce)", value=sf["active"], key="ch_sf_active")
     if sf["active"]:
         cc1, cc2 = st.columns(2)
-        sf["min_share"] = cc1.slider("Salesforce min_share", 0.0, 1.0, float(sf["min_share"]), 0.05)
-        sf["max_share"] = cc2.slider("Salesforce max_share", 0.0, 1.0, float(sf["max_share"]), 0.05)
+        sf["min_share"] = cc1.slider("Salesforce min_share", 0.0, 1.0, float(sf["min_share"]), 0.05, key="ch_sf_min")
+        sf["max_share"] = cc2.slider("Salesforce max_share", 0.0, 1.0, float(sf["max_share"]), 0.05, key="ch_sf_max")
 
     ad = channels["advertising"]
-    ad["active"] = st.checkbox("Publicidad (advertising)", value=ad["active"])
+    ad["active"] = st.checkbox("Publicidad (advertising)", value=ad["active"], key="ch_ad_active")
     if ad["active"]:
         a1, a2, a3 = st.columns(3)
-        ad["I_min"] = a1.number_input("Inversión I_min", value=float(ad["I_min"]), min_value=0.0, step=500.0)
-        ad["I_max"] = a2.number_input("Inversión I_max", value=float(ad["I_max"]), min_value=0.0, step=500.0)
-        ad["A_ad_cap"] = a3.number_input("Tope adquisición A_ad_cap", value=float(ad["A_ad_cap"]), min_value=0.0, step=5.0)
+        ad["I_min"] = a1.number_input("Inversión I_min", value=float(ad["I_min"]), min_value=0.0, step=500.0, key="ch_ad_imin")
+        ad["I_max"] = a2.number_input("Inversión I_max", value=float(ad["I_max"]), min_value=0.0, step=500.0, key="ch_ad_imax")
+        ad["A_ad_cap"] = a3.number_input("Tope adquisición A_ad_cap", value=float(ad["A_ad_cap"]), min_value=0.0, step=5.0, key="ch_ad_cap")
         a4, a5 = st.columns(2)
-        ad["A_min"] = a4.number_input("Recta A_min", value=float(ad["A_min"]), min_value=0.0, step=1.0)
-        ad["A_max"] = a5.number_input("Recta A_max", value=float(ad["A_max"]), min_value=0.0, step=1.0)
+        ad["A_min"] = a4.number_input("Recta A_min", value=float(ad["A_min"]), min_value=0.0, step=1.0, key="ch_ad_amin")
+        ad["A_max"] = a5.number_input("Recta A_max", value=float(ad["A_max"]), min_value=0.0, step=1.0, key="ch_ad_amax")
         a6, a7 = st.columns(2)
-        ad["min_share"] = a6.slider("Publicidad min_share", 0.0, 1.0, float(ad["min_share"]), 0.05)
-        ad["max_share"] = a7.slider("Publicidad max_share", 0.0, 1.0, float(ad["max_share"]), 0.05)
+        ad["min_share"] = a6.slider("Publicidad min_share", 0.0, 1.0, float(ad["min_share"]), 0.05, key="ch_ad_minshare")
+        ad["max_share"] = a7.slider("Publicidad max_share", 0.0, 1.0, float(ad["max_share"]), 0.05, key="ch_ad_maxshare")
         C.note(st, "Publicidad = recta lineal A_ad = a + b·I_ad (continua, no escalonada).")
 
     tp = channels["third_party"]
-    tp["active"] = st.checkbox("Canal de terceros (third_party)", value=tp["active"])
+    tp["active"] = st.checkbox("Canal de terceros (third_party)", value=tp["active"], key="ch_tp_active")
     if tp["active"]:
         t1, t2, t3 = st.columns(3)
-        tp["commission"] = t1.number_input("Comisión", value=float(tp["commission"]), min_value=0.0, step=0.01)
-        tp["min_share"] = t2.slider("Terceros min_share", 0.0, 1.0, float(tp["min_share"]), 0.05)
-        tp["max_share"] = t3.slider("Terceros max_share", 0.0, 1.0, float(tp["max_share"]), 0.05)
+        tp["commission"] = t1.number_input("Comisión", value=float(tp["commission"]), min_value=0.0, step=0.01, key="ch_tp_comm")
+        tp["min_share"] = t2.slider("Terceros min_share", 0.0, 1.0, float(tp["min_share"]), 0.05, key="ch_tp_min")
+        tp["max_share"] = t3.slider("Terceros max_share", 0.0, 1.0, float(tp["max_share"]), 0.05, key="ch_tp_max")
     return channels
 
 
@@ -116,6 +112,9 @@ def _build_config(st, base: dict) -> dict:
     config = deepcopy(st.session_state.get("merged_config", base))
 
     # Override with session-state values from form widgets
+    nombre = (st.session_state.get("f_nombre") or "").strip()
+    if nombre:
+        config["nombre"] = nombre
     config["H"] = int(st.session_state.get("f_H", config.get("H", base["H"])))
     config["VC"] = float(st.session_state.get("f_VC", config.get("VC", base["VC"])))
     config["beta"] = float(st.session_state.get("f_beta", config.get("beta", base["beta"])))
@@ -151,14 +150,18 @@ def _seed_services(st, base: dict) -> None:
 
 
 def render(st) -> None:
-    st.title("Gestor de Instancias")
-    st.caption("Crea una instancia (configuración congelada) y ejecuta el pipeline de valoración.")
+    C.page_header(
+        st,
+        "Gestor de instancias",
+        "Crea una instancia (configuración congelada) y ejecuta el pipeline de valoración: "
+        "instancia → ejecución → veredicto de due diligence → análisis de escenarios → informe ejecutivo.",
+    )
 
     base = default_config()
     _seed_services(st, base)
 
     # ── tabs for the page ─────────────────────────────────────────
-    tab_new, tab_list = st.tabs(["➕ Nueva instancia", "📋 Instancias existentes"])
+    tab_new, tab_list = st.tabs(["Nueva instancia", "Instancias existentes"])
 
     # ──────────────────── TAB: Create ─────────────────────────────
     with tab_new:
@@ -184,6 +187,7 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
     """
     # Scalar scalar_map: (session_state_key, yaml_key, cast_fn)
     scalar_map = [
+        ("f_nombre", "nombre", str),
         ("f_H", "H", int),
         ("f_VC", "VC", float),
         ("f_beta", "beta", float),
@@ -224,14 +228,22 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
     if isinstance(solver, dict) and "time_limit" in solver:
         st.session_state["f_time"] = int(solver["time_limit"])
 
-    # Services (complex structure, not individual fields)
+    # Services (complex structure, not individual fields).
+    # Drop stale per-widget keys (svc_*) so each service widget re-initialises
+    # from value= against the freshly loaded list. Without this, Streamlit keeps
+    # the previous widget state and the loaded services are silently dropped.
     st.session_state["services"] = loaded.get(
         "servicios", st.session_state.get("services", base["servicios"])
     )
+    for k in [k for k in list(st.session_state) if k.startswith("svc_")]:
+        del st.session_state[k]
 
-    # Channels (checkboxes + nested sub-forms)
+    # Channels (checkboxes + nested sub-forms). Same fix: channel widgets are
+    # keyed ch_*; drop them so value= from yaml_channels takes effect on rerun.
     if "channels" in loaded:
         st.session_state["yaml_channels"] = loaded["channels"]
+        for k in [k for k in list(st.session_state) if k.startswith("ch_")]:
+            del st.session_state[k]
 
     # Build and store the full merged config (base + loaded YAML extra fields).
     # This preserves fields that don't have form widgets (empresa, target_market,
@@ -284,6 +296,10 @@ def _render_create_tab(st, base: dict) -> None:
         scalars = st.session_state.get("loaded_scalars", {})
         return scalars.get(key, fallback)
 
+    # ── Instance name ──
+    st.text_input("Nombre de la instancia", value=_dv("nombre", ""),
+                  key="f_nombre", placeholder="Ej: Caso base Q3")
+
     # ── General params ──
     st.markdown("#### Parámetros generales")
     g1, g2, g3 = st.columns(3)
@@ -296,6 +312,9 @@ def _render_create_tab(st, base: dict) -> None:
     g6.number_input("Suavizado máx. (g_max_suavizado)", value=float(_dv("g_max_suavizado", base["g_max_suavizado"])), min_value=0.0, max_value=1.0, step=0.05, key="f_gmax")
 
     # ── Commercial team ──
+    # TODO(ui): move Salesforce commercial strategy config under Salesforce
+    # toggle/expander in channel configuration. Keep first fields ordered as
+    # meta, sup, commercial_productivity_lag; then rem_v, rem_l, com_v, com_l.
     st.markdown("#### Equipo comercial")
     e1, e2, e3 = st.columns(3)
     e1.number_input("Meta productividad (meta)", value=float(_dv("meta", base["meta"])), min_value=0.1, step=0.5, key="f_meta")
@@ -314,9 +333,9 @@ def _render_create_tab(st, base: dict) -> None:
     st.markdown("#### Servicios")
     sc1, sc2 = st.columns(2)
     default_service = deepcopy(base["servicios"][0])
-    if sc1.button("➕ Agregar servicio"):
+    if sc1.button("Agregar servicio"):
         st.session_state["services"].append(deepcopy(default_service))
-    if sc2.button("➖ Quitar último") and len(st.session_state.get("services", [])) > 1:
+    if sc2.button("Quitar último") and len(st.session_state.get("services", [])) > 1:
         st.session_state["services"].pop()
 
     updated = []
@@ -335,15 +354,14 @@ def _render_create_tab(st, base: dict) -> None:
         l2.number_input("Caja mínima", value=0.0, step=1000.0, key="f_liq_value")
     l3.number_input("Solver time_limit (s)", value=int(base["solver"]["time_limit"]), min_value=10, step=10, key="f_time")
 
-    st.markdown("#### Análisis estocástico (M4)")
-    run_stoch = st.checkbox("Incluir análisis de escenarios (M4)", value=True,
-                            help="Requiere más tiempo de cómputo. Si se desactiva, solo corre el plan determinista.")
+    C.note(st, "El análisis de escenarios (M4) se decide en la página Due diligence tras el veredicto "
+               "(automático si aprueba limpio; con confirmación si hay advertencias).")
 
     # ── Create button ──
     st.markdown("---")
     c1, c2 = st.columns([1, 3])
     with c1:
-        if st.button("💾 Crear instancia", type="primary"):
+        if st.button("Crear instancia", type="primary"):
             try:
                 config = _build_config(st, base)
                 validate_config(config)
@@ -359,7 +377,7 @@ def _render_create_tab(st, base: dict) -> None:
 
     # ── Preview ──
     with c2:
-        if st.button("📄 Vista previa YAML"):
+        if st.button("Vista previa YAML"):
             try:
                 config = _build_config(st, base)
                 preview = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
@@ -387,35 +405,40 @@ def _render_list_tab(st) -> None:
                 st.markdown(f"**{meta['name']}**")
                 st.caption(f"ID: `{meta['id']}` · Creada: {meta['created_at']}")
             with cols[1]:
-                if st.button("▶️ Ejecutar", key=f"run_{meta['id']}"):
+                if st.button("Ejecutar", key=f"run_{meta['id']}"):
                     _trigger_execution(st, meta["id"], run_stochastic=True)
             with cols[2]:
-                if st.button("📋 Detalle", key=f"detail_{meta['id']}"):
+                if st.button("Detalle", key=f"detail_{meta['id']}"):
                     _show_instance_detail(st, meta["id"])
             with cols[3]:
-                if st.button("🗑️", key=f"del_{meta['id']}"):
+                if st.button("Eliminar", key=f"del_{meta['id']}"):
                     C.delete_instance(meta["id"])
                     st.rerun()
             st.markdown("---")
 
 
-def _trigger_execution(st, instance_id: str, run_stochastic: bool) -> None:
-    import sys
+def _trigger_execution(st, instance_id: str, run_stochastic: bool = True) -> None:
+    """Phase 1: run M1–M3 (deterministic plan + valuation + due diligence) only.
+
+    M4 (stochastic) is gated behind the DD verdict; after phase 1 the UI
+    navigates to the Due diligence page, where the gate lives (P0-3 de la
+    auditoría UX: el veredicto se decide en el contexto del run, no sobre el
+    formulario de creación).
+    """
     from adventure_capital.workflow_registry import run_execution as _run_exec
 
-    with st.spinner("Ejecutando pipeline…"):
+    with st.spinner("Ejecutando plan determinista, valoración y due diligence…"):
         try:
-            record = _run_exec(
-                instance_id,
-                run_stochastic=run_stochastic,
-            )
+            record = _run_exec(instance_id, run_stochastic=False)
             st.session_state["current_run_id"] = record["id"]
-            st.success(f"Ejecución completada: {record['id']}")
-            st.info("Ve a las páginas de resultados en el panel lateral.")
+            st.session_state["m4_gate_run_id"] = record["id"]
+            st.session_state["current_page"] = C.PAGE_DD
+            st.rerun()
         except Exception as exc:
-            st.error(f"Error en la ejecución: {exc}")
+            st.error(f"La ejecución falló: {exc}. Revisa la configuración de la instancia e intenta de nuevo.")
             import traceback
-            st.code(traceback.format_exc())
+            with st.expander("Detalle técnico"):
+                st.code(traceback.format_exc())
 
 
 def _show_instance_detail(st, instance_id: str) -> None:

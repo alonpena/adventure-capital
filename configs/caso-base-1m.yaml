@@ -1,0 +1,52 @@
+# Caso base calibrado — tenor "US$1M al año 3" (auditoría 2026-07-02)
+#
+# Derivado de configs/base.yaml con dos cambios calibrados por barrido:
+#   1. acquisition_ceiling.target_stock_multiplier: 3.0 -> 8.0
+#      (con 3.0 el caso base quedaba en Y3=US$451k y VAN=-75.8k, veredicto DD
+#       requires_major_adjustment; con 8.0 llega a Y3=US$1.19M y VAN>0)
+#   2. VC: 100000 -> 200000
+#      (100k < costo fijo comprometido año 1 ~138k => pre-feasibility warning y
+#       funding gap en la mayoría de escenarios estocásticos)
+#
+# Resultado verificado (determinista, H=36, beta 35%):
+#   VAN = 459,694 | Ingresos Y3 = 1,189,366 | EBITDA Y3 = 672,078
+#   DD  = passed_with_warnings (habilita M4)
+# Estocástico (M4, mean-CVaR lambda=0.5 alpha=0.15, 1000 escenarios ex-post):
+#   E[VAN] = 369,529 | P50 = 374,560 | P5 = 114,042 | CVaR5% = 127,508
+#   prob VAN<0 = 0.2% | funding gap = 0 | breakeven P50 = mes 19
+H: 36
+VC: 200000
+beta: 0.35
+g_max_suavizado: 0.25
+acquisition_ceiling:
+  enabled: true
+  target_stock_multiplier: 8.0
+  slack: 0.15
+servicios:
+  - nombre: Servicio
+    ticket: 700
+    frecuencia: 3
+    alpha: 0.9
+    churn_anual: [0.5, 0.3, 0.15]
+    c_u: 30
+    c_min: 1000
+    u_max: 100
+    A_base: [2, 2, 3, 4, 5, 5, 6, 7, 8, 8, 9, 10]
+meta: 8
+sup: 3
+rem_v: 1200
+rem_l: 1700
+com_v: 0.10
+com_l: 0.05
+g_adm: 1500
+RRHH_mensual: [10000, 15000, 20000]
+ciclo_op: [180, 90, 30]
+buffer_caja: 0
+tax: 0.125
+liquidity_policy:
+  type: none
+solver:
+  name: cbc
+  time_limit: 120
+  verbose: false
+commercial_productivity_lag: 0

@@ -288,6 +288,63 @@ def build_model(instance: dict[str, Any], *, elastic_floor: bool = False) -> Mod
             problem += sellers[t] >= sellers[t - 1]
             problem += leaders[t] >= leaders[t - 1]
 
+    # Hiring friction (ADR 0014, opt-in, default off): caps the monthly headcount
+    # jump for t >= 13 on top of the existing monotonicity (no firing). When
+    # disabled, this is a strict no-op (no constraints added).
+    hiring = instance.get("hiring", {})
+    if bool(hiring.get("enabled", False)):
+        max_new_sellers = hiring["max_new_sellers_per_month"]
+        max_new_leaders = hiring["max_new_leaders_per_month"]
+        for t in periods:
+            if t >= 13:
+                problem += sellers[t] <= sellers[t - 1] + max_new_sellers
+                problem += leaders[t] <= leaders[t - 1] + max_new_leaders
+
+    # Growth commitment (ADR 0014, opt-in, default off): investment-thesis FLOOR
+    # on the net client stock (sum_s C[s,t]) at annual checkpoints. Never a
+    # ceiling — the upper side stays free (existing bounds: log ceiling / convex
+    # CAC / capacity / cash). Infeasible is a valid business result (the thesis
+    # does not fit the structure); see scripts/diagnose_infeasibility.py.
+    growth_commitment = instance.get("growth_commitment", {})
+    if bool(growth_commitment.get("enabled", False)):
+        checkpoint_targets = growth_commitment.get("checkpoint_targets", {})
+        horizon = instance["H"]
+        for checkpoint_month, target in checkpoint_targets.items():
+            if checkpoint_month > horizon:
+                raise ValueError(
+                    f"growth_commitment checkpoint at month {checkpoint_month} exceeds "
+                    f"H={horizon}: raise H or use checkpoints: terminal with H >= 36, or "
+                    "disable growth_commitment for short horizons."
+                )
+            problem += (
+                pulp.lpSum(active_clients[(s, checkpoint_month)] for s in range(service_count))
+                >= target
+            )
+
+    # Aggregate acquisition envelope (ADR 0014 amendment, opt-in, default off):
+    # maximum acquisition path U_t derived from the consensuated plan, the
+    # VC-minimum stock path, and declared slack (precomputed in instance.py, so
+    # these are plain linear upper bounds). Coexists with the legacy log ceiling
+    # (ADR 0010): when both are active the tighter bound binds at each t.
+    envelope = instance.get("acquisition_envelope", {})
+    if bool(envelope.get("enabled", False)):
+        for t, envelope_value in envelope["path"].items():
+            problem += pulp.lpSum(
+                acquisition[(s, t)] for s in range(service_count)
+            ) <= envelope_value
+
+    # Third-party monthly cap (unbounded-path MVP fix): the channel has no own
+    # capacity mechanism, so validate_config requires an explicit A_tp_cap when
+    # active. Binds only the optimized horizon (year 1 is fixed to A_base).
+    if tp_active:
+        tp_cap = channels["third_party"].get("A_tp_cap")
+        if tp_cap is not None:
+            for t in periods:
+                if t >= 13:
+                    problem += pulp.lpSum(
+                        acq_tp[(s, t)] for s in range(service_count)
+                    ) <= tp_cap
+
     problem += cash[1] == instance["VC"] + ebitda[1]
     for t in periods:
         if t > 1:

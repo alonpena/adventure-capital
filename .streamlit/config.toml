@@ -1,0 +1,8 @@
+# Identidad "Memorando / Investment Research Console" (ADR 0008 §6, enmienda 2026-07-05).
+# El tema base gobierna los widgets nativos (dataframes, inputs) que el CSS inyectado no alcanza.
+[theme]
+base = "light"
+primaryColor = "#7A2E2E"
+backgroundColor = "#F7F5F0"
+secondaryBackgroundColor = "#EFEBE2"
+textColor = "#21201C"

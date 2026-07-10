@@ -58,8 +58,27 @@ The verdict also carries `blocking_reasons`, `adjustment_recommendations` (what 
 | `DD10_revenue_growth` | major | final-year / first-year revenue below `revenue_growth_min_multiple` (SME-like, not scalable) |
 | `DD07_runway` | minor / warning | cash goes negative on/before `runway_minor` (minor) else warning — diagnostic |
 | `DD08_funding_gap_severity` | minor / warning | working-capital trough vs `VC` above `gap_minor` / `gap_warn` — diagnostic |
+| `DD11_working_capital_financing_gap` | minor | hard working-capital floor diagnostic finds additional financing required |
+| `DD12_exit_roi` | warning | exit proxy below 3× post-money minimum |
+| `DD13_growth_commitment_plan_mom_suspicious` | warning | `plan_mom` source implies stock growth far above VC minimum |
+| `DD14_growth_commitment_plan_below_thesis` | warning | consensuated plan stock growth is below VC thesis |
+| `DD15_growth_commitment_plan_inconsistent` | warning | C12 is near zero / plan cannot anchor growth commitment |
+| `DD16_growth_commitment_custom_unjustified` | warning | custom growth commitment lacks explicit justification |
+| `DD17_growth_commitment_infeasible` | warning | solver infeasible with growth commitment enabled; valid business diagnosis |
+| `DD18_conservative_plan_diagnostic` | advisory ok / warning | experimental M-sweep reports feasible VAN-accretive headroom (Conservative, non-blocking) or flags infeasible thesis |
 
 Liquidity is also summarized (not pass/fail) in `liquidity_diagnostic`: min cash + month, max funding gap + month, breakeven month, whether cash recovers, final cash.
+
+`DD18` is an experimental advisory post-solve diagnostic. It re-solves the core model with
+`investment_thesis.multiple` as an external parameter (bounded bisection, up to 8
+iterations), checks feasibility including the configured hard cash floor, and
+observes VAN at probe points. Ratios/M are never solver variables and VAN is
+never calibrated directly. The finding is non-blocking when `Conservative`: it is
+returned as passed/ok and does not alter the DD verdict. If the sweep reaches the
+configured cap, the evidence marks `upper_bound_hit=true` and the message says
+"feasible up to tested cap"; `M_star_feasible` must be read as the tested-cap
+boundary or largest probed feasible value, not a true market maximum. Otherwise it
+reports `Calibrated` (ok) or `Infeasible` (warning).
 
 ### Delegated to Calibration (mapped, not reimplemented)
 
