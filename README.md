@@ -68,6 +68,27 @@ DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib uv run adventure-capital report \
   --pdf
 ```
 
+## Launch the app (Streamlit UI)
+
+**Online (recommended — no install):**
+
+App is hosted on Streamlit Community Cloud from the `deploy-production` branch:
+
+```
+https://<your-app-name>.streamlit.app
+```
+
+Just open the link in a browser. Nothing to install.
+
+**Local (for development):**
+
+```bash
+uv sync
+uv run streamlit run app.py
+```
+
+Opens at `http://localhost:8501`. Requires `uv` installed (`brew install uv` on macOS).
+
 ## Python API
 
 ```python
