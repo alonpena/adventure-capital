@@ -269,52 +269,41 @@ def narrate_hr(hr_summary: list[tuple]) -> dict[str, Any]:
     if not hr_summary:
         return {"headline": "Sin datos de RR.HH.", "paragraphs": []}
     last_planilla = hr_summary[-1][2]
-    last_comercial = hr_summary[-1][5]
-    last_total = hr_summary[-1][6]
-    avg_vendedores = sum(row[3] for row in hr_summary) / len(hr_summary)
-    avg_lideres = sum(row[4] for row in hr_summary) / len(hr_summary)
+    last_pct = hr_summary[-1][3]
+    total_planilla = sum(row[2] for row in hr_summary)
 
     paragraphs = [
         (
-            f"La planilla base en el último año asciende a {_fmt_money(last_planilla)}, "
-            f"a lo que se agrega un costo comercial de {_fmt_money(last_comercial)} entre vendedores y líderes."
+            "La sección muestra solo RR.HH. base no comercial. "
+            "La fuerza comercial forma parte del CAC y se informa en la sección de adquisición."
         ),
         (
-            f"En promedio, el equipo comercial opera con {_fmt_number(avg_vendedores, 1)} vendedores "
-            f"y {_fmt_number(avg_lideres, 1)} líderes por mes a lo largo del horizonte. "
-            f"El costo total de personas en el último año llega a {_fmt_money(last_total)}."
+            f"La planilla base del último año asciende a {_fmt_money(last_planilla)} "
+            f"({_fmt_pct(last_pct)} de ingresos). En el horizonte suma {_fmt_money(total_planilla)}."
         ),
     ]
-    return {"headline": f"RR.HH. último año: {_fmt_money(last_total)}", "paragraphs": paragraphs}
+    return {"headline": f"RR.HH. base último año: {_fmt_money(last_planilla)}", "paragraphs": paragraphs}
 
 
 def narrate_valuation(valuation_summary: list[tuple], wacc_base: float, dcf_params: dict[str, Any]) -> dict[str, Any]:
     if not valuation_summary:
         return {"headline": "Sin datos de valorización.", "paragraphs": []}
     values_by_method = {row[0]: row[-1] for row in valuation_summary}
-    multiples = [v for k, v in values_by_method.items() if "Múltiplo" in k]
-    van = values_by_method.get("VAN (suma flujos descontados)", float("nan"))
-    max_v = max(values_by_method.values()) if values_by_method else float("nan")
-    min_v = min(values_by_method.values()) if values_by_method else float("nan")
+    van = values_by_method.get("Valor Actual Neto (VAN)", values_by_method.get("VAN (suma flujos descontados)", float("nan")))
 
     paragraphs = [
         (
-            f"El WACC base estimado es {_fmt_pct(wacc_base)} a partir de Rf {_fmt_pct(dcf_params.get('Rf_us', 0.0))}, "
-            f"β CAPM {_fmt_number(dcf_params.get('beta_capm', 0.0), 2)}, Rm {_fmt_pct(dcf_params.get('Rm', 0.0))}, "
-            f"riesgo país {_fmt_pct(dcf_params.get('country_risk', 0.0))} y castigo {_fmt_pct(dcf_params.get('castigo_riesgo', 0.0))}."
+            f"El WACC anual estimado es {_fmt_pct(wacc_base)}. La valorización se basa en el método de "
+            f"Flujos de Caja Descontados (DCF), proyectando los flujos netos del horizonte y sumando "
+            f"el valor residual descontado."
         ),
         (
-            f"Por flujos descontados (VAN), la valorización es {_fmt_money(van)}. "
-            f"Por múltiplos comparables, los resultados oscilan entre {_fmt_money(min(multiples) if multiples else float('nan'))} "
-            f"y {_fmt_money(max(multiples) if multiples else float('nan'))}."
-        ),
-        (
-            f"El rango de valorización entre métodos va de {_fmt_money(min_v)} a {_fmt_money(max_v)}. "
-            "Para presentación al inversionista se sugiere ofrecer el valor por VAN como base conservadora "
-            "y los múltiplos como referencia de mercado."
-        ),
+            f"El Valor Actual Neto (VAN) resultante asciende a {_fmt_money(van)}. "
+            f"Esto representa el valor presente de la compañía neto de la inversión inicial, "
+            f"utilizando la tasa de descuento base definida por el costo de capital de la industria."
+        )
     ]
-    return {"headline": f"Valorización (rango): {_fmt_money(min_v)} – {_fmt_money(max_v)}", "paragraphs": paragraphs}
+    return {"headline": f"Valorización DCF (VAN): {_fmt_money(van)}", "paragraphs": paragraphs}
 
 
 def narrate_unit_economics(unit_economics: dict[str, float], annual_rows: list[tuple]) -> dict[str, Any]:

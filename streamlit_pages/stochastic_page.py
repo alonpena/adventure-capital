@@ -76,6 +76,8 @@ def render(st) -> None:
         if summary_df is not None and not summary_df.empty:
             diag_summary = summary_df.iloc[0].to_dict()
     if diag_summary:
+        C.note(st, "M4 evalúa robustez; no define el plan oficial.")
+
         n_scen = C.number(diag_summary.get("n_scenarios"))
         h1, h2, h3 = st.columns([2, 2, 1])
         with h1:
@@ -93,30 +95,27 @@ def render(st) -> None:
             C.kpi(st, "Clientes activos final (P50)",
                   C.number(diag_summary.get("final_active_clients_p50")))
 
-        # ── Risk Band: grouped downside summary ──────────────────
-        cvar = diag_summary.get("cvar_5", diag_summary.get("cvar"))
-        prob_neg = diag_summary.get("prob_van_negative", 0)
-        prob_cash = diag_summary.get("prob_cash_below_floor", 0)
-        gap = diag_summary.get("expected_funding_gap", 0)
-        C.risk_band(
-            st,
-            "Banda de riesgo — cola 5% de escenarios",
-            [
-                ("Valor en riesgo (CVaR 5%)", C.money(cvar), "VAN promedio del peor 5%"),
-                ("VAN pesimista (P10)", C.money(diag_summary.get("van_p10")), ""),
-                ("Prob. VAN negativo", C.pct(prob_neg), ""),
-                ("Prob. caja bajo mínimo", C.pct(prob_cash), ""),
-                ("Brecha de financiamiento esperada", C.money(gap), ""),
-            ],
-        )
+        # ── Summary table of 9 key metrics ───────────────────────
+        st.markdown("### Resumen de Múltiples Escenarios (LHS)")
 
-        # Method metadata — footnote, not headline (vocabulario de producto).
-        raw_method = str((diagnostics or {}).get("evaluation", "—"))
-        method = {"ex_post_lhs": "ex post (muestreo LHS)"}.get(raw_method, raw_method.replace("_", " "))
-        obj = (diagnostics or {}).get("objective")
-        obj_label = {"cvar_van": "downside (CVaR 5% sobre VAN)"}.get(obj, str(obj or "—"))
-        st.caption(f"Método: {method} · Objetivo de optimización: {obj_label} · "
-                   f"{n_scen} escenarios generados")
+        summary_metrics = {
+            "VAN esperado": C.money(diag_summary.get("expected_van")),
+            "VAN P10 (Pesimista)": C.money(diag_summary.get("van_p10")),
+            "VAN P50 (Mediana)": C.money(diag_summary.get("van_p50")),
+            "VAN P90 (Optimista)": C.money(diag_summary.get("van_p90")),
+            "CVaR 5% (Riesgo de cola)": C.money(diag_summary.get("cvar_5")),
+            "P(VAN < 0) (Probabilidad de pérdida)": C.pct(diag_summary.get("prob_van_negative")),
+            "Brecha de caja esperada (Funding gap)": C.money(diag_summary.get("expected_funding_gap")),
+            "Clientes finales P50": C.number(diag_summary.get("final_active_clients_p50"), 0),
+            "Breakeven P50 (Mes)": f"Mes {C.number(diag_summary.get('breakeven_month_p50'), 0)}" if diag_summary.get("breakeven_month_p50") else "—",
+        }
+
+        import pandas as pd
+        summary_df = pd.DataFrame(
+            [{"Métrica de Robustez": k, "Valor": v} for k, v in summary_metrics.items()]
+        )
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
         C.source_caption(st, "M4_STOCHASTIC", "stochastic_diagnostics.json", "stochastic_summary.csv")
 
     # ── Histogram ────────────────────────────────────────────────

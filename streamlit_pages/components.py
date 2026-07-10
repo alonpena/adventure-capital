@@ -471,6 +471,47 @@ def note(st, text: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Report HTML helpers — inline local images so the document is self-contained
+# --------------------------------------------------------------------------- #
+
+
+def inline_report_html(path: Path) -> str:
+    """Return the report HTML with local image references inlined as data URIs.
+
+    Reports reference charts as ``figures/*.png`` relative paths. Those resolve
+    when the file is opened from its own directory, but break inside a Streamlit
+    embed and in downloaded copies. Inlining makes the HTML self-contained.
+    """
+    import base64
+    import re
+
+    html_text = path.read_text(encoding="utf-8")
+    base = path.parent
+
+    def _repl(match: "re.Match[str]") -> str:
+        src = match.group(1)
+        if src.startswith(("data:", "http:", "https:", "//")):
+            return match.group(0)
+        img = base / src
+        if not img.is_file():
+            return match.group(0)
+        ext = img.suffix.lstrip(".").lower() or "png"
+        if ext == "svg":
+            ext = "svg+xml"
+        b64 = base64.b64encode(img.read_bytes()).decode("ascii")
+        return match.group(0).replace(src, f"data:image/{ext};base64,{b64}", 1)
+
+    return re.sub(r'src="([^"]+)"', _repl, html_text)
+
+
+def embed_report_html(st, path: Path, height: int = 1100) -> None:
+    """Embed a report HTML file inline with its charts visible."""
+    import streamlit.components.v1 as components
+
+    components.html(inline_report_html(Path(path)), height=height, scrolling=True)
+
+
+# --------------------------------------------------------------------------- #
 # Download helpers
 # --------------------------------------------------------------------------- #
 
@@ -524,19 +565,20 @@ def download_pdf_button(st, run_id: str, label: str = "Descargar PDF") -> None:
         )
 
 
-def download_html_button(st, run_id: str, label: str = "Descargar HTML") -> None:
-    """Render a download button for report.html if it exists."""
+def download_html_button(st, run_id: str, label: str = "Descargar HTML",
+                         filename: str = "report.html") -> None:
+    """Render a download button for a report HTML artifact (self-contained copy)."""
     exe = _exec_path(run_id)
     if exe is None:
         return
-    html_path = exe / "report.html"
+    html_path = exe / filename
     if not html_path.exists():
         st.info("HTML no disponible.")
         return
-    with html_path.open("r", encoding="utf-8") as f:
-        st.download_button(
-            label=label,
-            data=f,
-            file_name="report.html",
-            mime="text/html",
-        )
+    st.download_button(
+        label=label,
+        data=inline_report_html(html_path),
+        file_name=filename,
+        mime="text/html",
+        key=f"dl_{filename}_{run_id}",
+    )

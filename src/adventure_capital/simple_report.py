@@ -19,12 +19,20 @@ from __future__ import annotations
 import csv
 import html
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 REPORT_FILENAME = "report.html"
 REPORT_PRINT_FILENAME = "report_print.html"
+
+def _humanize_channel(c: str) -> str:
+    mapping = {
+        "salesforce": "Fuerza de ventas",
+        "advertising": "Publicidad",
+        "third_party": "Terceros"
+    }
+    return mapping.get(c.lower(), c)
+
 
 _TEXT = {
     "subtitle": "Valorización determinista, plan de crecimiento target-driven y análisis de robustez.",
@@ -34,18 +42,12 @@ _TEXT = {
         "la ejecución eficiente en recursos para alcanzarlo."
     ),
     "robustness": (
-        "M4 evalúa la robustez del plan bajo incertidumbre mediante escenarios LHS. "
-        "Reporta distribución de VAN, CVaR, probabilidad de VAN negativo y brecha de caja. "
-        "No reemplaza el plan determinista oficial."
+        "M4 evalúa robustez; no define el plan oficial."
     ),
     "dd": (
         "La Due Diligence estructura los hallazgos de escalabilidad, caja y consistencia "
         "del modelo. Su objetivo es recomendar recalibraciones, no emitir una recomendación "
         "de inversión."
-    ),
-    "limitations": (
-        "Los casos con logística, downgrades, setup o base instalada requieren extensiones "
-        "estructurales. Se reportan como diagnóstico y trabajo futuro, no como fallas silenciosas."
     ),
     "footer": (
         "Reporte MVP generado por Adventure Capital. Material de apoyo para tesis/demo; "
@@ -174,15 +176,6 @@ def _paragraph(text: str) -> str:
     return f'<p class="lead">{_esc(text)}</p>'
 
 
-def _dashboard_image(output_dir: Path) -> str:
-    if not (output_dir / "dashboard.png").exists():
-        return ""
-    return (
-        '<figure class="figure"><img src="dashboard.png" alt="Dashboard financiero" />'
-        "<figcaption>Dashboard generado desde artefactos canónicos del plan.</figcaption></figure>"
-    )
-
-
 def _svg_chart(
     rows: list[dict[str, str]],
     *,
@@ -274,21 +267,6 @@ def _compact_monthly_table(rows: list[dict[str, str]]) -> str:
     return _table(["Mes", "Adq.", "Clientes", "Ingresos", "EBITDA", "Caja"], table_rows)
 
 
-def _portada(assessment: dict[str, Any] | None, output_dir: Path) -> str:
-    generated = datetime.now().strftime("%Y-%m-%d %H:%M")
-    verdict = (assessment or {}).get("verdict", "—")
-    mode = (assessment or {}).get("valuation_mode", "—")
-    rows = [
-        ["Directorio de resultados", str(output_dir)],
-        ["Generado", generated],
-        ["Veredicto Due Diligence", verdict],
-        ["Modo de valorización", mode],
-    ]
-    return _section(
-        "Portada", _table(["Campo", "Valor"], rows)
-    )
-
-
 def _resumen_ejecutivo(
     growth: dict[str, Any] | None,
     valuation: dict[str, Any] | None,
@@ -304,8 +282,8 @@ def _resumen_ejecutivo(
             _kpi("Adquisición total", _num(growth.get("total_acquisition")) + " clientes")
         )
     if stoch_summary:
-        kpis.append(_kpi("VAN esperado (M4)", _money(stoch_summary.get("expected_van"))))
-        kpis.append(_kpi("CVaR 5% (M4)", _money(stoch_summary.get("cvar_5"))))
+        kpis.append(_kpi("VAN esperado", _money(stoch_summary.get("expected_van"))))
+        kpis.append(_kpi("CVaR 5%", _money(stoch_summary.get("cvar_5"))))
     if not kpis:
         return _section("Resumen ejecutivo", "<p>Sin KPIs disponibles.</p>")
     body = _paragraph(_TEXT["subtitle"]) + '<div class="kpi-grid">' + "".join(kpis) + "</div>"
@@ -319,7 +297,7 @@ def _m1_growth(
 ) -> str:
     if not growth:
         return _section(
-            "M1 — Plan determinista oficial",
+            "Plan de crecimiento",
             "<p>Artefacto <code>growth_plan_summary.json</code> no disponible.</p>",
         )
     channels = growth.get("enabled_channels") or []
@@ -330,12 +308,10 @@ def _m1_growth(
         ["EBITDA total", _money(growth.get("total_ebitda"))],
         ["Caja final", _money(growth.get("final_cash"))],
         ["Caja mínima", _money(growth.get("minimum_cash"))],
-        ["Vendedores máx.", _num(growth.get("max_sellers"))],
-        ["Líderes máx.", _num(growth.get("max_leaders"))],
-        ["Canales activos", ", ".join(channels) if channels else "—"],
+        ["Dotación comercial máxima estimada", f"{_num(growth.get('max_sellers'))} vendedores / {_num(growth.get('max_leaders'))} líderes"],
+        ["Canales activos", ", ".join(_humanize_channel(c) for c in channels) if channels else "—"],
     ]
-    charts = _dashboard_image(output_dir)
-    charts += _svg_chart(
+    charts = _svg_chart(
         optimized_rows,
         title="Ingresos, EBITDA y caja mensual",
         series=[
@@ -360,7 +336,7 @@ def _m1_growth(
         + ("<h3>Tabla de aceleración</h3>" + compact if compact else "")
     )
     return _section(
-        "M1 — Plan determinista oficial",
+        "Plan de crecimiento",
         body,
     )
 
@@ -370,7 +346,7 @@ def _m2_valuation(
 ) -> str:
     if not valuation and not unit_rows:
         return _section(
-            "M2 — Valorización y Unit Economics",
+            "Valorización",
             "<p>Artefactos de valorización no disponibles.</p>",
         )
     body = ""
@@ -391,26 +367,21 @@ def _m2_valuation(
         display_cols = [c for c in ("Unit Economic", "Valor", "Unidad") if c in cols] or cols
         table_rows = [[r.get(c, "") for c in display_cols] for r in unit_rows]
         body += "<h3>Unit Economics</h3>" + _table(display_cols, table_rows)
-    return _section("M2 — Valorización y Unit Economics", body)
+    return _section("Valorización", body)
 
 
 def _format_item(item: Any) -> str:
-    """Render a DD reason/recommendation that may be a str or a dict.
-
-    Recommendations are dicts ``{id, severity_class, recommendation}``; blocking
-    reasons are plain strings. Both degrade to ``str()`` for unknown shapes.
-    """
+    """Render a DD recommendation or reason, extracting only text."""
     if isinstance(item, dict):
         text = item.get("recommendation") or item.get("message") or item.get("reason") or ""
-        ident = item.get("id")
-        return f"{ident} — {text}" if ident and text else (text or str(item))
+        return text or str(item)
     return str(item)
 
 
 def _m3_due_diligence(dd: dict[str, Any] | None) -> str:
     if not dd:
         return _section(
-            "M3 — Due Diligence",
+            "Due diligence",
             "<p>Artefacto <code>due_diligence_report.json</code> no disponible.</p>",
         )
     rows = [
@@ -433,28 +404,7 @@ def _m3_due_diligence(dd: dict[str, Any] | None) -> str:
         body += "<h3>Recomendaciones de ajuste</h3><ul>"
         body += "".join(f"<li>{_esc(_format_item(r))}</li>" for r in recs)
         body += "</ul>"
-    return _section("M3 — Due Diligence", body)
-
-
-def _m4_status_note(assessment: dict[str, Any] | None) -> str:
-    """Explain why M4 is absent when there is no stochastic summary."""
-    intro = _paragraph(_TEXT["robustness"])
-    stoch = (assessment or {}).get("stochastic")
-    if not stoch:
-        return intro + "<p>El análisis de robustez (M4) no se ejecutó en esta corrida.</p>"
-    if stoch.get("ran") is False:
-        reason = stoch.get("reason", "desconocido")
-        return intro + (
-            "<p>El análisis de robustez (M4) <strong>no se ejecutó</strong>. "
-            f"Motivo: <code>{_esc(reason)}</code>. Modo de valorización: "
-            f"<code>{_esc(stoch.get('valuation_mode', 'none'))}</code>.</p>"
-        )
-    status = stoch.get("status", "desconocido")
-    return intro + (
-        "<p>El análisis de robustez (M4) corrió pero no alcanzó solución óptima. "
-        f"Estado del solver: <code>{_esc(status)}</code>. Reintentar con mayor "
-        "<code>--stochastic-time-limit</code>.</p>"
-    )
+    return _section("Due diligence", body)
 
 
 def _m4_stochastic(
@@ -462,49 +412,44 @@ def _m4_stochastic(
     saa: dict[str, Any] | None,
     assessment: dict[str, Any] | None,
 ) -> str:
-    title = "M4 — Análisis de robustez (LHS)"
+    title = "Análisis de robustez"
     if not stoch_summary:
-        return _section(title, _m4_status_note(assessment))
+        return _section(title, f"<p>{_TEXT['robustness']} El análisis de robustez no se ejecutó en esta corrida o no hay datos disponibles.</p>")
 
-    val_mode = (assessment or {}).get("valuation_mode", "—")
     s = stoch_summary
     rows = [
-        ["Modo de valorización", val_mode],
-        ["Estado SAA", (saa or {}).get("status", "—")],
-        ["Escenarios SAA", _num((saa or {}).get("saa_scenario_count"))],
-        ["Escenarios evaluación (ex-post)", _num(s.get("n_scenarios"))],
-        ["CVaR alpha", s.get("cvar_alpha", "—")],
         ["VAN esperado", _money(s.get("expected_van"))],
-        ["CVaR 5%", _money(s.get("cvar_5"))],
-        ["VAN P5", _money(s.get("van_p5"))],
         ["VAN P10", _money(s.get("van_p10"))],
-        ["VAN P50", _money(s.get("van_p50"))],
+        ["VAN P50 (Mediana)", _money(s.get("van_p50"))],
         ["VAN P90", _money(s.get("van_p90"))],
-        ["Prob. VAN negativo", _pct(s.get("prob_van_negative"))],
-        ["Clientes activos finales P50", _num(s.get("final_active_clients_p50"))],
-        ["Runway mediano (P50)", _num(s.get("runway_month_p50"))],
-        ["Gap de financiamiento esperado", _money(s.get("expected_funding_gap"))],
-        ["Gap de financiamiento máximo", _money(s.get("max_funding_gap"))],
-        ["Prob. caja bajo el piso", _pct(s.get("prob_cash_below_floor"))],
+        ["CVaR (Riesgo de cola)", _money(s.get("cvar_5"))],
+        ["Probabilidad de VAN < 0", _pct(s.get("prob_van_negative"))],
+        ["Brecha de caja esperada (Funding gap)", _money(s.get("expected_funding_gap"))],
+        ["Clientes finales P50", _num(s.get("final_active_clients_p50"))],
+        ["Breakeven P50 (Mes)", _num(s.get("breakeven_month_p50"))],
     ]
     note = (
         _paragraph(_TEXT["robustness"])
-        + '<p class="note"><strong>Artefacto técnico:</strong> <code>saa_solution.json</code> '
-        "documenta la estrategia SAA. No es el plan oficial; el plan oficial es determinista.</p>"
     )
     return _section(title, note + _table(["Métrica", "Valor"], rows))
 
 
-def _artifacts_listing(output_dir: Path) -> str:
-    rows = []
-    for name in _ARTIFACT_FILES:
-        present = (output_dir / name).exists()
-        rows.append([name, "✓ disponible" if present else "— ausente"])
-    return _section("Artefactos canónicos", _table(["Archivo", "Estado"], rows))
+def _descargas_section(output_dir: Path) -> str:
+    html_exists = (output_dir / "standard_report.html").exists()
+    pdf_exists = (output_dir / "report.pdf").exists()
 
-
-def _limitations_section() -> str:
-    return _section("Limitaciones y alcance", _paragraph(_TEXT["limitations"]))
+    body = "<p>Los siguientes informes detallados están disponibles para su descarga desde la plataforma:</p><ul>"
+    body += "<li><strong>Informe Ejecutivo (HTML):</strong> <code>report.html</code> (este documento)</li>"
+    if html_exists:
+        body += "<li><strong>Reporte Estándar (HTML):</strong> <code>standard_report.html</code></li>"
+    else:
+        body += "<li><strong>Reporte Estándar (HTML):</strong> No generado aún</li>"
+    if pdf_exists:
+        body += "<li><strong>Reporte Estándar (PDF):</strong> <code>report.pdf</code></li>"
+    else:
+        body += "<li><strong>Reporte Estándar (PDF):</strong> No disponible (requiere generación con PDF enabled)</li>"
+    body += "</ul>"
+    return _section("Descargas", body)
 
 
 _STYLE = """
@@ -610,14 +555,12 @@ def build_simple_report(output_dir: str | Path) -> Path:
     optimized_rows = _load_csv_rows(out / "optimized_results.csv")
 
     sections = [
-        _portada(assessment, out),
         _resumen_ejecutivo(growth, valuation, stoch_summary),
         _m1_growth(growth, optimized_rows, out),
         _m2_valuation(valuation, unit_rows),
         _m3_due_diligence(dd),
         _m4_stochastic(stoch_summary, saa, assessment),
-        _limitations_section(),
-        _artifacts_listing(out),
+        _descargas_section(out),
     ]
 
     document = (

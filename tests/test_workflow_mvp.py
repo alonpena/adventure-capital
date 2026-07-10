@@ -103,7 +103,8 @@ def test_simple_report_formats_recommendation_dicts(tmp_path):
         )
     )
     html = build_simple_report(tmp_path).read_text()
-    assert "DD07 — Aumentar VC." in html
+    assert "Aumentar VC." in html
+    assert "DD07" not in html  # no ID leaked
     assert "severity_class" not in html  # no raw dict leaked
 
 

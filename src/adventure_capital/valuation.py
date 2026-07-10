@@ -90,7 +90,7 @@ def calculate_dcf(df: pd.DataFrame, instance: dict[str, Any]) -> dict[str, Any]:
 
     last_month_ebitda = float(cashflow.iloc[-1]["EBITDA"])
     annualized_ebitda = last_month_ebitda * 12
-    
+
     terminal_value_nominal = calcular_valor_residual(
         last_month_ebitda,
         metodo,
@@ -98,7 +98,7 @@ def calculate_dcf(df: pd.DataFrame, instance: dict[str, Any]) -> dict[str, Any]:
         ebitda_multiple=ebitda_multiple,
         gordon_g=gordon_g
     )
-    
+
     terminal_discount_factor = 1 / (1 + monthly_discount) ** int(instance["H"])
     terminal_value_pv = terminal_value_nominal * terminal_discount_factor
     pv_cashflows = float(cashflow["FC_desc"].sum())

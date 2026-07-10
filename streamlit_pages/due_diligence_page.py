@@ -84,6 +84,11 @@ def _render_m4_gate(st, run_id: str) -> None:
     st.rerun()
 
 
+def _humanize_finding_name(name: str) -> str:
+    """Turn a machine finding name like ``instance_valid`` into readable text."""
+    return name.replace("_", " ").strip().capitalize() if name else "—"
+
+
 def render(st) -> None:
     run_id = C.require_execution(st)
     if run_id is None:
@@ -164,7 +169,11 @@ def render(st) -> None:
     if recommendations:
         st.markdown("##### Recomendaciones de ajuste")
         for rec in recommendations:
-            st.markdown(f"- {rec}")
+            if isinstance(rec, dict):
+                msg = rec.get("recommendation") or rec.get("message") or rec.get("reason") or str(rec)
+                st.markdown(f"- {msg}")
+            else:
+                st.markdown(f"- {rec}")
 
     C.source_caption(st, "M3_DUE_DILIGENCE", "due_diligence_report.json", "assessment_summary.json")
 
@@ -173,37 +182,41 @@ def render(st) -> None:
     if findings:
         st.markdown("### Hallazgos")
 
-        # Count by severity
-        by_severity = {}
-        for f in findings:
-            sev = f.get("severity_class", "unknown")
-            by_severity[sev] = by_severity.get(sev, 0) + 1
+        passed = [f for f in findings if f.get("passed", True)]
+        failing = [f for f in findings if not f.get("passed", True)]
+        st.caption(
+            f"{len(passed)} de {len(findings)} verificaciones pasaron"
+            + (f" · {len(failing)} requieren atención." if failing else ".")
+        )
 
-        cols = st.columns(len(by_severity) if by_severity else 1)
-        for i, (sev, count) in enumerate(sorted(by_severity.items())):
-            tone = C.SEVERITY_TONE.get(sev, "muted")
-            with cols[i % len(cols)]:
-                C.badge(st, f"{sev}: {count}", tone)
+        # Attention first: what failed, why, and what to do about it.
+        for f in failing:
+            name = _humanize_finding_name(f.get("name", f.get("id", "")))
+            msg = f.get("message", "")
+            with st.expander(f"⚠️ {name} — {msg}", expanded=True):
+                if f.get("recommendation"):
+                    st.markdown(f"**Qué hacer:** {f.get('recommendation')}")
 
-        # Flag table
+                evidence = f.get("evidence", {})
+                sev = f.get("severity_class", "—")
+                ident = f.get("id", "")
+                with st.expander("Detalle técnico / Evidencia", expanded=False):
+                    st.markdown(f"**ID:** `{ident}`")
+                    st.markdown(f"**Severidad:** `{sev}`")
+                    if evidence:
+                        st.json(evidence)
+
+        # Then the checklist of what passed, with its message.
+        for f in passed:
+            name = _humanize_finding_name(f.get("name", f.get("id", "")))
+            message = f.get("message") or "Sin observaciones."
+            st.markdown(f"✅ **{name}** — {message}")
+
+        # Raw flag table stays available, but out of the way.
         flags = C.postprocessed_csv(run_id, "due_diligence", "due_diligence_flags.csv")
         if flags is not None:
-            st.dataframe(flags, use_container_width=True, hide_index=True)
-
-        # Failing findings detail
-        failing = [f for f in findings if not f.get("passed", True)]
-        if failing:
-            st.markdown("#### Hallazgos con alerta")
-            for f in failing:
-                with st.expander(f"[{f.get('id')}] {f.get('name')}"):
-                    tone = C.SEVERITY_TONE.get(f.get("severity_class"), "muted")
-                    C.badge(st, f.get("severity_class", "—"), tone)
-                    st.write(f.get("message", ""))
-                    if f.get("recommendation"):
-                        st.write(f"**Recomendación:** {f.get('recommendation')}")
-                    evidence = f.get("evidence", {})
-                    if evidence:
-                        st.write("**Evidencia:**", evidence)
+            with st.expander("Detalle técnico (tabla de flags)"):
+                st.dataframe(flags, use_container_width=True, hide_index=True)
 
     # ── Calibration verdict ─────────────────────────────────────
     cal_verdict = assessment_data.get("calibration_verdict")

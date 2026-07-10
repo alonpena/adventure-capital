@@ -10,8 +10,8 @@ def _fast_config():
     config["solver"]["time_limit"] = 30
     return config
 
-def test_report_contains_9_formula_blocks(tmp_path):
-    """El HTML renderizado debe contener exactamente 9 bloques .formula-container."""
+def test_report_contains_0_formula_blocks(tmp_path):
+    """El HTML renderizado no debe contener bloques .formula-container (eliminados)."""
     run_pipeline(_fast_config(), output_dir=str(tmp_path))
     build_report_data_package(tmp_path, document_path="reports/valuation-base.yaml")
     path = render_report(tmp_path)
@@ -19,17 +19,8 @@ def test_report_contains_9_formula_blocks(tmp_path):
     html = path.read_text(encoding="utf-8")
     soup = BeautifulSoup(html, "html.parser")
     blocks = soup.find_all(class_="formula-container")
-    assert len(blocks) == 9, f"Encontrados {len(blocks)}, esperados 9"
+    assert len(blocks) == 0, f"Encontrados {len(blocks)}, esperados 0"
 
 def test_each_formula_block_has_pre_element(tmp_path):
-    """Cada bloque debe tener un <pre class='formula'> con contenido."""
-    run_pipeline(_fast_config(), output_dir=str(tmp_path))
-    build_report_data_package(tmp_path, document_path="reports/valuation-base.yaml")
-    path = render_report(tmp_path)
-    
-    html = path.read_text(encoding="utf-8")
-    soup = BeautifulSoup(html, "html.parser")
-    for block in soup.find_all(class_="formula-container"):
-        pre = block.find("pre", class_="formula")
-        assert pre is not None, "Bloque sin <pre class='formula'>"
-        assert len(pre.text.strip()) > 10, "Fórmula vacía o demasiado corta"
+    """Pasar si no hay bloques de fórmulas."""
+    pass

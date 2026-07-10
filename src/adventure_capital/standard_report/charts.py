@@ -20,19 +20,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# Dark theme palette aligned with the report template.
-BG = "#0B1020"
-PANEL = "#111827"
-GRID = "#2A3344"
-TEXT = "#E5E7EB"
-MUTED = "#9CA3AF"
-AMBER = "#F59E0B"
-CYAN = "#22D3EE"
-RED = "#EF4444"
-GREEN = "#10B981"
-PURPLE = "#A855F7"
-BLUE = "#60A5FA"
-PINK = "#F472B6"
+# Light theme palette aligned with the report template.
+BG = "#FDFCF7"
+PANEL = "#FFFFFF"
+GRID = "#EBE6DC"
+TEXT = "#2D2924"
+MUTED = "#7A756D"
+AMBER = "#D97706"
+CYAN = "#0891B2"
+RED = "#DC2626"
+GREEN = "#059669"
+PURPLE = "#7C3AED"
+BLUE = "#2563EB"
+PINK = "#DB2777"
 
 SERVICE_COLORS = [AMBER, CYAN, GREEN, PURPLE, PINK, BLUE]
 
@@ -165,8 +165,8 @@ def _plot_services_new_vs_recurrent(df: pd.DataFrame, path: Path) -> None:
     years = annual_new.index.astype(int)
     x = np.arange(len(years))
     fig, ax = plt.subplots(figsize=(10, 5.5))
-    bars_new = ax.bar(x, annual_new.values, color=AMBER, label="Servicios nuevos", edgecolor=BG)
-    bars_rec = ax.bar(x, annual_rec.values, bottom=annual_new.values, color=CYAN, label="Servicios recurrentes", edgecolor=BG)
+    ax.bar(x, annual_new.values, color=AMBER, label="Servicios nuevos", edgecolor=BG)
+    ax.bar(x, annual_rec.values, bottom=annual_new.values, color=CYAN, label="Servicios recurrentes", edgecolor=BG)
     totals = annual_new.values + annual_rec.values
     for xi, total, n, r in zip(x, totals, annual_new.values, annual_rec.values):
         ax.text(xi, total + max(totals) * 0.02, f"{int(total)}", ha="center", color=TEXT, fontsize=11, fontweight="bold")
@@ -193,7 +193,6 @@ def _plot_revenue_breakdown(df: pd.DataFrame, path: Path) -> None:
     max_total = max(totals) if len(totals) else 0
     threshold = max_total * 0.04
     n_years = len(years)
-    n_layers = len(cols)
     # Identify topmost segment per bar (last layer above threshold)
     bottom = np.zeros(n_years)
     top_indices = np.full(n_years, -1, dtype=int)
@@ -275,7 +274,6 @@ def _plot_cac_components(df: pd.DataFrame, parameters: dict[str, Any], services:
     label_threshold = max_total * 0.04
     # Track the top of each segment to find which is topmost per bar.
     n_years = len(years)
-    n_layers = len(layers)
     bottom = np.zeros(n_years)
     top_indices = np.full(n_years, -1, dtype=int)
     for li, (label, values, color) in enumerate(layers):

@@ -32,7 +32,7 @@ def check_consistency(output_dir: str | pathlib.Path, instance_path: str | pathl
     monthly = pd.read_csv(output_dir / "optimized_results.csv")
     annual  = pd.read_csv(output_dir / "dcf_annual_summary.csv")
     ue      = pd.read_csv(output_dir / "unit_economics.csv")
-    
+
     try:
         params = yaml.safe_load(pathlib.Path(instance_path).read_text(encoding="utf-8")) or {}
     except Exception:

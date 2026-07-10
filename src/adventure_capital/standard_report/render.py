@@ -123,7 +123,23 @@ def render_report(output_dir: str | Path, *, filename: str = "report.html", pdf:
     pdf_path = out / "report.pdf"
     try:
         from weasyprint import HTML
-    except Exception as exc:  # pragma: no cover - import depends on optional backend health
-        raise RuntimeError("PDF rendering requires WeasyPrint.") from exc
-    HTML(filename=str(path), base_url=str(out)).write_pdf(str(pdf_path))
+        HTML(filename=str(path), base_url=str(out)).write_pdf(str(pdf_path))
+    except Exception as exc:
+        import subprocess
+        chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        if Path(chrome_path).exists():
+            try:
+                cmd = [
+                    chrome_path,
+                    "--headless",
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    f"--print-to-pdf={pdf_path}",
+                    f"file://{path.resolve()}"
+                ]
+                subprocess.run(cmd, check=True, capture_output=True)
+            except Exception as chrome_exc:
+                raise RuntimeError(f"PDF rendering failed. Weasyprint error: {exc}. Chrome error: {chrome_exc}")
+        else:
+            raise RuntimeError("PDF rendering requires WeasyPrint or Google Chrome on MacOS.") from exc
     return {"html": path, "pdf": pdf_path}

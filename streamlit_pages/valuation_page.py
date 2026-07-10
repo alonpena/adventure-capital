@@ -67,14 +67,11 @@ def render(st) -> None:
     with d3:
         C.kpi(st, "Impuesto", C.pct(dcf_inputs.get("tax")))
 
+    # ── Cash flow (annual, standard-report structure) ────────────
     if dcf_annual is not None:
-        with st.expander("Resumen anual DCF"):
-            cols = [c for c in ["Año", "Ingresos", "EBITDA", "FC_Neto", "FC_Descontado"]
-                    if c in dcf_annual.columns]
-            if cols:
-                st.dataframe(dcf_annual[cols], use_container_width=True, hide_index=True)
-            else:
-                st.dataframe(dcf_annual, use_container_width=True, hide_index=True)
+        st.markdown("### Flujo de caja anual")
+        _render_annual_cashflow(st, dcf_annual)
+        C.source_caption(st, "M2_VALUATION", "dcf_annual_summary.csv")
 
     # ── Multiples ────────────────────────────────────────────────
     st.markdown("### Múltiplos de referencia")
@@ -92,8 +89,6 @@ def render(st) -> None:
                       f"x{mult_row.get('Mult_ebitda', mult_row.get('mult_ebitda', '—'))}")
         else:
             st.dataframe(multiples, use_container_width=True, hide_index=True)
-
-    C.note(st, "Múltiplos configurables — no necesariamente comparables de mercado calibrados.")
 
     # ── Unit Economics ───────────────────────────────────────────
     st.markdown("### Unit Economics")
@@ -136,8 +131,59 @@ def render(st) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Annual cash flow (same structure as the standard report)
+# --------------------------------------------------------------------------- #
+
+_CASHFLOW_COLUMNS = {
+    "Año": "Año",
+    "Ingresos": "Ingresos",
+    "Costo_operacional": "Costo operacional",
+    "CAC": "CAC",
+    "G_adm": "G. administración",
+    "RRHH": "RRHH",
+    "EBITDA": "EBITDA",
+    "Impuesto": "Impuesto",
+    "FC_neto": "FC neto",
+    "FC_desc": "FC descontado",
+}
+
+
+def _render_annual_cashflow(st, dcf_annual) -> None:
+    cols = [c for c in _CASHFLOW_COLUMNS if c in dcf_annual.columns]
+    df = dcf_annual[cols].rename(columns=_CASHFLOW_COLUMNS) if cols else dcf_annual
+    money_cols = [c for c in df.columns if c != "Año"]
+    st.dataframe(
+        df.style.format({c: "{:,.0f}" for c in money_cols}),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+# --------------------------------------------------------------------------- #
 # Unit economics grid
 # --------------------------------------------------------------------------- #
+
+
+def _format_unit_economic(value, unit: str) -> tuple[str, str]:
+    """Format a unit-economics value according to its declared unit.
+
+    Returns ``(display_value, sub_label)``.
+    """
+    if not isinstance(value, (int, float)):
+        return str(value), unit
+    unit = (unit or "").strip()
+    if unit == "%":
+        return C.pct(value), ""
+    if unit == "ratio":
+        return f"{value:,.1f}x", ""
+    if unit.startswith("#"):
+        return C.number(value, 0), unit.lstrip("# ").strip()
+    if unit.startswith("USD"):
+        suffix = unit[3:].lstrip("/ ").strip()
+        return C.money(value), suffix
+    if "veces" in unit:
+        return C.number(value, 2), unit
+    return C.number(value, 2), unit
 
 
 def _render_unit_economics_grid(st, df) -> None:
@@ -146,28 +192,22 @@ def _render_unit_economics_grid(st, df) -> None:
     if "Unit Economic" not in df.columns or "Valor" not in df.columns:
         return
 
-    items = {str(row["Unit Economic"]): row["Valor"] for _, row in df.iterrows()
-             if pd.notna(row.get("Valor"))}
-
-    keys = list(items.keys())
-    if not keys:
+    rows = [
+        (str(row["Unit Economic"]), row["Valor"], str(row.get("Unidad", "") or ""))
+        for _, row in df.iterrows()
+        if pd.notna(row.get("Valor"))
+    ]
+    if not rows:
         return
 
-    cols = st.columns(min(4, len(keys)))
-    for i, key in enumerate(keys):
-        val = items[key]
-        # Determine tone
+    cols = st.columns(min(4, len(rows)))
+    for i, (key, val, unit) in enumerate(rows):
+        display, sub = _format_unit_economic(val, unit)
         tone = ""
-        if isinstance(val, (int, float)):
-            if val < 0:
-                tone = "alert"
-            elif key.upper() in ("LTV/CAC", "LTV / CAC") and val > 20:
-                tone = "warn"
+        if isinstance(val, (int, float)) and val < 0:
+            tone = "alert"
         with cols[i % 4]:
-            C.kpi(st, key, C.money(val) if isinstance(val, (int, float)) else str(val), tone=tone)
-
-    C.note(st, "LTV/CAC puede estar inflado por construcción de fórmula (artefacto de calibración); "
-               "interpretar con la página de Due Diligence.")
+            C.kpi(st, key, display, sub=sub, tone=tone)
 
 
 # --------------------------------------------------------------------------- #

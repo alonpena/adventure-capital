@@ -1,0 +1,78 @@
+document:
+  title: Informe de Valorización
+  company_name: Caso Gold B2B SaaS
+  report_date: julio 2026
+
+empresa:
+  nombre: Caso Gold B2B SaaS
+  rut: N/A — caso demostrativo
+  descripcion: |
+    Caso demostrativo construido para la defensa de tesis. Representa una empresa B2B SaaS con ingresos recurrentes, implementación inicial y equipo comercial acotado. Su objetivo no es simular una compañía real específica, sino demostrar la metodología Adventure Capital con supuestos trazables y artefactos reproducibles.
+  beneficios:
+    - Plan determinista target-driven con crecimiento objetivo declarado.
+    - Valorización DCF y unit economics trazables a supuestos YAML.
+    - Due diligence cuantitativa con veredicto, hallazgos y recomendaciones.
+    - Análisis de robustez M4 como evaluación técnica separada del plan oficial.
+  valores:
+    - titulo: Trazabilidad
+      descripcion: Cada resultado se vincula a supuestos, fórmulas y artefactos generados.
+    - titulo: Prudencia metodológica
+      descripcion: La herramienta estructura el juicio experto; no lo reemplaza.
+
+target_market:
+  tipo: B2B SaaS
+  segmentos:
+    - id: A
+      rango_min: 10
+      rango_max: 250
+      nombre: Empresas medianas con necesidad de automatización comercial/operacional
+
+modelo_negocio:
+  principal:
+    nombre: Software B2B con implementación
+    descripcion: Plataforma SaaS recurrente complementada por servicio de implementación/advisory durante la adopción inicial.
+    ticket_descripcion: Ticket promedio ponderado entre licencia SaaS recurrente e implementación.
+
+unidades:
+  - simbolo: USD$
+    descripcion: Dólares estadounidenses
+  - simbolo: MUS$
+    descripcion: Miles de dólares estadounidenses
+fx:
+  uf_clp: 40000
+  usd_clp: 900
+fecha_referencia: julio 2026
+
+dcf:
+  valor_residual_metodo: ebitda_multiple
+  ebitda_multiple: 1.0
+  beta_capm: 1.05
+  Rf_local: 0.0486
+  Rf_us: 0.0384
+  Rm: 0.20
+  country_risk: 0.0102
+  sector: B2B SaaS / Software
+  castigo_riesgo: 0.10
+
+inversion:
+  total: 450000
+  uso_capital:
+    - hito: Capital de crecimiento comercial y operación
+      monto: 450000
+      pct: 1.0
+
+cap_table:
+  pre:
+    - accionista: Founder
+      common: 100.0
+      fully_diluted: 1.0
+
+report:
+  author: Adventure Capital Chile
+  date: 2026-07-06
+
+sensitivity:
+  method: calculation
+  wacc_range: [-0.06, -0.04, -0.02, 0, 0.02, 0.04, 0.06]
+  ebitda_multiple_range: [0.5, 0.75, 1.0, 1.25, 1.5]
+  include_ltv_cac_reference: true
