@@ -1,9 +1,0 @@
-{
-  "schema_version": "1.0",
-  "created_at": "2026-06-23T07:30:10.424571+00:00",
-  "is_canonical": false,
-  "derived_from": "flat pipeline outputs (see ADR 0007)",
-  "folders": {
-    "due_diligence": "postprocessed_results/due_diligence"
-  }
-}

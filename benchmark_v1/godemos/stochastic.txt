@@ -1,6 +1,0 @@
-=========================================
-STOCHASTIC ANALYSIS SUMMARY
-=========================================
-Stochastic analysis was not executed.
-Reason: rejected_for_stochastic
-Valuation Mode: none

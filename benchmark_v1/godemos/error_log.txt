@@ -1,9 +1,0 @@
-=========================================
-PIPELINE WARNINGS & ERRORS LOG
-=========================================
-Failing checks and warnings found: 1
-
-1. [DD03] financing_present (Severity: structural)
-   Message: Falta input esencial: `VC` <= 0 (sin capital de trabajo inicial para ejecutar el plan).
-   Recommendation: Definir un `VC` (capital de trabajo inicial) > 0.
-   Source: due_diligence

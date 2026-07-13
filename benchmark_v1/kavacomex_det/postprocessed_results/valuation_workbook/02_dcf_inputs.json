@@ -1,8 +1,0 @@
-{
-  "schema_version": "1.0",
-  "beta_anual": 0.25595,
-  "beta_mensual": 0.0191724979646275,
-  "tax": 0.125,
-  "vc_invested": 146850.0,
-  "terminal_value_method": "none"
-}

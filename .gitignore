@@ -12,3 +12,5 @@ outputs/*
 /.antigravitycli
 /vim-xd.txt
 /runs
+/infeasibility_diagnosis.json
+/__pycache__/
