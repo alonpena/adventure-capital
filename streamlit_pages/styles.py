@@ -39,6 +39,18 @@ MONO = '"SF Mono", "JetBrains Mono", Menlo, Consolas, monospace'
 
 CSS = f"""
 <style>
+/* ── movimiento (sobrio) ─────────────────────────── */
+@keyframes ac-fadein {{
+  from {{ opacity: 0; transform: translateY(4px); }}
+  to {{ opacity: 1; transform: translateY(0); }}
+}}
+.ac-page-head, .ac-kpi {{
+  animation: ac-fadein .2s ease-out;
+}}
+@media (prefers-reduced-motion: reduce) {{
+  .ac-page-head, .ac-kpi {{ animation: none; }}
+}}
+
 /* ── base ───────────────────────────────────────── */
 .stApp, .stApp > div {{ background-color: {PAPER}; color: {INK}; }}
 /* No tocar los spans de iconos: Streamlit usa ligaduras "Material Symbols"
@@ -211,11 +223,13 @@ hr {{ border-color: {BORDER}; margin: 1rem 0; }}
   border: 1px solid {RULE_MID};
   background: transparent;
   color: {INK};
+  transition: border-color .15s, background .15s, box-shadow .15s;
 }}
 .stButton button:hover, .stDownloadButton button:hover {{
   border-color: {INK};
   color: {INK};
   background: {PANEL_BG};
+  box-shadow: 0 1px 3px rgba(33,32,28,.12);
 }}
 .stButton button[kind="primary"], .stButton button[data-testid="stBaseButton-primary"] {{
   background: {ACCENT};
@@ -226,6 +240,7 @@ hr {{ border-color: {BORDER}; margin: 1rem 0; }}
   background: #632525;
   border-color: #632525;
   color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(33,32,28,.2);
 }}
 
 /* ── expander ───────────────────────────────────── */
@@ -233,11 +248,20 @@ hr {{ border-color: {BORDER}; margin: 1rem 0; }}
   color: {INK} !important;
   background: {PANEL_BG} !important;
   border-radius: 2px;
+  transition: background .15s, border-color .15s;
+}}
+[data-testid="stExpander"] summary:hover {{
+  background: {SIDEBAR_BG} !important;
+  border-color: {RULE_MID};
 }}
 [data-testid="stExpander"] {{
   border: 1px solid {BORDER};
   border-radius: 2px;
   background: {PANEL_BG};
+  transition: border-color .15s;
+}}
+[data-testid="stExpander"]:hover {{
+  border-color: {RULE_MID};
 }}
 
 /* ── tabs ───────────────────────────────────────── */
@@ -262,6 +286,74 @@ hr {{ border-color: {BORDER}; margin: 1rem 0; }}
   color: {INK};
   border-color: {BORDER};
   border-radius: 2px;
+  transition: border-color .15s, box-shadow .15s;
+}}
+.stTextInput, .stNumberInput, .stSelectbox {{
+  transition: box-shadow .15s;
+}}
+.stTextInput:focus-within input, .stNumberInput:focus-within input,
+.stSelectbox:focus-within [data-baseweb="select"] {{
+  border-color: {ACCENT} !important;
+  box-shadow: 0 0 0 2px rgba(122,46,46,.12);
+}}
+
+/* ── sliders (baseweb) ──────────────────────────── */
+[data-baseweb="slider"] div[role="slider"] {{
+  background-color: {ACCENT} !important;
+  border-color: {ACCENT} !important;
+}}
+[data-baseweb="slider"] div[data-testid="stSliderTrackFill"] {{
+  background-color: {ACCENT} !important;
+}}
+
+/* ── tablas / dataframes (estilo publicación) ───── */
+[data-testid="stDataFrame"], [data-testid="stTable"] {{
+  font-variant-numeric: tabular-nums;
+}}
+[data-testid="stTable"] table {{
+  border-collapse: collapse;
+}}
+[data-testid="stTable"] thead tr th {{
+  border-top: 2px solid {INK} !important;
+  border-bottom: 1px solid {RULE_MID} !important;
+  font-weight: 600;
+  color: {TEXT_SECONDARY};
+}}
+[data-testid="stTable"] tbody tr:last-child td {{
+  border-bottom: 2px solid {INK} !important;
+}}
+[data-testid="stTable"] tbody tr:hover td,
+[data-testid="stDataFrame"] [role="row"]:hover [role="gridcell"] {{
+  background: {SIDEBAR_BG} !important;
+  transition: background .1s;
+}}
+[data-testid="stDataFrame"] [role="columnheader"] {{
+  border-top: 2px solid {INK} !important;
+  border-bottom: 1px solid {RULE_MID} !important;
+  font-weight: 600;
+}}
+
+/* ── file uploader (legibilidad sobre fondo claro) */
+[data-testid="stFileUploader"] section {{
+  background: {PANEL_BG};
+  border-color: {BORDER};
+}}
+[data-testid="stFileUploader"] section * {{
+  color: {INK} !important;
+}}
+[data-testid="stFileUploader"] small {{
+  color: {TEXT_SECONDARY} !important;
+}}
+
+/* ── navegación sidebar ─────────────────────────── */
+[data-testid="stSidebar"] .stButton button {{
+  transition: background .15s, border-color .15s;
+}}
+[data-testid="stSidebar"] .stButton button[kind="primary"],
+[data-testid="stSidebar"] .stButton button[data-testid="stBaseButton-primary"] {{
+  background: {ACCENT} !important;
+  border-color: {ACCENT} !important;
+  color: #FFFFFF !important;
 }}
 
 .stAlert {{ border-radius: 2px; }}
