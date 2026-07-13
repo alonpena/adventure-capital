@@ -57,11 +57,12 @@ def test_saa_then_ex_post_lhs(tmp_path: Path) -> None:
     assert summary["n_scenarios"] == 40
     assert summary["van_p10"] <= summary["van_p50"] <= summary["van_p90"]
     assert summary["cvar_5"] <= summary["expected_van"] + 1e-6
-    assert 0.0 <= summary["prob_van_negative"] <= 1.0
+    # Tolerancia flotante: en Linux la suma de pesos LHS da 1.0 + 2e-16.
+    assert 0.0 - 1e-9 <= summary["prob_van_negative"] <= 1.0 + 1e-9
     assert summary["max_funding_gap"] >= summary["expected_funding_gap"] >= 0.0
     # Milestone probabilities are present for the backend-static client counts.
     for milestone in (500, 1000, 2000):
-        assert 0.0 <= summary[f"prob_hit_final_active_clients_{milestone}"] <= 1.0
+        assert 0.0 - 1e-9 <= summary[f"prob_hit_final_active_clients_{milestone}"] <= 1.0 + 1e-9
 
     artifacts = write_outputs(evaluation, summary, tmp_path, solution=solution)
     for key in ("scenarios", "summary", "diagnostics", "unit_economics", "saa_solution"):
