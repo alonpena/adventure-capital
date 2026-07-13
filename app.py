@@ -85,16 +85,42 @@ def _build_sidebar(st) -> None:
         )
         return
 
-    # Build a list of (label, run_id) for the radio
+    # Group executions by case (instance_name): a case selectbox on top, then
+    # a radio with only that case's runs. Twenty flat rows of "bench_x · 06-07"
+    # were indistinguishable (auditoría P1-4).
+    current_run_id = st.session_state.get("current_run_id")
+    by_case: dict[str, list[dict]] = {}
+    for exe in executions:
+        name = exe.get("instance_name", exe.get("name", exe["id"]))
+        by_case.setdefault(name, []).append(exe)
+    case_names = list(by_case.keys())
+
+    current_case = None
+    if current_run_id:
+        current_case = next(
+            (name for name, exes in by_case.items()
+             if any(e["id"] == current_run_id for e in exes)),
+            None,
+        )
+
+    selected_case = st.sidebar.selectbox(
+        "Caso",
+        case_names,
+        index=case_names.index(current_case) if current_case else None,
+        placeholder="Elige un caso…",
+        key="exec_case",
+    )
+    if not selected_case:
+        return
+
     options = []
     label_map = {}
-    for exe in executions[:20]:  # max 20 recent
+    for exe in by_case[selected_case][:10]:  # max 10 runs per case
         rid = exe["id"]
-        name = exe.get("instance_name", exe.get("name", rid))
         status = exe.get("status", "—")
         icon = C.STATUS_ICON.get(status, "○")
-        label = f"{icon} {name} · {_run_stamp(rid)}"
-        if label in label_map:  # same instance run in the same minute
+        label = f"{icon} {_run_stamp(rid)}"
+        if label in label_map:  # same case run in the same minute
             label = f"{label} ({rid[-4:]})"
         options.append(label)
         label_map[label] = rid
@@ -102,18 +128,17 @@ def _build_sidebar(st) -> None:
     # Point the radio at the currently selected run so navigating between pages
     # does not snap the selection back to the newest execution (which would
     # override current_run_id and hijack the current page).
-    current_run_id = st.session_state.get("current_run_id")
     rid_order = [label_map[label] for label in options]
     try:
-        current_index = rid_order.index(current_run_id) if current_run_id else None
+        current_index = rid_order.index(current_run_id) if current_run_id else 0
     except ValueError:
-        current_index = None
+        current_index = 0
 
     selected_label = st.sidebar.radio(
-        "Seleccionar ejecución",
+        "Ejecución",
         options,
         index=current_index,
-        key="exec_radio",
+        key=f"exec_radio_{selected_case}",
         format_func=lambda x: x,
     )
 
