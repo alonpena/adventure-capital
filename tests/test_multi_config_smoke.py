@@ -1,7 +1,5 @@
 import pytest
-import pathlib
 import json
-from adventure_capital.standard_report.consistency import check_consistency
 from adventure_capital.config import load_config
 from adventure_capital.pipeline import run_pipeline
 from adventure_capital.standard_report.package import build_report_data_package
@@ -41,7 +39,7 @@ def test_consistency_report_all_passed(cfg_name, tmp_path):
 def test_report_pdf_generated(cfg_name, tmp_path):
     """El reporte PDF debe existir y tener tamaño > 50KB."""
     try:
-        from weasyprint import HTML
+        pass
     except Exception as exc:
         pytest.skip(f"WeasyPrint libraries not fully installed on system: {exc}")
 

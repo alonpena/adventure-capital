@@ -1,4 +1,3 @@
-import pytest
 from bs4 import BeautifulSoup
 from adventure_capital.config import default_config
 from adventure_capital.pipeline import run_pipeline

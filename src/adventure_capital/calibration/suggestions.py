@@ -87,8 +87,6 @@ def _suggest_C06(result: CheckResult, instance: dict[str, Any]) -> str:
 def _suggest_C07(result: CheckResult, instance: dict[str, Any]) -> str:
     value = result.value
     gp = float(value.get("gross_profit", 0.0))
-    revenue = float(value.get("revenue", 0.0))
-    cost = float(value.get("cost", 0.0))
     services = instance.get("servicios", [])
     if gp > 0.92 and services:
         first = services[0]

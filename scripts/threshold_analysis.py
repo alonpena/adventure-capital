@@ -38,7 +38,6 @@ import csv
 import json
 from pathlib import Path
 
-import yaml
 
 from adventure_capital.config import load_config
 from adventure_capital.pipeline import run_pipeline
@@ -79,7 +78,7 @@ def _cash_metrics(output_dir: Path) -> dict:
 
 def run_case(config: dict, out: Path) -> dict:
     out.mkdir(parents=True, exist_ok=True)
-    result = run_pipeline(copy.deepcopy(config), output_dir=str(out), baseline_only=True)
+    run_pipeline(copy.deepcopy(config), output_dir=str(out), baseline_only=True)
     summary = json.load(open(out / "summary.json"))
     revenue = _annual_revenue(out)
     v12, v13, v36 = _sellers_profile(out)

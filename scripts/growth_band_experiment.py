@@ -33,7 +33,6 @@ from __future__ import annotations
 import argparse
 import copy
 import csv
-import math
 from pathlib import Path
 
 import pulp
@@ -152,8 +151,11 @@ def main() -> int:
     print(f"C12 (stock consensuado) = {c12:.1f} · MoM plan = {g_mom_monthly:.1%}/mes "
           f"(~{g_mom_annual:.1f}x-1 anual)")
 
-    slack_fixed = lambda t: 0.15
-    slack_grow = lambda t: 0.10 if t <= 24 else 0.30
+    def slack_fixed(t):
+        return 0.15
+
+    def slack_grow(t):
+        return 0.10 if t <= 24 else 0.30
 
     variants = [
         ("band-fixed", dict(growth_annual=1.0, slack_fn=slack_fixed, upper_band=True, hiring_friction=False)),

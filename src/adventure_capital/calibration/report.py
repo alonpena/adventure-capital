@@ -143,15 +143,15 @@ def _format_value(value: Any) -> str:
 def _markdown_report(verdict: CalibrationVerdict) -> str:
     badge = {"PASS": "✅ PASS", "WARN": "⚠️ WARN", "FAIL": "🚫 FAIL"}.get(verdict.verdict, verdict.verdict)
     lines = [
-        f"# Reporte de Calibración — Adventure Capital",
+        "# Reporte de Calibración — Adventure Capital",
         "",
         f"**Veredicto**: {badge}",
         f"**Fecha**: {verdict.created_at}",
         "",
         "## Resumen",
         "",
-        f"| Total | Pasaron | Warnings | Errors | Saltados |",
-        f"|---|---|---|---|---|",
+        "| Total | Pasaron | Warnings | Errors | Saltados |",
+        "|---|---|---|---|---|",
         f"| {verdict.total_checks} | {verdict.passed} | {verdict.warnings} | {verdict.errors} | {verdict.skipped} |",
         "",
     ]

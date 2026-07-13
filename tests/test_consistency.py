@@ -1,4 +1,3 @@
-import pytest
 import pathlib
 import json
 import yaml
