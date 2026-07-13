@@ -37,12 +37,12 @@ def _load_scenarios(run_id: str):
 def render(st) -> None:
     run_id = C.require_execution(st)
     if run_id is None:
-        st.title("Análisis de robustez (LHS)")
+        st.title("Análisis de robustez")
         return
 
     C.page_header(
         st,
-        "Análisis de robustez (LHS)",
+        "Análisis de robustez",
         "Distribución de resultados bajo incertidumbre — escenarios generados, probabilidades y brechas.",
         run_id=run_id,
     )
@@ -57,14 +57,14 @@ def render(st) -> None:
     # ── Not run / blocked ────────────────────────────────────────
     if diagnostics is None and scenarios_df is None:
         if assessment.get("allows_stochastic") is False or m4_state == "blocked":
-            st.info("El veredicto de due diligence bloquea el análisis de escenarios.")
+            st.info("El veredicto de due diligence bloquea el análisis de robustez.")
             for reason in assessment.get("blocking_reasons", []):
                 st.markdown(f"- {reason}")
             mode = assessment.get("valuation_mode", "none")
             C.note(st, f"Modo de valoración: **{C.VALUATION_MODE_LABELS.get(mode, mode)}**. "
                        "Revisa la página Due diligence para entender el bloqueo.")
         else:
-            st.warning("Este caso no tiene análisis de escenarios. "
+            st.warning("Este caso no tiene análisis de robustez. "
                        "Confírmalo desde la página Due diligence tras ejecutar el caso.")
         return
 
@@ -180,7 +180,7 @@ def render(st) -> None:
             "final": "Resultado listo para decisión de inversión.",
             "warning": "Resultado preliminar — requiere atención en los hallazgos de Due Diligence.",
             "diagnostic": "Resultado no listo para inversión — se necesitan recalibraciones significativas.",
-            "none": "No se generó análisis de escenarios.",
+            "none": "No se generó análisis de robustez.",
         }
         desc = mode_descriptions.get(val_mode, "")
         if desc:

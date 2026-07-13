@@ -110,6 +110,9 @@ def render(st) -> None:
         else:
             st.info("Unit economics no disponibles para esta ejecución.")
 
+    # ── Sensitivity (one-at-a-time levers + breakeven) ───────────
+    _render_sensitivity(st, run_id)
+
     # ── Formula trace ────────────────────────────────────────────
     if formula_trace:
         st.markdown("### Trazabilidad de fórmulas")
@@ -130,6 +133,38 @@ def render(st) -> None:
     # ── Download ─────────────────────────────────────────────────
     st.markdown("---")
     _render_download_buttons(st, run_id, dcf_cashflow, dcf_annual, multiples, unit_ec)
+
+
+def _render_sensitivity(st, run_id: str) -> None:
+    """Sensibilidad determinista ya calculada por el pipeline y nunca expuesta:
+    variación aislada por palanca → efecto en EBITDA, y breakeven por variable."""
+    sens = C.canonical_csv(run_id, "sensitivity_variables.csv")
+    brk = C.canonical_csv(run_id, "breakeven_variables.csv")
+    if sens is None and brk is None:
+        return
+
+    st.markdown("### Sensibilidad")
+    st.caption("Variación aislada de cada palanca (una a la vez) sobre el plan oficial. "
+               "Métrica de referencia — no re-optimiza el plan.")
+
+    if sens is not None and {"variable", "effect_pct"}.issubset(sens.columns):
+        tabla = sens[["variable", "baseline_ebitda", "result_value", "effect_pct"]].copy()
+        tabla.columns = ["Palanca", "EBITDA base", "EBITDA resultante", "Efecto"]
+        tabla["EBITDA base"] = tabla["EBITDA base"].map(C.money)
+        tabla["EBITDA resultante"] = tabla["EBITDA resultante"].map(C.money)
+        tabla["Efecto"] = tabla["Efecto"].map(C.pct)
+        st.dataframe(tabla, use_container_width=True, hide_index=True)
+
+    if brk is not None and {"variable", "breakeven_value"}.issubset(brk.columns):
+        with st.expander("Breakeven por variable — cuánto debe moverse cada palanca para EBITDA = 0"):
+            tabla = brk[["variable", "current_value", "breakeven_value", "variation_pct"]].copy()
+            tabla.columns = ["Variable", "Valor actual", "Valor de breakeven", "Variación necesaria"]
+            tabla["Valor actual"] = tabla["Valor actual"].map(C.money)
+            tabla["Valor de breakeven"] = tabla["Valor de breakeven"].map(C.money)
+            tabla["Variación necesaria"] = tabla["Variación necesaria"].map(C.pct)
+            st.dataframe(tabla, use_container_width=True, hide_index=True)
+
+    C.source_caption(st, "M2_VALUATION", "sensitivity_variables.csv", "breakeven_variables.csv")
 
 
 # --------------------------------------------------------------------------- #

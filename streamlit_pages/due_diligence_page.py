@@ -19,16 +19,16 @@ def _run_m4(st, run_id: str) -> None:
     """Run the stochastic analysis (M4) on an existing execution."""
     from adventure_capital.workflow_registry import run_stochastic_only
 
-    with st.spinner("Ejecutando análisis de escenarios (M4)…"):
+    with st.spinner("Ejecutando análisis de robustez (M4)…"):
         try:
             run_stochastic_only(run_id)
             st.session_state["current_run_id"] = run_id
             st.session_state["m4_gate_run_id"] = None
             st.success(
-                "Análisis de robustez (LHS) completado. Revisa la página de robustez."
+                "Análisis de robustez completado. Revisa la página Análisis de robustez."
             )
         except Exception as exc:
-            st.error(f"El análisis de escenarios falló: {exc}. El plan determinista sigue disponible.")
+            st.error(f"El análisis de robustez falló: {exc}. El plan determinista sigue disponible.")
             import traceback
             with st.expander("Detalle técnico"):
                 st.code(traceback.format_exc())
@@ -52,7 +52,7 @@ def _render_m4_gate(st, run_id: str) -> None:
 
     # Blocking verdict — M4 not allowed.
     if not allows:
-        st.error("El veredicto bloquea el análisis de escenarios. "
+        st.error("El veredicto bloquea el análisis de robustez. "
                  "Recalibra la instancia según las razones de abajo y vuelve a ejecutar.")
         for reason in dd.get("blocking_reasons", []):
             st.markdown(f"- {reason}")
@@ -135,7 +135,7 @@ def render(st) -> None:
     with c2:
         tone = "ok" if allows_stochastic else "bad"
         C.badge(st, "Sí" if allows_stochastic else "No", tone)
-        st.caption("Permite análisis de escenarios")
+        st.caption("Permite análisis de robustez")
 
     with c3:
         tone_map = {"final": "ok", "warning": "warn", "diagnostic": "warn", "none": "muted"}

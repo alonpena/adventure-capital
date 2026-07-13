@@ -1,5 +1,7 @@
 # Report data package boundary for standard valuation reports
 
+Status: Accepted (header añadido 2026-07-12; decisión vigente, sin revisión desde su creación)
+
 The standard valuation report uses a separate document YAML and an intermediate Report Data Package instead of rendering directly from model configuration and raw CSV outputs.
 
 The core `run` command remains scoped to Phases 1-4: financial model, optimization, valuation, unit economics, and basic artifacts. The Phase 5 `report` command consumes an existing output directory plus a required document YAML under `reports/`.

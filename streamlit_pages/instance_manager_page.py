@@ -183,7 +183,7 @@ def render(st) -> None:
         st,
         "Gestor de instancias",
         "Crea una instancia (configuración congelada) y ejecuta el pipeline de valoración: "
-        "instancia → ejecución → veredicto de due diligence → análisis de escenarios → informe ejecutivo.",
+        "instancia → ejecución → veredicto de due diligence → análisis de robustez → informe ejecutivo.",
     )
 
     base = default_config()
@@ -431,7 +431,7 @@ def _render_create_tab(st, base: dict) -> None:
         l2.number_input("Caja mínima", value=0.0, step=1000.0, key="f_liq_value")
     l3.number_input("Solver time_limit (s)", value=int(base["solver"]["time_limit"]), min_value=10, step=10, key="f_time")
 
-    C.note(st, "El análisis de escenarios (M4) se decide en la página Due diligence tras el veredicto "
+    C.note(st, "El análisis de robustez (M4) se decide en la página Due diligence tras el veredicto "
                "(automático si aprueba limpio; con confirmación si hay advertencias).")
 
     # ── Create button ──

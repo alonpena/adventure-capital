@@ -1,5 +1,7 @@
 # Advertising efficiency semantics
 
+Status: Accepted (header añadido 2026-07-12; decisión vigente, sin revisión desde su creación)
+
 The advertising acquisition channel uses **one** formulation: a continuous linear
 recta `A_ad_total[t] = a + b * I_ad[t]`, where `I_ad[t]` is advertising investment
 (USD) and `A_ad_total[t]` is advertising-acquired customers. Coefficients are

@@ -153,8 +153,16 @@ The M4 two-stage SAA model that optimizes one first-stage PCA across LHS **Scena
 _Avoid_: Risk-neutral-only SAA, simplified Monte Carlo, fixed-traction simulation
 
 **Stochastic Robustness Analysis**:
-The business-facing use of M4 in the thesis MVP: an official robustness artifact that reports the distribution of VAN, downside value, funding gap, and growth-target hit probability under LHS uncertainty. It supports the **Deterministic Model** plan but does not replace it as the official plan.
-_Avoid_: Official stochastic plan, final stochastic recommendation, replacement plan
+The business-facing use of M4: an official robustness artifact that reports the distribution of VAN, downside value, funding gap, and growth-target hit probability under LHS uncertainty. It supports the **Deterministic Model** plan but does not replace it as the official plan. UI-facing Spanish label (canonical, decided 2026-07-12): **"Análisis de robustez"** — never "análisis de escenarios" as a page or stage name; "escenario" survives only as the internal unit (N° de escenarios, P50). Method jargon ("LHS", "SAA") belongs in captions/tooltips, not labels.
+_Avoid_: Official stochastic plan, final stochastic recommendation, replacement plan, análisis de escenarios (as stage name)
+
+**Full Stochastic Optimization** (Future Extension):
+A hypothetical mode where the stochastic model *defines* the official growth plan instead of diagnosing its robustness. Explicitly out of scope for producto v0.0.1; must never be mixed into the main deliverable. If it ever lands, it arrives as a separate, clearly-labeled artifact.
+_Avoid_: Implementing now, blending with Análisis de robustez
+
+**Sensibilidad (deterministic)**:
+One-at-a-time lever variation over the official deterministic plan (`sensitivity_variables.csv`: ±x% per lever → EBITDA effect; `breakeven_variables.csv`: required variation for EBITDA = 0; `sensitivity_wacc_multiple.csv`: WACC × multiple grid). A reference metric — it does not re-optimize the plan. Distinct from **Stochastic Robustness Analysis** (distributional, LHS).
+_Avoid_: Confusing with M4, tornado analysis (until one exists)
 
 ## Stochastic optimization
 

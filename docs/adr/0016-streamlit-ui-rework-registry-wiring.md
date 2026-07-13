@@ -1,8 +1,13 @@
-# Streamlit UI Architecture
+# 0016 — Streamlit UI Rework: Registry Wiring and Report-First Views
 
 ## Status
 
 Accepted
+
+> Nota 2026-07-12: este archivo era el segundo "0008" (colisión de numeración).
+> Renumerado a 0016. La decisión estratégica de arquitectura UI (Streamlit
+> in-place, no React) vive en `0008-ui-architecture-consulting-tool.md`; este
+> documento cubre el retrabajo mecánico que la implementó.
 
 ## Context
 
