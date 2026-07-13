@@ -98,12 +98,27 @@ def _channels_form(st, base: dict) -> dict:
     channels = deepcopy(source)
     st.markdown("#### Canales comerciales")
 
+    def _dv(key: str, fallback):
+        return st.session_state.get("loaded_scalars", {}).get(key, fallback)
+
     sf = channels["salesforce"]
     sf["active"] = st.checkbox("Fuerza de ventas (salesforce)", value=sf["active"], key="ch_sf_active")
     if sf["active"]:
         cc1, cc2 = st.columns(2)
         sf["min_share"] = cc1.slider("Salesforce min_share", 0.0, 1.0, float(sf["min_share"]), 0.05, key="ch_sf_min")
         sf["max_share"] = cc2.slider("Salesforce max_share", 0.0, 1.0, float(sf["max_share"]), 0.05, key="ch_sf_max")
+
+        st.markdown("**Estrategia comercial** — productividad y estructura del equipo de ventas")
+        e1, e2, e3 = st.columns(3)
+        e1.number_input("Clientes por vendedor/mes (meta)", value=float(_dv("meta", base["meta"])), min_value=0.1, step=0.5, key="f_meta")
+        e2.number_input("Vendedores por líder (sup)", value=float(_dv("sup", base["sup"])), min_value=0.1, step=0.5, key="f_sup")
+        e3.number_input("Lag productividad (meses)", value=int(_dv("commercial_productivity_lag", base["commercial_productivity_lag"])), min_value=0, step=1, key="f_lag",
+                        help="Meses que tarda un vendedor nuevo en alcanzar la meta.")
+        e4, e5, e6, e7 = st.columns(4)
+        e4.number_input("Rem. vendedor (rem_v)", value=float(_dv("rem_v", base["rem_v"])), min_value=0.0, step=100.0, key="f_remv")
+        e5.number_input("Rem. líder (rem_l)", value=float(_dv("rem_l", base["rem_l"])), min_value=0.0, step=100.0, key="f_reml")
+        e6.number_input("Comisión vendedor (com_v)", value=float(_dv("com_v", base["com_v"])), min_value=0.0, max_value=1.0, step=0.01, key="f_comv")
+        e7.number_input("Comisión líder (com_l)", value=float(_dv("com_l", base["com_l"])), min_value=0.0, max_value=1.0, step=0.01, key="f_coml")
 
     ad = channels["advertising"]
     ad["active"] = st.checkbox("Publicidad (advertising)", value=ad["active"], key="ch_ad_active")
@@ -405,19 +420,8 @@ def _render_create_tab(st, base: dict) -> None:
 
     # ══ Nivel 3 · Supuestos técnicos ══
     # Colapsados: casi nunca se tocan; defaults a la vista al expandir.
-    with st.expander("Supuestos técnicos (equipo comercial, costos fijos, liquidez, solver)", expanded=False):
-        st.markdown("**Equipo comercial** — aplica solo si Fuerza de ventas está activa")
-        e1, e2, e3 = st.columns(3)
-        e1.number_input("Clientes por vendedor/mes (meta)", value=float(_dv("meta", base["meta"])), min_value=0.1, step=0.5, key="f_meta")
-        e2.number_input("Vendedores por líder (sup)", value=float(_dv("sup", base["sup"])), min_value=0.1, step=0.5, key="f_sup")
-        e3.number_input("Lag productividad (meses)", value=int(_dv("commercial_productivity_lag", base["commercial_productivity_lag"])), min_value=0, step=1, key="f_lag",
-                        help="Meses que tarda un vendedor nuevo en alcanzar la meta.")
-        e4, e5, e6, e7 = st.columns(4)
-        e4.number_input("Rem. vendedor (rem_v)", value=float(_dv("rem_v", base["rem_v"])), min_value=0.0, step=100.0, key="f_remv")
-        e5.number_input("Rem. líder (rem_l)", value=float(_dv("rem_l", base["rem_l"])), min_value=0.0, step=100.0, key="f_reml")
-        e6.number_input("Comisión vendedor (com_v)", value=float(_dv("com_v", base["com_v"])), min_value=0.0, max_value=1.0, step=0.01, key="f_comv")
-        e7.number_input("Comisión líder (com_l)", value=float(_dv("com_l", base["com_l"])), min_value=0.0, max_value=1.0, step=0.01, key="f_coml")
-
+    # (La estrategia comercial vive bajo el toggle de Fuerza de ventas.)
+    with st.expander("Supuestos técnicos (costos fijos, liquidez, solver)", expanded=False):
         st.markdown("**Costos fijos y operación**")
         f1, f2 = st.columns(2)
         f1.number_input("Gasto administrativo mensual (g_adm)", value=float(_dv("g_adm", base["g_adm"])), min_value=0.0, step=250.0, key="f_gadm")
