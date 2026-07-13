@@ -28,6 +28,8 @@ def render(st) -> None:
         run_id=run_id,
     )
 
+    C.infeasible_banner(st, run_id)
+
     # ── Load data ────────────────────────────────────────────────
     results = C.canonical_csv(run_id, "optimized_results.csv")
     fixed = C.canonical_csv(run_id, "fixed_cashflow.csv")

@@ -385,3 +385,15 @@ def validate_config(config: dict[str, Any]) -> None:
                 raise ValueError("channels.advertising: implied slope b must be > 0.")
             if a_ad_cap < 0:
                 raise ValueError("channels.advertising: A_ad_cap must be >= 0.")
+            # For t >= 13 the recta forces A_ad_total >= A_min (I_ad >= I_min),
+            # so a cap below A_min contradicts the channel's own lower bound and
+            # makes the MILP structurally infeasible (ADR 0006). A_ad_cap = 0 on
+            # an active channel is the default-value trap that produced it.
+            if a_ad_cap < a_min:
+                raise ValueError(
+                    f"channels.advertising: A_ad_cap={a_ad_cap:g} < A_min={a_min:g}. "
+                    "Desde el mes 13 la recta publicitaria exige al menos A_min "
+                    "clientes/mes, pero el tope A_ad_cap lo prohíbe: el plan sería "
+                    "infactible. Usa A_ad_cap >= A_min (típicamente >= A_max), o "
+                    "desactiva el canal."
+                )

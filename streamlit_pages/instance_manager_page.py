@@ -24,6 +24,21 @@ from streamlit_pages import components as C
 # --------------------------------------------------------------------------- #
 
 
+def _parse_float_list(st, text: str, label: str, fallback: list[float]) -> list[float]:
+    """Parse a comma-separated list of numbers typed by the user.
+
+    On a typo (e.g. ``0.5, 0,3``) show a business-readable error and keep the
+    previous value instead of crashing the page with a traceback.
+    """
+    try:
+        values = [float(x.strip()) for x in text.split(",") if x.strip()]
+    except ValueError:
+        st.error(f"**{label}**: hay un valor que no es número — revisa comas y puntos decimales. "
+                 "Se mantiene el valor anterior.")
+        return fallback
+    return values or fallback
+
+
 def _service_form(st, idx: int, service: dict) -> dict:
     st.markdown(f"**Servicio {idx + 1}**")
     c1, c2, c3 = st.columns(3)
@@ -53,14 +68,17 @@ def _service_form(st, idx: int, service: dict) -> dict:
         value=", ".join(str(x) for x in service["churn_anual"]),
         key=f"svc_churn_{idx}",
     )
-    service["churn_anual"] = [float(x.strip()) for x in churn_txt.split(",") if x.strip()]
+    service["churn_anual"] = _parse_float_list(st, churn_txt, "Churn anual", service["churn_anual"])
     abase_txt = st.text_input(
         "A_base — adquisición fija 12 meses (coma)",
         value=", ".join(str(x) for x in service["A_base"]),
         key=f"svc_abase_{idx}",
         help="Exactamente 12 valores. Meses 1–12 del Plan Consensuado.",
     )
-    service["A_base"] = [float(x.strip()) for x in abase_txt.split(",") if x.strip()]
+    service["A_base"] = _parse_float_list(st, abase_txt, "A_base", service["A_base"])
+    if len(service["A_base"]) != 12:
+        st.warning(f"A_base tiene {len(service['A_base'])} valores — deben ser exactamente 12 "
+                   "(meses 1–12 del Plan Consensuado).")
     return service
 
 
@@ -86,10 +104,21 @@ def _channels_form(st, base: dict) -> dict:
         a1, a2, a3 = st.columns(3)
         ad["I_min"] = a1.number_input("Inversión I_min", value=float(ad["I_min"]), min_value=0.0, step=500.0, key="ch_ad_imin")
         ad["I_max"] = a2.number_input("Inversión I_max", value=float(ad["I_max"]), min_value=0.0, step=500.0, key="ch_ad_imax")
-        ad["A_ad_cap"] = a3.number_input("Tope adquisición A_ad_cap", value=float(ad["A_ad_cap"]), min_value=0.0, step=5.0, key="ch_ad_cap")
+        ad["A_ad_cap"] = a3.number_input(
+            "Tope adquisición A_ad_cap", value=float(ad["A_ad_cap"]), min_value=0.0, step=5.0, key="ch_ad_cap",
+            help="Máximo de clientes por mes que puede aportar publicidad. "
+                 "Debe ser ≥ A_min; con 0 el canal queda bloqueado y el plan es infactible.",
+        )
         a4, a5 = st.columns(2)
         ad["A_min"] = a4.number_input("Recta A_min", value=float(ad["A_min"]), min_value=0.0, step=1.0, key="ch_ad_amin")
         ad["A_max"] = a5.number_input("Recta A_max", value=float(ad["A_max"]), min_value=0.0, step=1.0, key="ch_ad_amax")
+        if ad["A_ad_cap"] < ad["A_min"]:
+            st.error(
+                f"**Tope publicitario inconsistente:** A_ad_cap = {ad['A_ad_cap']:g} es menor que "
+                f"A_min = {ad['A_min']:g}. Desde el mes 13 la recta exige adquirir al menos A_min "
+                f"clientes/mes por publicidad, pero el tope lo prohíbe → el plan será **infactible**. "
+                f"Sube A_ad_cap (típicamente ≥ A_max = {ad['A_max']:g})."
+            )
         a6, a7 = st.columns(2)
         ad["min_share"] = a6.slider("Publicidad min_share", 0.0, 1.0, float(ad["min_share"]), 0.05, key="ch_ad_minshare")
         ad["max_share"] = a7.slider("Publicidad max_share", 0.0, 1.0, float(ad["max_share"]), 0.05, key="ch_ad_maxshare")
@@ -280,17 +309,65 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
 # --------------------------------------------------------------------------- #
 
 
+def _clear_yaml_state(st) -> None:
+    """Forget everything a previously loaded YAML left in session state.
+
+    Without this, the next instance silently inherits hidden fields
+    (working_capital, acquisition_ceiling, empresa, …) from the last YAML.
+    """
+    for key in ("loaded_scalars", "merged_config", "yaml_channels",
+                "yaml_applied_hash", "yaml_applied_name"):
+        st.session_state.pop(key, None)
+
+
+def _render_created_panel(st) -> None:
+    """After creating an instance, offer the next step right here instead of
+    making the user hunt for it in the 'Instancias existentes' tab."""
+    created = st.session_state.get("created_instance")
+    if not created:
+        return
+    st.success(f"Instancia **{created['name']}** creada (`{created['id']}`). ¿Qué sigue?")
+    c1, c2, _ = st.columns([1, 1, 2])
+    if c1.button("Ejecutar ahora", type="primary", key="created_run_now"):
+        st.session_state.pop("created_instance", None)
+        _trigger_execution(st, created["id"])
+    if c2.button("Crear otra instancia", key="created_dismiss"):
+        st.session_state.pop("created_instance", None)
+        st.rerun()
+    st.markdown("---")
+
+
 def _render_create_tab(st, base: dict) -> None:
-    # YAML upload — pre-fills the form
-    uploaded = st.file_uploader("Cargar YAML existente (opcional)", type=["yaml", "yml"])
+    _render_created_panel(st)
+
+    # YAML upload — applies to the form automatically (one step, no extra click)
+    uploaded = st.file_uploader(
+        "Cargar YAML existente (opcional)",
+        type=["yaml", "yml"],
+        help="Al subir el archivo el formulario se completa automáticamente con sus valores.",
+    )
     if uploaded is not None:
-        loaded: dict = yaml.safe_load(uploaded.getvalue().decode("utf-8")) or {}
-        if st.button("Aplicar YAML cargado"):
-            # Set each widget's session_state value directly from the YAML keys.
-            # This is more reliable than deleting keys + relying on value= param,
-            # because Streamlit preserves widget component state across reruns.
-            _apply_loaded_yaml(st, loaded, base)
-            st.rerun()
+        import hashlib
+
+        file_hash = hashlib.sha256(uploaded.getvalue()).hexdigest()
+        if st.session_state.get("yaml_applied_hash") != file_hash:
+            loaded = None
+            try:
+                loaded = yaml.safe_load(uploaded.getvalue().decode("utf-8"))
+            except (yaml.YAMLError, UnicodeDecodeError) as exc:
+                st.error(f"El archivo no es YAML válido y no se aplicó al formulario. Detalle: {exc}")
+            if loaded is not None and not isinstance(loaded, dict):
+                st.error("El YAML debe ser una configuración (pares clave: valor), "
+                         f"no `{type(loaded).__name__}`. No se aplicó al formulario.")
+                loaded = None
+            if loaded:
+                _apply_loaded_yaml(st, loaded, base)
+                st.session_state["yaml_applied_hash"] = file_hash
+                st.session_state["yaml_applied_name"] = uploaded.name
+                st.rerun()
+        elif st.session_state.get("yaml_applied_name"):
+            st.success(f"Formulario completado desde **{st.session_state['yaml_applied_name']}**. "
+                       "Revisa los valores y pulsa *Crear instancia*.")
 
     def _dv(key: str, fallback: Any) -> Any:
         scalars = st.session_state.get("loaded_scalars", {})
@@ -369,10 +446,29 @@ def _render_create_tab(st, base: dict) -> None:
                 st.error(f"Configuración inválida: {exc}")
                 return
 
+            # Duplicate guard: warn once if an identical frozen config exists
+            # (this is how ten copies of the same case got created by repeated
+            # clicks). A second click creates it anyway.
+            import hashlib
+
+            config_hash = hashlib.sha256(
+                yaml.safe_dump(config, allow_unicode=True, sort_keys=True).encode("utf-8")
+            ).hexdigest()[:8]
+            dup = next((m for m in C.list_instances() if m.get("config_hash") == config_hash), None)
+            if dup and st.session_state.get("allow_duplicate_hash") != config_hash:
+                st.session_state["allow_duplicate_hash"] = config_hash
+                st.warning(
+                    f"Ya existe una instancia con esta misma configuración: **{dup['name']}** "
+                    f"(`{dup['id']}`). Ejecútala desde *Instancias existentes*, o pulsa "
+                    f"**Crear instancia** de nuevo para crear una copia de todos modos."
+                )
+                return
+
             meta = C.create_instance(config, name=config.get("nombre", None))
-            st.success(f"Instancia creada: **{meta['name']}** ({meta['id']})")
+            st.session_state["created_instance"] = meta
             st.session_state["last_instance_id"] = meta["id"]
-            st.session_state["loaded_scalars"] = {}
+            st.session_state.pop("allow_duplicate_hash", None)
+            _clear_yaml_state(st)
             st.rerun()
 
     # ── Preview ──

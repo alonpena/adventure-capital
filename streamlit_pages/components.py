@@ -452,6 +452,34 @@ def source_caption(st, stage_key: str, *files: str) -> None:
     )
 
 
+_OK_SOLVER_STATUSES = {"Optimal", "Optimal solution found"}
+
+
+def solver_status(run_id: str) -> str | None:
+    """Solver status of the deterministic plan (M1), or None if unknown."""
+    summary = canonical_json(run_id, "growth_plan_summary.json") or {}
+    return summary.get("solver_status")
+
+
+def infeasible_banner(st, run_id: str) -> bool:
+    """If the run's plan is not Optimal, say so prominently and return True.
+
+    An infeasible plan is a valid business verdict ("esta estructura no
+    soporta la tesis"), but every KPI below it is meaningless — the reader
+    must not mistake the page for a normal report.
+    """
+    status = solver_status(run_id)
+    if status is None or status in _OK_SOLVER_STATUSES:
+        return False
+    st.error(
+        f"**Plan infactible** (solver: `{status}`). El modelo no encontró ningún plan que "
+        "cumpla la tesis de inversión con esta configuración — las cifras de esta página "
+        "no representan un plan ejecutable. Revisa el veredicto y las palancas en la página "
+        "**Due diligence**, ajusta la instancia y vuelve a ejecutar."
+    )
+    return True
+
+
 def kpi(st, label: str, value: str, sub: str = "", tone: str = "") -> None:
     cls = f"ac-kpi {tone}".strip()
     st.markdown(

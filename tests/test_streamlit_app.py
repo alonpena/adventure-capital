@@ -108,3 +108,54 @@ def test_apply_loaded_yaml_fills_all_fields():
     assert "ch_sf_active" not in ss
     assert ss["yaml_channels"]["salesforce"]["active"] is True
     assert ss["merged_config"]["nombre"] == "Caso cargado"
+
+
+def test_clear_yaml_state_removes_contamination():
+    """After creating an instance, the next form must not inherit hidden
+    fields (working_capital, empresa, …) from the previously loaded YAML."""
+    from adventure_capital.config import default_config
+    from streamlit_pages import instance_manager_page as P
+
+    class FakeST:
+        def __init__(self):
+            self.session_state = {}
+
+    st = FakeST()
+    base = default_config()
+    loaded = {"nombre": "Caso A", "VC": 999999.0,
+              "working_capital": {"enabled": True}, "empresa": "ACME"}
+    P._apply_loaded_yaml(st, loaded, base)
+    assert "merged_config" in st.session_state
+
+    P._clear_yaml_state(st)
+    for key in ("loaded_scalars", "merged_config", "yaml_channels",
+                "yaml_applied_hash", "yaml_applied_name"):
+        assert key not in st.session_state
+
+    # _build_config no longer carries hidden YAML leftovers. Visible widget
+    # values (f_VC, …) intentionally persist — the user still sees them on
+    # screen — but fields without widgets must be gone.
+    cfg = P._build_config(st, base)
+    assert "empresa" not in cfg
+    assert "working_capital" not in cfg or cfg["working_capital"] == base.get("working_capital")
+
+
+def test_parse_float_list_keeps_fallback_on_typo():
+    from streamlit_pages import instance_manager_page as P
+
+    class FakeST:
+        def __init__(self):
+            self.errors = []
+
+        def error(self, msg):
+            self.errors.append(msg)
+
+    st = FakeST()
+    ok = P._parse_float_list(st, "0.5, 0.3, 0.15", "Churn anual", [0.1])
+    assert ok == [0.5, 0.3, 0.15] and not st.errors
+
+    bad = P._parse_float_list(st, "0.5, o.3", "Churn anual", [0.1])
+    assert bad == [0.1] and len(st.errors) == 1
+
+    empty = P._parse_float_list(st, "", "Churn anual", [0.2])
+    assert empty == [0.2]

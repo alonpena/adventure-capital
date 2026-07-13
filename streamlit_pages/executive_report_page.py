@@ -29,6 +29,8 @@ def render(st) -> None:
         run_id=run_id,
     )
 
+    C.infeasible_banner(st, run_id)
+
     exe_dir = C.execution_path(run_id)
     _repair_legacy_layout(st, exe_dir)
     _render_simple_report(st, run_id, exe_dir)

@@ -87,7 +87,12 @@ def _relax_r2_advertising(config: dict[str, Any]) -> dict[str, Any] | None:
         return None  # not applicable
     advertising = dict(advertising)
     advertising["I_max"] = float(advertising.get("I_max", 0.0)) * 10.0
-    advertising["A_ad_cap"] = float(advertising.get("A_ad_cap", 0.0)) * 10.0
+    # x10 on a zero cap is still zero — the exact case (A_ad_cap=0 on an active
+    # channel) that makes the recta structurally infeasible for t>=13. Anchor
+    # the relaxed cap on A_max so the relaxation actually opens the channel.
+    cap = float(advertising.get("A_ad_cap", 0.0))
+    a_max = float(advertising.get("A_max", 0.0))
+    advertising["A_ad_cap"] = max(cap, a_max) * 10.0
     channels = {**channels, "advertising": advertising}
     cfg["channels"] = channels
     return cfg

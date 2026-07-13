@@ -115,6 +115,23 @@ def test_channel_share_validator():
         validate_config(cfg)
 
 
+def test_advertising_cap_below_a_min_rejected():
+    """A_ad_cap < A_min contradicts the recta's own lower bound for t>=13 and
+    guarantees an Infeasible MILP (the Free The Mama case: A_ad_cap=0 on an
+    active channel). The validator must catch it at instance-creation time."""
+    cfg = default_config()
+    cfg["channels"]["advertising"] = {
+        "active": True, "I_min": 4461, "I_max": 8000, "A_min": 373, "A_max": 13000,
+        "A_ad_cap": 0, "min_share": 0.0, "max_share": 1.0,
+    }
+    with pytest.raises(ValueError, match="A_ad_cap"):
+        validate_config(cfg)
+
+    # cap >= A_min passes this check
+    cfg["channels"]["advertising"]["A_ad_cap"] = 373
+    validate_config(cfg)
+
+
 def test_salesforce_capacity_only_binds_salesforce():
     config, instance, solution, df = _solve("configs/demo-mixed-channels.yaml")
     lag = config.get("commercial_productivity_lag", 0)

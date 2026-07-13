@@ -22,6 +22,8 @@ def render(st) -> None:
         run_id=run_id,
     )
 
+    C.infeasible_banner(st, run_id)
+
     # ── Load data ────────────────────────────────────────────────
     summary = C.canonical_json(run_id, "valuation_summary.json")
     dcf_annual = C.canonical_csv(run_id, "dcf_annual_summary.csv")
