@@ -25,11 +25,14 @@ from streamlit_pages import components as C
 
 
 def _parse_float_list(st, text: str, label: str, fallback: list[float]) -> list[float]:
-    """Parse a comma-separated list of numbers typed by the user.
+    """Parse a list of numbers typed or pasted by the user.
 
-    On a typo (e.g. ``0.5, 0,3``) show a business-readable error and keep the
-    previous value instead of crashing the page with a traceback.
+    Accepts comma, semicolon, tab or newline separators, so a row copied
+    straight from Excel/Sheets pastes clean. On a typo show a business-readable
+    error and keep the previous value instead of crashing the page.
     """
+    for sep in ("\t", ";", "\n", "\r"):
+        text = text.replace(sep, ",")
     try:
         values = [float(x.strip()) for x in text.split(",") if x.strip()]
     except ValueError:
@@ -37,6 +40,31 @@ def _parse_float_list(st, text: str, label: str, fallback: list[float]) -> list[
                  "Se mantiene el valor anterior.")
         return fallback
     return values or fallback
+
+
+def _years_in_horizon(st) -> int:
+    horizon = int(st.session_state.get("f_H", 36) or 36)
+    return max(1, -(-horizon // 12))  # ceil
+
+
+def _per_year_inputs(st, label: str, key_prefix: str, current: list[float],
+                     min_value: float = 0.0, step: float = 0.01, max_value: float | None = None,
+                     help: str | None = None) -> list[float]:
+    """One number box per year of the horizon instead of a comma-separated
+    text field (pedido UX 2026-07-13: 'para churn 3 años puede ser 3 cajas')."""
+    n = _years_in_horizon(st)
+    values = list(current) or [0.0]
+    while len(values) < n:
+        values.append(values[-1])  # pad with last known year
+    st.markdown(f"**{label}**" + (f" — {help}" if help else ""))
+    cols = st.columns(n)
+    out = []
+    for y in range(n):
+        kwargs = dict(min_value=min_value, step=step, key=f"{key_prefix}_{y}")
+        if max_value is not None:
+            kwargs["max_value"] = max_value
+        out.append(cols[y].number_input(f"Año {y + 1}", value=float(values[y]), **kwargs))
+    return out
 
 
 def _service_form(st, idx: int, service: dict) -> dict:
@@ -66,26 +94,28 @@ def _service_form(st, idx: int, service: dict) -> dict:
     service["c_min"] = c6.number_input(
         "Costo op. mínimo (c_min)", value=float(service["c_min"]), min_value=0.0, step=100.0, key=f"svc_cmin_{idx}"
     )
-    c7, c8 = st.columns(2)
-    service["u_max"] = c7.number_input(
+    service["u_max"] = st.number_input(
         "Capacidad por paso (u_max)", value=int(service["u_max"]), min_value=1, step=5, key=f"svc_umax_{idx}"
     )
-    churn_txt = c8.text_input(
-        "Churn anual por año (coma)",
-        value=", ".join(str(x) for x in service["churn_anual"]),
-        key=f"svc_churn_{idx}",
+    service["churn_anual"] = _per_year_inputs(
+        st, "Churn anual", f"svc_churn_{idx}", service["churn_anual"],
+        min_value=0.0, max_value=1.0, step=0.01,
+        help="fracción de clientes que se pierde cada año (0.45 = 45%)",
     )
-    service["churn_anual"] = _parse_float_list(st, churn_txt, "Churn anual", service["churn_anual"])
     abase_txt = st.text_input(
-        "A_base — adquisición fija 12 meses (coma)",
+        "Plan Consensuado — adquisición meses 1–12",
         value=", ".join(str(x) for x in service["A_base"]),
         key=f"svc_abase_{idx}",
-        help="Exactamente 12 valores. Meses 1–12 del Plan Consensuado.",
+        help="Exactamente 12 valores. Puedes pegar la fila directo desde Excel/Sheets "
+             "(acepta comas, tabulaciones o saltos de línea).",
     )
-    service["A_base"] = _parse_float_list(st, abase_txt, "A_base", service["A_base"])
+    service["A_base"] = _parse_float_list(st, abase_txt, "Plan Consensuado", service["A_base"])
     if len(service["A_base"]) != 12:
-        st.warning(f"A_base tiene {len(service['A_base'])} valores — deben ser exactamente 12 "
-                   "(meses 1–12 del Plan Consensuado).")
+        st.warning(f"El Plan Consensuado tiene {len(service['A_base'])} valores — deben ser "
+                   "exactamente 12 (meses 1–12).")
+    else:
+        st.caption("Interpretado: " + " · ".join(f"M{m+1}: {v:g}" for m, v in enumerate(service["A_base"]))
+                   + f" — total año 1: {sum(service['A_base']):g} clientes")
     return service
 
 
@@ -169,8 +199,8 @@ def _build_config(st, base: dict) -> dict:
     config["com_l"] = float(st.session_state.get("f_coml", config.get("com_l", base["com_l"])))
     config["g_adm"] = float(st.session_state.get("f_gadm", config.get("g_adm", base["g_adm"])))
     config["tax"] = float(st.session_state.get("f_tax", config.get("tax", base["tax"])))
-    config["RRHH_mensual"] = [float(x.strip()) for x in st.session_state.get("f_rrhh", "").split(",") if x.strip()]
-    config["ciclo_op"] = [float(x.strip()) for x in st.session_state.get("f_ciclo", "").split(",") if x.strip()]
+    config["RRHH_mensual"] = [float(x) for x in st.session_state.get("rrhh_values", config.get("RRHH_mensual", base["RRHH_mensual"]))]
+    config["ciclo_op"] = [float(x) for x in st.session_state.get("ciclo_values", config.get("ciclo_op", base["ciclo_op"]))]
     config["commercial_productivity_lag"] = int(st.session_state.get("f_lag", config.get("commercial_productivity_lag", base["commercial_productivity_lag"])))
     config["servicios"] = deepcopy(st.session_state.get("services", config.get("servicios", base["servicios"])))
     config["channels"] = st.session_state.get("f_channels", config.get("channels", base["channels"]))
@@ -262,11 +292,13 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
             except (TypeError, ValueError):
                 pass  # skip invalid values
 
-    # Comma-separated lists
-    if "RRHH_mensual" in loaded:
-        st.session_state["f_rrhh"] = ", ".join(str(x) for x in loaded["RRHH_mensual"])
-    if "ciclo_op" in loaded:
-        st.session_state["f_ciclo"] = ", ".join(str(x) for x in loaded["ciclo_op"])
+    # Per-year lists: drop stale per-year widget keys so value= re-applies from
+    # loaded data on rerun (same pattern as svc_*/ch_* below).
+    for prefix in ("f_rrhh", "f_ciclo"):
+        for k in [k for k in list(st.session_state) if k.startswith(f"{prefix}_")]:
+            del st.session_state[k]
+    st.session_state.pop("rrhh_values", None)
+    st.session_state.pop("ciclo_values", None)
 
     # Investment thesis (drives target seeker and DD gates)
     thesis = loaded.get("investment_thesis")
@@ -444,10 +476,14 @@ def _render_create_tab(st, base: dict) -> None:
     # solver (default suficiente).
     with st.expander("Costos fijos y operación", expanded=False):
         st.number_input("Gasto administrativo mensual (g_adm)", value=float(_dv("g_adm", base["g_adm"])), min_value=0.0, step=250.0, key="f_gadm")
-        st.text_input("RRHH mensual por año (coma)", value=", ".join(str(x) for x in _dv("RRHH_mensual", base["RRHH_mensual"])), key="f_rrhh",
-                      help="Un valor por año del horizonte, USD/mes.")
-        st.text_input("Ciclo operacional por año (coma)", value=", ".join(str(x) for x in _dv("ciclo_op", base["ciclo_op"])), key="f_ciclo",
-                      help="Días de ciclo caja por año del horizonte.")
+        st.session_state["rrhh_values"] = _per_year_inputs(
+            st, "RRHH mensual", "f_rrhh", [float(x) for x in _dv("RRHH_mensual", base["RRHH_mensual"])],
+            min_value=0.0, step=500.0, help="USD/mes de planta por año del horizonte",
+        )
+        st.session_state["ciclo_values"] = _per_year_inputs(
+            st, "Ciclo operacional", "f_ciclo", [float(x) for x in _dv("ciclo_op", base["ciclo_op"])],
+            min_value=0.0, step=15.0, help="días de ciclo de caja por año del horizonte",
+        )
 
     C.note(st, "El análisis de robustez (M4) se decide en la página Due diligence tras el veredicto "
                "(automático si aprueba limpio; con confirmación si hay advertencias).")
