@@ -108,24 +108,14 @@ def _channels_form(st, base: dict) -> dict:
     ad = channels["advertising"]
     ad["active"] = st.checkbox("Publicidad (advertising)", value=ad["active"], key="ch_ad_active")
     if ad["active"]:
-        a1, a2, a3 = st.columns(3)
+        a1, a2 = st.columns(2)
         ad["I_min"] = a1.number_input("Inversión I_min", value=float(ad["I_min"]), min_value=0.0, step=500.0, key="ch_ad_imin")
         ad["I_max"] = a2.number_input("Inversión I_max", value=float(ad["I_max"]), min_value=0.0, step=500.0, key="ch_ad_imax")
-        ad["A_ad_cap"] = a3.number_input(
-            "Tope adquisición A_ad_cap", value=float(ad["A_ad_cap"]), min_value=0.0, step=5.0, key="ch_ad_cap",
-            help="Máximo de clientes por mes que puede aportar publicidad. "
-                 "Debe ser ≥ A_min; con 0 el canal queda bloqueado y el plan es infactible.",
-        )
         a4, a5 = st.columns(2)
         ad["A_min"] = a4.number_input("Recta A_min", value=float(ad["A_min"]), min_value=0.0, step=1.0, key="ch_ad_amin")
         ad["A_max"] = a5.number_input("Recta A_max", value=float(ad["A_max"]), min_value=0.0, step=1.0, key="ch_ad_amax")
-        if ad["A_ad_cap"] < ad["A_min"]:
-            st.error(
-                f"**Tope publicitario inconsistente:** A_ad_cap = {ad['A_ad_cap']:g} es menor que "
-                f"A_min = {ad['A_min']:g}. Desde el mes 13 la recta exige adquirir al menos A_min "
-                f"clientes/mes por publicidad, pero el tope lo prohíbe → el plan será **infactible**. "
-                f"Sube A_ad_cap (típicamente ≥ A_max = {ad['A_max']:g})."
-            )
+        ad["A_ad_cap"] = max(float(ad.get("A_ad_cap") or 0), ad["A_max"])
+        C.note(st, "Tope publicitario (A_ad_cap) = A_max automático, no se declara.")
         a6, a7 = st.columns(2)
         ad["min_share"] = a6.slider("Publicidad min_share", 0.0, 1.0, float(ad["min_share"]), 0.05, key="ch_ad_minshare")
         ad["max_share"] = a7.slider("Publicidad max_share", 0.0, 1.0, float(ad["max_share"]), 0.05, key="ch_ad_maxshare")

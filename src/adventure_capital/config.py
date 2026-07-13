@@ -86,7 +86,7 @@ _DEFAULT_CONFIG: dict[str, Any] = {
             "I_max": 0,
             "A_min": 0,
             "A_max": 0,
-            "A_ad_cap": 0,
+            "A_ad_cap": None,
             "min_share": 0.0,
             "max_share": 1.0,
         },
@@ -371,6 +371,13 @@ def validate_config(config: dict[str, Any]) -> None:
 
         advertising = channels.get("advertising", {})
         if advertising.get("active", False):
+            # A_ad_cap is a technical parameter, not a product-facing input: when
+            # absent/None/0 it is derived from A_max (the plan's own upper bound),
+            # so the channel never becomes structurally infeasible by omission. An
+            # explicit A_ad_cap > 0 declared in the YAML is respected as-is (and
+            # still validated against A_min below).
+            if not advertising.get("A_ad_cap"):
+                advertising["A_ad_cap"] = float(advertising.get("A_max", 0))
             i_min = advertising.get("I_min", 0)
             i_max = advertising.get("I_max", 0)
             a_min = advertising.get("A_min", 0)
