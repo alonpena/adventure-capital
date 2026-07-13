@@ -49,6 +49,13 @@ def _service_form(st, idx: int, service: dict) -> dict:
     service["frecuencia"] = c3.number_input(
         "Frecuencia (meses entre recompra)", value=int(service["frecuencia"]), min_value=1, step=1, key=f"svc_freq_{idx}"
     )
+    horizon = int(st.session_state.get("f_H", 36) or 36)
+    if service["frecuencia"] > horizon:
+        st.warning(
+            f"Frecuencia {service['frecuencia']} > horizonte {horizon} meses: **ningún cliente "
+            f"recompra jamás** dentro del plan — el negocio se modela como venta única. "
+            f"Si el servicio es recurrente (suscripción/consumible), la frecuencia real suele ser 1–3."
+        )
     c4, c5, c6 = st.columns(3)
     service["alpha"] = c4.number_input(
         "Tasa de recompra (alpha)", value=float(service["alpha"]), min_value=0.0, max_value=1.0, step=0.05, key=f"svc_alpha_{idx}"
