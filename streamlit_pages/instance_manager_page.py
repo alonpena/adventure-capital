@@ -200,7 +200,8 @@ def _build_config(st, base: dict) -> dict:
     config["g_adm"] = float(st.session_state.get("f_gadm", config.get("g_adm", base["g_adm"])))
     config["tax"] = float(st.session_state.get("f_tax", config.get("tax", base["tax"])))
     config["RRHH_mensual"] = [float(x) for x in st.session_state.get("rrhh_values", config.get("RRHH_mensual", base["RRHH_mensual"]))]
-    config["ciclo_op"] = [float(x) for x in st.session_state.get("ciclo_values", config.get("ciclo_op", base["ciclo_op"]))]
+    # ciclo_op: sin widget (capital de trabajo = trabajo futuro); YAML/base pasa intacto.
+    config["ciclo_op"] = [float(x) for x in config.get("ciclo_op", base["ciclo_op"])]
     config["commercial_productivity_lag"] = int(st.session_state.get("f_lag", config.get("commercial_productivity_lag", base["commercial_productivity_lag"])))
     config["servicios"] = deepcopy(st.session_state.get("services", config.get("servicios", base["servicios"])))
     config["channels"] = st.session_state.get("f_channels", config.get("channels", base["channels"]))
@@ -294,11 +295,9 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
 
     # Per-year lists: drop stale per-year widget keys so value= re-applies from
     # loaded data on rerun (same pattern as svc_*/ch_* below).
-    for prefix in ("f_rrhh", "f_ciclo"):
-        for k in [k for k in list(st.session_state) if k.startswith(f"{prefix}_")]:
-            del st.session_state[k]
+    for k in [k for k in list(st.session_state) if k.startswith("f_rrhh_")]:
+        del st.session_state[k]
     st.session_state.pop("rrhh_values", None)
-    st.session_state.pop("ciclo_values", None)
 
     # Investment thesis (drives target seeker and DD gates)
     thesis = loaded.get("investment_thesis")
@@ -480,10 +479,8 @@ def _render_create_tab(st, base: dict) -> None:
             st, "RRHH mensual", "f_rrhh", [float(x) for x in _dv("RRHH_mensual", base["RRHH_mensual"])],
             min_value=0.0, step=500.0, help="USD/mes de planta por año del horizonte",
         )
-        st.session_state["ciclo_values"] = _per_year_inputs(
-            st, "Ciclo operacional", "f_ciclo", [float(x) for x in _dv("ciclo_op", base["ciclo_op"])],
-            min_value=0.0, step=15.0, help="días de ciclo de caja por año del horizonte",
-        )
+        # Ciclo operacional: sin widget — pertenece al modelamiento de capital
+        # de trabajo (trabajo futuro). El valor del YAML/base pasa intacto.
 
     C.note(st, "El análisis de robustez (M4) se decide en la página Due diligence tras el veredicto "
                "(automático si aprueba limpio; con confirmación si hay advertencias).")
