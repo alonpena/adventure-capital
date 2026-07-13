@@ -389,37 +389,64 @@ def _render_created_panel(st) -> None:
     st.markdown("---")
 
 
-def _render_create_tab(st, base: dict) -> None:
-    _render_created_panel(st)
+def _try_apply_yaml_text(st, text: str, base: dict, source_name: str) -> None:
+    """Parse + apply YAML text to the form, once per distinct content (hash guard)."""
+    import hashlib
 
-    # YAML upload — applies to the form automatically (one step, no extra click)
-    uploaded = st.file_uploader(
-        "Cargar YAML existente (opcional)",
-        type=["yaml", "yml"],
-        help="Al subir el archivo el formulario se completa automáticamente con sus valores.",
-    )
-    if uploaded is not None:
-        import hashlib
-
-        file_hash = hashlib.sha256(uploaded.getvalue()).hexdigest()
-        if st.session_state.get("yaml_applied_hash") != file_hash:
-            loaded = None
-            try:
-                loaded = yaml.safe_load(uploaded.getvalue().decode("utf-8"))
-            except (yaml.YAMLError, UnicodeDecodeError) as exc:
-                st.error(f"El archivo no es YAML válido y no se aplicó al formulario. Detalle: {exc}")
-            if loaded is not None and not isinstance(loaded, dict):
-                st.error("El YAML debe ser una configuración (pares clave: valor), "
-                         f"no `{type(loaded).__name__}`. No se aplicó al formulario.")
-                loaded = None
-            if loaded:
-                _apply_loaded_yaml(st, loaded, base)
-                st.session_state["yaml_applied_hash"] = file_hash
-                st.session_state["yaml_applied_name"] = uploaded.name
-                st.rerun()
-        elif st.session_state.get("yaml_applied_name"):
+    content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    if st.session_state.get("yaml_applied_hash") == content_hash:
+        if st.session_state.get("yaml_applied_name"):
             st.success(f"Formulario completado desde **{st.session_state['yaml_applied_name']}**. "
                        "Revisa los valores y pulsa *Crear instancia*.")
+        return
+    loaded = None
+    try:
+        loaded = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        st.error(f"El texto no es YAML válido y no se aplicó al formulario. Detalle: {exc}")
+    if loaded is not None and not isinstance(loaded, dict):
+        st.error("El YAML debe ser una configuración (pares clave: valor), "
+                 f"no `{type(loaded).__name__}`. No se aplicó al formulario.")
+        loaded = None
+    if loaded:
+        _apply_loaded_yaml(st, loaded, base)
+        st.session_state["yaml_applied_hash"] = content_hash
+        st.session_state["yaml_applied_name"] = source_name
+        st.rerun()
+
+
+def _render_yaml_io(st, base: dict) -> None:
+    """Load a case from YAML (file or pasted text). The matching export lives
+    next to the create button (Descargar YAML)."""
+    with st.expander("Cargar caso desde YAML (opcional)", expanded=False):
+        tab_file, tab_paste = st.tabs(["Subir archivo", "Pegar texto"])
+        with tab_file:
+            uploaded = st.file_uploader(
+                "Archivo .yaml / .yml",
+                type=["yaml", "yml"],
+                help="Al subir el archivo el formulario se completa automáticamente.",
+            )
+            if uploaded is not None:
+                try:
+                    text = uploaded.getvalue().decode("utf-8")
+                except UnicodeDecodeError:
+                    st.error("El archivo no es texto UTF-8 válido.")
+                    return
+                _try_apply_yaml_text(st, text, base, uploaded.name)
+        with tab_paste:
+            pasted = st.text_area(
+                "Pega aquí el YAML del caso",
+                height=180,
+                key="yaml_paste_box",
+                placeholder="H: 36\nVC: 250000\nservicios:\n  - nombre: ...",
+            )
+            if st.button("Aplicar YAML pegado", key="yaml_paste_apply") and pasted.strip():
+                _try_apply_yaml_text(st, pasted, base, "texto pegado")
+
+
+def _render_create_tab(st, base: dict) -> None:
+    _render_created_panel(st)
+    _render_yaml_io(st, base)
 
     def _dv(key: str, fallback: Any) -> Any:
         scalars = st.session_state.get("loaded_scalars", {})
@@ -487,7 +514,7 @@ def _render_create_tab(st, base: dict) -> None:
 
     # ── Create button ──
     st.markdown("---")
-    c1, c2 = st.columns([1, 3])
+    c1, c2, c3 = st.columns([1, 1, 2])
     with c1:
         if st.button("Crear instancia", type="primary"):
             try:
@@ -522,8 +549,25 @@ def _render_create_tab(st, base: dict) -> None:
             _clear_yaml_state(st)
             st.rerun()
 
-    # ── Preview ──
+    # ── Download current form as YAML (ciclo editar → descargar → recargar) ──
     with c2:
+        try:
+            config = _build_config(st, base)
+            data = yaml.safe_dump(config, allow_unicode=True, sort_keys=False)
+            fname = (config.get("nombre") or "caso").strip().lower().replace(" ", "-") or "caso"
+            st.download_button(
+                "Descargar YAML",
+                data=data.encode("utf-8"),
+                file_name=f"{fname}.yaml",
+                mime="application/x-yaml",
+                help="Exporta lo que está en el formulario ahora mismo, tal cual, "
+                     "para editarlo fuera o recargarlo después.",
+            )
+        except Exception:
+            st.caption("Descarga disponible cuando la configuración esté completa.")
+
+    # ── Preview ──
+    with c3:
         if st.button("Vista previa YAML"):
             try:
                 config = _build_config(st, base)
@@ -547,7 +591,7 @@ def _render_list_tab(st) -> None:
 
     for meta in instances:
         with st.container():
-            cols = st.columns([3, 1, 1, 1])
+            cols = st.columns([3, 1, 1, 1, 1])
             with cols[0]:
                 st.markdown(f"**{meta['name']}**")
                 st.caption(f"ID: `{meta['id']}` · Creada: {meta['created_at']}")
@@ -558,6 +602,17 @@ def _render_list_tab(st) -> None:
                 if st.button("Detalle", key=f"detail_{meta['id']}"):
                     _show_instance_detail(st, meta["id"])
             with cols[3]:
+                cfg = C.load_instance_config(meta["id"])
+                if cfg:
+                    st.download_button(
+                        "YAML",
+                        data=yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False).encode("utf-8"),
+                        file_name=f"{meta['name'].strip().lower().replace(' ', '-')}.yaml",
+                        mime="application/x-yaml",
+                        key=f"dl_{meta['id']}",
+                        help="Descarga la configuración congelada para editarla y recargarla.",
+                    )
+            with cols[4]:
                 if st.button("Eliminar", key=f"del_{meta['id']}"):
                     C.delete_instance(meta["id"])
                     st.rerun()
