@@ -84,9 +84,72 @@ def _render_m4_gate(st, run_id: str) -> None:
     st.rerun()
 
 
+# Etiquetas de negocio para hallazgos técnicos (ver src/adventure_capital/
+# due_diligence/rules.py y calibration/checks.py para los nombres canónicos).
+FINDING_LABELS: dict[str, str] = {
+    "instance_valid": "Configuración de la instancia",
+    "unit_margin_positive": "Margen unitario por servicio",
+    "financing_present": "Financiamiento inicial",
+    "churn_valid": "Rango de churn",
+    "churn_severity": "Severidad del churn",
+    "breakeven_within_horizon": "Punto de equilibrio",
+    "ebitda_regime_by_year3": "Régimen de EBITDA al año 3",
+    "revenue_growth": "Crecimiento de ingresos",
+    "exit_roi": "ROI de salida",
+    "growth_commitment_plan_inconsistent": "Consistencia del plan de crecimiento",
+    "growth_commitment_plan_mom_suspicious": "Crecimiento mes a mes del plan",
+    "growth_commitment_plan_below_thesis": "Plan de crecimiento vs. tesis",
+    "growth_commitment_custom_unjustified": "Justificación del plan personalizado",
+    "growth_commitment_infeasible": "Factibilidad del compromiso de crecimiento",
+    "conservative_plan_diagnostic": "Diagnóstico de plan conservador",
+    "runway": "Runway de caja",
+    "funding_gap_severity": "Severidad de la brecha de financiamiento",
+    "synthesis_unavailable": "Síntesis de due diligence",
+    "seller_capacity_saturation": "Saturación de capacidad comercial",
+    "sellers_no_growth_with_saturation": "Dotación de vendedores",
+    "ltv_cac": "Ratio LTV/CAC",
+}
+
+# Palancas conocidas (ver recommended_levers.json / due_diligence workflow).
+LEVER_LABELS: dict[str, str] = {
+    "churn_anual": "Churn anual",
+    "A_base | acquisition ceiling slack": "Techo de adquisición (holgura de A_base)",
+    "meta | commission rates": "Tasa de comisión (meta)",
+}
+
+IMPACT_AREA_LABELS: dict[str, str] = {
+    "retention": "retención",
+    "growth": "crecimiento",
+    "acquisition_cost": "costo de adquisición",
+    "unmapped": "sin mapear",
+}
+
+DIRECTION_LABELS: dict[str, str] = {
+    "increase": "subir",
+    "decrease": "bajar",
+    "adjust": "ajustar",
+}
+
+
 def _humanize_finding_name(name: str) -> str:
-    """Turn a machine finding name like ``instance_valid`` into readable text."""
-    return name.replace("_", " ").strip().capitalize() if name else "—"
+    """Turn a machine finding name into a Spanish business label.
+
+    Known ids (``FINDING_LABELS``) map to business-facing text; unknown ones
+    fall back to underscore→space + capitalize.
+    """
+    if not name:
+        return "—"
+    return FINDING_LABELS.get(name, name.replace("_", " ").strip().capitalize())
+
+
+def _fmt_lever_value(value) -> str:
+    """Format a lever's current value without over-precision on large numbers."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    decimals = 0 if abs(v) >= 1000 else 2
+    return C.number(v, decimals)
 
 
 def render(st) -> None:
@@ -193,12 +256,15 @@ def render(st) -> None:
         for f in failing:
             name = _humanize_finding_name(f.get("name", f.get("id", "")))
             msg = f.get("message", "")
-            with st.expander(f"⚠️ {name} — {msg}", expanded=True):
+            sev = f.get("severity_class", "—")
+            with st.expander(f"{name} — requiere atención", expanded=True):
+                C.badge(st, sev.capitalize() if isinstance(sev, str) else "Advertencia",
+                        C.SEVERITY_TONE.get(sev, "warn"))
+                st.markdown(msg)
                 if f.get("recommendation"):
                     st.markdown(f"**Qué hacer:** {f.get('recommendation')}")
 
                 evidence = f.get("evidence", {})
-                sev = f.get("severity_class", "—")
                 ident = f.get("id", "")
                 with st.expander("Detalle técnico / Evidencia", expanded=False):
                     st.markdown(f"**ID:** `{ident}`")
@@ -206,11 +272,13 @@ def render(st) -> None:
                     if evidence:
                         st.json(evidence)
 
-        # Then the checklist of what passed, with its message.
-        for f in passed:
-            name = _humanize_finding_name(f.get("name", f.get("id", "")))
-            message = f.get("message") or "Sin observaciones."
-            st.markdown(f"✅ **{name}** — {message}")
+        # Then the checklist of what passed, tucked away — it's not the story.
+        if passed:
+            with st.expander(f"Verificaciones aprobadas ({len(passed)})", expanded=False):
+                for f in passed:
+                    name = _humanize_finding_name(f.get("name", f.get("id", "")))
+                    message = f.get("message") or "Sin observaciones."
+                    st.markdown(f"**{name}** — {message}")
 
         # Raw flag table stays available, but out of the way.
         flags = C.postprocessed_csv(run_id, "due_diligence", "due_diligence_flags.csv")
@@ -252,9 +320,27 @@ def render(st) -> None:
         if lever_list:
             st.markdown("### Palancas recomendadas")
             for lever in lever_list:
+                finding_id = lever.get("finding_id", "")
+                lever_key = lever.get("lever")
+                direction = lever.get("suggested_direction")
+                area = lever.get("impact_area")
+                current = lever.get("current_value")
+
+                area_label = IMPACT_AREA_LABELS.get(area, area or "—")
+
+                if not lever_key:
+                    st.markdown(
+                        f"- **Sin palanca mapeada** ({area_label}): requiere revisión manual "
+                        f"(hallazgo `{finding_id}`)."
+                    )
+                    continue
+
+                lever_label = LEVER_LABELS.get(lever_key, lever_key)
+                direction_label = DIRECTION_LABELS.get(direction, direction or "ajustar")
+                value_part = (
+                    f" Valor actual: {_fmt_lever_value(current)}." if current is not None else ""
+                )
                 st.markdown(
-                    f"- **{lever.get('finding_id')}** → palanca: `{lever.get('lever')}` · "
-                    f"dirección: *{lever.get('suggested_direction')}* · "
-                    f"área: {lever.get('impact_area')}"
-                    + (f" · valor actual: {lever.get('current_value')}" if lever.get("current_value") is not None else "")
+                    f"- **{lever_label}** ({area_label}): mover al {direction_label}."
+                    f"{value_part}"
                 )
