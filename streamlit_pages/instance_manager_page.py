@@ -159,7 +159,8 @@ def _build_config(st, base: dict) -> dict:
     config["H"] = int(st.session_state.get("f_H", config.get("H", base["H"])))
     config["VC"] = float(st.session_state.get("f_VC", config.get("VC", base["VC"])))
     config["beta"] = float(st.session_state.get("f_beta", config.get("beta", base["beta"])))
-    config["g_max_suavizado"] = float(st.session_state.get("f_gmax", config.get("g_max_suavizado", base["g_max_suavizado"])))
+    # g_max_suavizado: parámetro muerto (ningún constraint del modelo lo lee);
+    # se conserva del YAML/base por compatibilidad pero no tiene widget.
     config["meta"] = float(st.session_state.get("f_meta", config.get("meta", base["meta"])))
     config["sup"] = float(st.session_state.get("f_sup", config.get("sup", base["sup"])))
     config["rem_v"] = float(st.session_state.get("f_remv", config.get("rem_v", base["rem_v"])))
@@ -173,10 +174,22 @@ def _build_config(st, base: dict) -> dict:
     config["commercial_productivity_lag"] = int(st.session_state.get("f_lag", config.get("commercial_productivity_lag", base["commercial_productivity_lag"])))
     config["servicios"] = deepcopy(st.session_state.get("services", config.get("servicios", base["servicios"])))
     config["channels"] = st.session_state.get("f_channels", config.get("channels", base["channels"]))
-    config["liquidity_policy"] = {"type": st.session_state.get("f_liq", config.get("liquidity_policy", {}).get("type", "none"))}
-    if st.session_state.get("f_liq") == "minimum_cash":
-        config["liquidity_policy"]["value"] = float(st.session_state.get("f_liq_value", 0.0))
-    config["solver"] = {"name": "cbc", "time_limit": int(st.session_state.get("f_time", config.get("solver", {}).get("time_limit", base["solver"]["time_limit"]))), "verbose": False}
+    # Liquidez: sin widget — trabajo futuro de modelamiento de capital de
+    # trabajo. Se respeta lo que traiga el YAML; default none.
+    config["liquidity_policy"] = config.get("liquidity_policy", {"type": "none"})
+    # Solver: sin widget — resuelve bien dentro del default; se respeta el YAML.
+    solver = config.get("solver", {}) or {}
+    config["solver"] = {"name": "cbc",
+                        "time_limit": int(solver.get("time_limit", base["solver"]["time_limit"])),
+                        "verbose": False}
+    # Tesis de inversión — incide en target seeker y gates de DD.
+    thesis = deepcopy(config.get("investment_thesis", {}) or {})
+    if "f_thesis_m" in st.session_state:
+        thesis["multiple"] = float(st.session_state["f_thesis_m"])
+    if "f_thesis_gate" in st.session_state:
+        thesis["dd_revenue_gate_usd"] = float(st.session_state["f_thesis_gate"])
+    if thesis:
+        config["investment_thesis"] = thesis
     return config
 
 
@@ -232,7 +245,6 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
         ("f_H", "H", int),
         ("f_VC", "VC", float),
         ("f_beta", "beta", float),
-        ("f_gmax", "g_max_suavizado", float),
         ("f_meta", "meta", float),
         ("f_sup", "sup", float),
         ("f_remv", "rem_v", float),
@@ -256,18 +268,15 @@ def _apply_loaded_yaml(st, loaded: dict, base: dict) -> None:
     if "ciclo_op" in loaded:
         st.session_state["f_ciclo"] = ", ".join(str(x) for x in loaded["ciclo_op"])
 
-    # Liquidity policy
-    liq = loaded.get("liquidity_policy", {})
-    if isinstance(liq, dict):
-        liq_type = liq.get("type", "none")
-        st.session_state["f_liq"] = liq_type
-        if liq_type == "minimum_cash" and "value" in liq:
-            st.session_state["f_liq_value"] = float(liq["value"])
-
-    # Solver
-    solver = loaded.get("solver", {})
-    if isinstance(solver, dict) and "time_limit" in solver:
-        st.session_state["f_time"] = int(solver["time_limit"])
+    # Investment thesis (drives target seeker and DD gates)
+    thesis = loaded.get("investment_thesis")
+    if isinstance(thesis, dict):
+        if "multiple" in thesis:
+            st.session_state["f_thesis_m"] = float(thesis["multiple"])
+        if "dd_revenue_gate_usd" in thesis:
+            st.session_state["f_thesis_gate"] = float(thesis["dd_revenue_gate_usd"])
+    # Liquidity policy and solver have no widgets (future work / defaults):
+    # they flow through merged_config untouched.
 
     # Services (complex structure, not individual fields).
     # Drop stale per-widget keys (svc_*) so each service widget re-initialises
@@ -400,6 +409,16 @@ def _render_create_tab(st, base: dict) -> None:
     g4.number_input("Impuesto (tax)", value=float(_dv("tax", base["tax"])), min_value=0.0, max_value=1.0, step=0.005, key="f_tax",
                     help="Tasa efectiva sobre EBITDA positivo. 0.125 = 12,5%.")
 
+    st.markdown("**Tesis de inversión** — define el objetivo de crecimiento (target seeker) y los umbrales de due diligence")
+    thesis_loaded = (st.session_state.get("loaded_scalars", {}).get("investment_thesis") or {})
+    t1, t2 = st.columns(2)
+    t1.number_input("Múltiplo objetivo (m)", min_value=1.0, max_value=10.0, step=0.5, key="f_thesis_m",
+                    value=float(thesis_loaded.get("multiple", base["investment_thesis"]["multiple"])),
+                    help="Crecimiento exigido del stock de clientes entre el mes 12 y el horizonte. 3.0 = triplicar (estándar VC).")
+    t2.number_input("Gate de ingresos DD (USD)", min_value=0.0, step=100000.0, key="f_thesis_gate",
+                    value=float(thesis_loaded.get("dd_revenue_gate_usd", base["investment_thesis"]["dd_revenue_gate_usd"])),
+                    help="Ingresos acumulados mínimos que due diligence exige para perfil venture.")
+
     # ══ Nivel 2 · Negocio ══
     # Lo que Alejandro movería: servicios y canales.
     st.markdown("#### Negocio — Servicios")
@@ -418,26 +437,17 @@ def _render_create_tab(st, base: dict) -> None:
 
     st.session_state["f_channels"] = _channels_form(st, base)
 
-    # ══ Nivel 3 · Supuestos técnicos ══
-    # Colapsados: casi nunca se tocan; defaults a la vista al expandir.
-    # (La estrategia comercial vive bajo el toggle de Fuerza de ventas.)
-    with st.expander("Supuestos técnicos (costos fijos, liquidez, solver)", expanded=False):
-        st.markdown("**Costos fijos y operación**")
-        f1, f2 = st.columns(2)
-        f1.number_input("Gasto administrativo mensual (g_adm)", value=float(_dv("g_adm", base["g_adm"])), min_value=0.0, step=250.0, key="f_gadm")
-        f2.number_input("Suavizado máx. de crecimiento (g_max_suavizado)", value=float(_dv("g_max_suavizado", base["g_max_suavizado"])), min_value=0.0, max_value=1.0, step=0.05, key="f_gmax",
-                        help="Límite de variación mensual del plan. 0.25 = 25%.")
+    # ══ Nivel 3 · Costos fijos y operación ══
+    # Colapsado: casi nunca se toca. Fuera del formulario (decisión 2026-07-13):
+    # g_max_suavizado (parámetro muerto, ningún constraint lo lee), política de
+    # liquidez (trabajo futuro: modelamiento de capital de trabajo) y tiempo de
+    # solver (default suficiente).
+    with st.expander("Costos fijos y operación", expanded=False):
+        st.number_input("Gasto administrativo mensual (g_adm)", value=float(_dv("g_adm", base["g_adm"])), min_value=0.0, step=250.0, key="f_gadm")
         st.text_input("RRHH mensual por año (coma)", value=", ".join(str(x) for x in _dv("RRHH_mensual", base["RRHH_mensual"])), key="f_rrhh",
                       help="Un valor por año del horizonte, USD/mes.")
         st.text_input("Ciclo operacional por año (coma)", value=", ".join(str(x) for x in _dv("ciclo_op", base["ciclo_op"])), key="f_ciclo",
                       help="Días de ciclo caja por año del horizonte.")
-
-        st.markdown("**Liquidez y solver**")
-        l1, l2, l3 = st.columns(3)
-        l1.selectbox("Política de liquidez", ["none", "nonnegative", "minimum_cash"], key="f_liq")
-        if st.session_state.get("f_liq") == "minimum_cash":
-            l2.number_input("Caja mínima", value=0.0, step=1000.0, key="f_liq_value")
-        l3.number_input("Solver time_limit (s)", value=int(base["solver"]["time_limit"]), min_value=10, step=10, key="f_time")
 
     C.note(st, "El análisis de robustez (M4) se decide en la página Due diligence tras el veredicto "
                "(automático si aprueba limpio; con confirmación si hay advertencias).")
