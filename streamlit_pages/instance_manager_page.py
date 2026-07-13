@@ -370,41 +370,24 @@ def _render_create_tab(st, base: dict) -> None:
         scalars = st.session_state.get("loaded_scalars", {})
         return scalars.get(key, fallback)
 
-    # ── Instance name ──
+    # ══ Nivel 1 · Caso ══
+    # Las perillas que definen el caso de inversión. Siempre visibles.
+    st.markdown("#### Caso")
     st.text_input("Nombre de la instancia", value=_dv("nombre", ""),
                   key="f_nombre", placeholder="Ej: Caso base Q3")
+    g1, g2, g3, g4 = st.columns(4)
+    g1.number_input("Horizonte (meses)", value=int(_dv("H", base["H"])), min_value=14, step=1, key="f_H",
+                    help="Meses del plan; mínimo 14 (el horizonte optimizado parte en el mes 13).")
+    g2.number_input("Capital disponible (VC)", value=float(_dv("VC", base["VC"])), min_value=0.0, step=10000.0, key="f_VC",
+                    help="USD efectivamente comprometidos por el inversionista.")
+    g3.number_input("Tasa de descuento anual (beta)", value=float(_dv("beta", base["beta"])), min_value=0.0, max_value=2.0, step=0.01, key="f_beta",
+                    help="0.35 = 35% anual.")
+    g4.number_input("Impuesto (tax)", value=float(_dv("tax", base["tax"])), min_value=0.0, max_value=1.0, step=0.005, key="f_tax",
+                    help="Tasa efectiva sobre EBITDA positivo. 0.125 = 12,5%.")
 
-    # ── General params ──
-    st.markdown("#### Parámetros generales")
-    g1, g2, g3 = st.columns(3)
-    g1.number_input("Horizonte H (meses, ≥14)", value=int(_dv("H", base["H"])), min_value=14, step=1, key="f_H")
-    g2.number_input("Capital inicial VC", value=float(_dv("VC", base["VC"])), min_value=0.0, step=10000.0, key="f_VC")
-    g3.number_input("Tasa de descuento anual (beta)", value=float(_dv("beta", base["beta"])), min_value=0.0, max_value=2.0, step=0.01, key="f_beta")
-    g4, g5, g6 = st.columns(3)
-    g4.number_input("Impuesto (tax)", value=float(_dv("tax", base["tax"])), min_value=0.0, max_value=1.0, step=0.005, key="f_tax")
-    g5.number_input("Gasto administrativo (g_adm)", value=float(_dv("g_adm", base["g_adm"])), min_value=0.0, step=250.0, key="f_gadm")
-    g6.number_input("Suavizado máx. (g_max_suavizado)", value=float(_dv("g_max_suavizado", base["g_max_suavizado"])), min_value=0.0, max_value=1.0, step=0.05, key="f_gmax")
-
-    # ── Commercial team ──
-    # TODO(ui): move Salesforce commercial strategy config under Salesforce
-    # toggle/expander in channel configuration. Keep first fields ordered as
-    # meta, sup, commercial_productivity_lag; then rem_v, rem_l, com_v, com_l.
-    st.markdown("#### Equipo comercial")
-    e1, e2, e3 = st.columns(3)
-    e1.number_input("Meta productividad (meta)", value=float(_dv("meta", base["meta"])), min_value=0.1, step=0.5, key="f_meta")
-    e2.number_input("Supervisión (sup)", value=float(_dv("sup", base["sup"])), min_value=0.1, step=0.5, key="f_sup")
-    e3.number_input("Lag productividad (meses)", value=int(_dv("commercial_productivity_lag", base["commercial_productivity_lag"])), min_value=0, step=1, key="f_lag")
-    e4, e5, e6, e7 = st.columns(4)
-    e4.number_input("Rem. vendedor (rem_v)", value=float(_dv("rem_v", base["rem_v"])), min_value=0.0, step=100.0, key="f_remv")
-    e5.number_input("Rem. líder (rem_l)", value=float(_dv("rem_l", base["rem_l"])), min_value=0.0, step=100.0, key="f_reml")
-    e6.number_input("Comisión vendedor (com_v)", value=float(_dv("com_v", base["com_v"])), min_value=0.0, max_value=1.0, step=0.01, key="f_comv")
-    e7.number_input("Comisión líder (com_l)", value=float(_dv("com_l", base["com_l"])), min_value=0.0, max_value=1.0, step=0.01, key="f_coml")
-
-    st.text_input("RRHH mensual por año (coma)", value=", ".join(str(x) for x in _dv("RRHH_mensual", base["RRHH_mensual"])), key="f_rrhh")
-    st.text_input("Ciclo operacional por año (coma)", value=", ".join(str(x) for x in _dv("ciclo_op", base["ciclo_op"])), key="f_ciclo")
-
-    # ── Services ──
-    st.markdown("#### Servicios")
+    # ══ Nivel 2 · Negocio ══
+    # Lo que Alejandro movería: servicios y canales.
+    st.markdown("#### Negocio — Servicios")
     sc1, sc2 = st.columns(2)
     default_service = deepcopy(base["servicios"][0])
     if sc1.button("Agregar servicio"):
@@ -418,15 +401,39 @@ def _render_create_tab(st, base: dict) -> None:
             updated.append(_service_form(st, idx, deepcopy(service)))
     st.session_state["services"] = updated
 
-    # ── Channels + liquidity ──
     st.session_state["f_channels"] = _channels_form(st, base)
 
-    st.markdown("#### Liquidez y solver")
-    l1, l2, l3 = st.columns(3)
-    l1.selectbox("Política de liquidez", ["none", "nonnegative", "minimum_cash"], key="f_liq")
-    if st.session_state.get("f_liq") == "minimum_cash":
-        l2.number_input("Caja mínima", value=0.0, step=1000.0, key="f_liq_value")
-    l3.number_input("Solver time_limit (s)", value=int(base["solver"]["time_limit"]), min_value=10, step=10, key="f_time")
+    # ══ Nivel 3 · Supuestos técnicos ══
+    # Colapsados: casi nunca se tocan; defaults a la vista al expandir.
+    with st.expander("Supuestos técnicos (equipo comercial, costos fijos, liquidez, solver)", expanded=False):
+        st.markdown("**Equipo comercial** — aplica solo si Fuerza de ventas está activa")
+        e1, e2, e3 = st.columns(3)
+        e1.number_input("Clientes por vendedor/mes (meta)", value=float(_dv("meta", base["meta"])), min_value=0.1, step=0.5, key="f_meta")
+        e2.number_input("Vendedores por líder (sup)", value=float(_dv("sup", base["sup"])), min_value=0.1, step=0.5, key="f_sup")
+        e3.number_input("Lag productividad (meses)", value=int(_dv("commercial_productivity_lag", base["commercial_productivity_lag"])), min_value=0, step=1, key="f_lag",
+                        help="Meses que tarda un vendedor nuevo en alcanzar la meta.")
+        e4, e5, e6, e7 = st.columns(4)
+        e4.number_input("Rem. vendedor (rem_v)", value=float(_dv("rem_v", base["rem_v"])), min_value=0.0, step=100.0, key="f_remv")
+        e5.number_input("Rem. líder (rem_l)", value=float(_dv("rem_l", base["rem_l"])), min_value=0.0, step=100.0, key="f_reml")
+        e6.number_input("Comisión vendedor (com_v)", value=float(_dv("com_v", base["com_v"])), min_value=0.0, max_value=1.0, step=0.01, key="f_comv")
+        e7.number_input("Comisión líder (com_l)", value=float(_dv("com_l", base["com_l"])), min_value=0.0, max_value=1.0, step=0.01, key="f_coml")
+
+        st.markdown("**Costos fijos y operación**")
+        f1, f2 = st.columns(2)
+        f1.number_input("Gasto administrativo mensual (g_adm)", value=float(_dv("g_adm", base["g_adm"])), min_value=0.0, step=250.0, key="f_gadm")
+        f2.number_input("Suavizado máx. de crecimiento (g_max_suavizado)", value=float(_dv("g_max_suavizado", base["g_max_suavizado"])), min_value=0.0, max_value=1.0, step=0.05, key="f_gmax",
+                        help="Límite de variación mensual del plan. 0.25 = 25%.")
+        st.text_input("RRHH mensual por año (coma)", value=", ".join(str(x) for x in _dv("RRHH_mensual", base["RRHH_mensual"])), key="f_rrhh",
+                      help="Un valor por año del horizonte, USD/mes.")
+        st.text_input("Ciclo operacional por año (coma)", value=", ".join(str(x) for x in _dv("ciclo_op", base["ciclo_op"])), key="f_ciclo",
+                      help="Días de ciclo caja por año del horizonte.")
+
+        st.markdown("**Liquidez y solver**")
+        l1, l2, l3 = st.columns(3)
+        l1.selectbox("Política de liquidez", ["none", "nonnegative", "minimum_cash"], key="f_liq")
+        if st.session_state.get("f_liq") == "minimum_cash":
+            l2.number_input("Caja mínima", value=0.0, step=1000.0, key="f_liq_value")
+        l3.number_input("Solver time_limit (s)", value=int(base["solver"]["time_limit"]), min_value=10, step=10, key="f_time")
 
     C.note(st, "El análisis de robustez (M4) se decide en la página Due diligence tras el veredicto "
                "(automático si aprueba limpio; con confirmación si hay advertencias).")
