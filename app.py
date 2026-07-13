@@ -103,12 +103,24 @@ def _build_sidebar(st) -> None:
             None,
         )
 
+    # Navigation happens ONLY inside on_change callbacks: they fire on real
+    # user interaction with the widget. Comparing widget value vs
+    # current_run_id after the fact hijacked the page on every unrelated
+    # rerun (e.g. clicking a form checkbox), because radio state persists.
+    def _pick_case() -> None:
+        case = st.session_state.get("exec_case")
+        exes = by_case.get(case) or []
+        if exes:
+            st.session_state["current_run_id"] = exes[0]["id"]
+            st.session_state["current_page"] = C.PAGE_REPORT
+
     selected_case = st.sidebar.selectbox(
         "Caso",
         case_names,
         index=case_names.index(current_case) if current_case else None,
         placeholder="Elige un caso…",
         key="exec_case",
+        on_change=_pick_case,
     )
     if not selected_case:
         return
@@ -125,29 +137,28 @@ def _build_sidebar(st) -> None:
         options.append(label)
         label_map[label] = rid
 
-    # Point the radio at the currently selected run so navigating between pages
-    # does not snap the selection back to the newest execution (which would
-    # override current_run_id and hijack the current page).
     rid_order = [label_map[label] for label in options]
     try:
-        current_index = rid_order.index(current_run_id) if current_run_id else 0
+        current_index = rid_order.index(current_run_id) if current_run_id else None
     except ValueError:
-        current_index = 0
+        current_index = None
 
-    selected_label = st.sidebar.radio(
+    radio_key = f"exec_radio_{selected_case}"
+
+    def _pick_run() -> None:
+        rid = label_map.get(st.session_state.get(radio_key))
+        if rid:
+            st.session_state["current_run_id"] = rid
+            st.session_state["current_page"] = C.PAGE_REPORT
+
+    st.sidebar.radio(
         "Ejecución",
         options,
         index=current_index,
-        key=f"exec_radio_{selected_case}",
+        key=radio_key,
         format_func=lambda x: x,
+        on_change=_pick_run,
     )
-
-    if selected_label and label_map.get(selected_label):
-        run_id = label_map[selected_label]
-        if run_id != current_run_id:
-            st.session_state["current_run_id"] = run_id
-            st.session_state["current_page"] = C.PAGE_REPORT
-            st.rerun()
 
     current_run_id = st.session_state.get("current_run_id")
     if current_run_id:

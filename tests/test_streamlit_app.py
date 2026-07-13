@@ -140,6 +140,27 @@ def test_clear_yaml_state_removes_contamination():
     assert "working_capital" not in cfg or cfg["working_capital"] == base.get("working_capital")
 
 
+def test_sidebar_does_not_hijack_on_form_interaction():
+    """Regression: after returning to the Gestor, interacting with any form
+    widget must NOT navigate back to the last executed run. Navigation only
+    happens inside the sidebar widgets' on_change callbacks."""
+    from streamlit.testing.v1 import AppTest
+
+    at = AppTest.from_file("app.py", default_timeout=60)
+    at.run()
+
+    # back to Gestor with no run selected
+    at.session_state["current_page"] = "instancias"
+    at.session_state["current_run_id"] = None
+    at.run()
+
+    # touch a form widget -> rerun -> must stay on the Gestor
+    at.checkbox(key="ch_ad_active").set_value(True).run()
+    assert at.session_state["current_page"] == "instancias"
+    assert at.session_state["current_run_id"] is None
+    assert not at.exception
+
+
 def test_parse_float_list_keeps_fallback_on_typo():
     from streamlit_pages import instance_manager_page as P
 
