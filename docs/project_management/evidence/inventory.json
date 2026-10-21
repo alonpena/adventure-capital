@@ -1,0 +1,6 @@
+{
+  "commit": "6f3a8b93be9aff2b5022688d7b9589e40dd798ea",
+  "branches": "  adr/0010-acquisition-growth-railways\n  benchmark-mvp\n  claude/fervent-mahavira-606bfa\n  convex-cac-growth-law\n  defense-slide-material\n+ demo-integrated-growth-ui\n  deploy-production\n  entrega-tesis\n  entrega-tesis-local\n  feat/assessment-orchestration\n  feat/ev-report-maureira\n  feat/stochastic-model\n  feature/artifacts-valuation-stochastic-execution\n  feature/deterministic-refinement\n  growth-law-adr14\n* master\n  refine-ad-channel-params\n  ui\n+ ui-pro\n  worktree-agent-a5db40b8825c8a723\n  remotes/benja/benchmark-mvp\n  remotes/benja/feat/ev-report-maureira\n  remotes/benja/feature/artifacts-valuation-stochastic-execution\n  remotes/benja/feature/deterministic-refinement\n  remotes/benja/master\n  remotes/benja/refine-ad-channel-params\n  remotes/origin/adr/0010-acquisition-growth-railways\n  remotes/origin/benchmark-mvp\n  remotes/origin/deploy-production\n  remotes/origin/feat/ev-report-maureira\n  remotes/origin/feature/artifacts-valuation-stochastic-execution\n  remotes/origin/feature/deterministic-refinement\n  remotes/origin/master\n",
+  "files_before_count": 283,
+  "tests_files": 35
+}

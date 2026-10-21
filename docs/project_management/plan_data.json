@@ -1,0 +1,2337 @@
+{
+  "start_date": "2026-11-02",
+  "months": 8,
+  "resources": {
+    "AP": {
+      "name": "Alonso Peña",
+      "role": "Responsable científico e integración",
+      "capacity": 36.0,
+      "rate": 0.0
+    },
+    "AM": {
+      "name": "Alejandro Maureira",
+      "role": "Dirección y validación comercial",
+      "capacity": 10.0,
+      "rate": 15000.0
+    },
+    "BE": {
+      "name": "Empresa · backend",
+      "role": "Arquitectura, datos, API y trabajos",
+      "capacity": 38.0,
+      "rate": 25000.0
+    },
+    "FE": {
+      "name": "Empresa · frontend",
+      "role": "Interfaz y accesibilidad",
+      "capacity": 40.0,
+      "rate": 25000.0
+    },
+    "UX": {
+      "name": "Empresa · UX",
+      "role": "Investigación y diseño",
+      "capacity": 20.0,
+      "rate": 25000.0
+    },
+    "QA": {
+      "name": "Empresa · QA",
+      "role": "Pruebas independientes y aceptación",
+      "capacity": 32.0,
+      "rate": 25000.0
+    },
+    "OP": {
+      "name": "Empresa · operación",
+      "role": "Despliegue, seguridad y respaldos",
+      "capacity": 24.0,
+      "rate": 25000.0
+    }
+  },
+  "tasks": [
+    {
+      "id": "T01",
+      "wbs": "1.01",
+      "phase": 1,
+      "module": "Dirección",
+      "title": "Confirmar segmento y problema pagable",
+      "duration": 5,
+      "effort": {
+        "AP": 4.0,
+        "AM": 6.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [],
+      "deliverable": "Ficha de producto y exclusiones",
+      "acceptance": "Alejandro aprueba un comprador inicial y 3 problemas priorizados",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 0,
+      "ef": 5,
+      "lf": 5,
+      "ls": 0,
+      "float": 0,
+      "hours": 10.0,
+      "owner": "AM"
+    },
+    {
+      "id": "T02",
+      "wbs": "1.02",
+      "phase": 1,
+      "module": "Ciencia",
+      "title": "Reproducir fallos y congelar línea base",
+      "duration": 5,
+      "effort": {
+        "AP": 28.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [],
+      "deliverable": "Casos reproducibles y métricas",
+      "acceptance": "Guardar commit, entorno, 3 casos de referencia y fallos sin ocultarlos",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 0,
+      "ef": 5,
+      "lf": 13,
+      "ls": 8,
+      "float": 8,
+      "hours": 28.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T03",
+      "wbs": "1.03",
+      "phase": 1,
+      "module": "Proveedor",
+      "title": "Preparar encargo y evaluar proveedor",
+      "duration": 5,
+      "effort": {
+        "AP": 6.0,
+        "AM": 6.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T01",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Encargo técnico y matriz de evaluación",
+      "acceptance": "Comparar 2 propuestas por entregables; código, cuentas y datos de Adventure Capital",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 5,
+      "ef": 10,
+      "lf": 10,
+      "ls": 5,
+      "float": 0,
+      "hours": 12.0,
+      "owner": "AM"
+    },
+    {
+      "id": "T04",
+      "wbs": "1.04",
+      "phase": 1,
+      "module": "Proveedor",
+      "title": "Cerrar contrato y reservar equipo",
+      "duration": 3,
+      "effort": {
+        "AP": 2.0,
+        "AM": 4.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T03",
+          "type": "C"
+        }
+      ],
+      "deliverable": "Contrato e hitos de aceptación",
+      "acceptance": "Perfiles nominados; QA distinto del autor; propiedad, salida y garantía acordadas",
+      "priority": "P0",
+      "optimistic": 2,
+      "conservative": 4,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 10,
+      "ef": 13,
+      "lf": 13,
+      "ls": 10,
+      "float": 0,
+      "hours": 6.0,
+      "owner": "AM"
+    },
+    {
+      "id": "T08",
+      "wbs": "2.01",
+      "phase": 2,
+      "module": "Ciencia",
+      "title": "Definir rangos y unidades por variable",
+      "duration": 5,
+      "effort": {
+        "AP": 24.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T02",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Diccionario de validación",
+      "acceptance": "Finitud, signos, tasas, periodicidad y supuestos con ejemplos válidos/ inválidos",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 5,
+      "ef": 10,
+      "lf": 26,
+      "ls": 21,
+      "float": 16,
+      "hours": 24.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T05",
+      "wbs": "1.05",
+      "phase": 1,
+      "module": "Producto",
+      "title": "Entrevistar usuarios y levantar recorrido",
+      "duration": 10,
+      "effort": {
+        "AP": 8.0,
+        "AM": 8.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 24.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T04",
+          "type": "C"
+        }
+      ],
+      "deliverable": "5 entrevistas y mapa de uso",
+      "acceptance": "Al menos 3 emprendedores y 2 consultores; registrar evidencia y fricciones",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 13,
+      "ef": 23,
+      "lf": 23,
+      "ls": 13,
+      "float": 0,
+      "hours": 40.0,
+      "owner": "UX"
+    },
+    {
+      "id": "T06",
+      "wbs": "1.06",
+      "phase": 1,
+      "module": "Arquitectura",
+      "title": "Diseñar contratos del motor y fronteras",
+      "duration": 10,
+      "effort": {
+        "AP": 24.0,
+        "AM": 0.0,
+        "BE": 40.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 8.0
+      },
+      "dependencies": [
+        {
+          "id": "T04",
+          "type": "C"
+        },
+        {
+          "id": "T02",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Contrato versionado y ADR propuesto",
+      "acceptance": "Definir entrada, salida, estados solver, ownership y errores; revisión de Alonso",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 13,
+      "ef": 23,
+      "lf": 23,
+      "ls": 13,
+      "float": 0,
+      "hours": 72.0,
+      "owner": "BE"
+    },
+    {
+      "id": "T07",
+      "wbs": "1.07",
+      "phase": 1,
+      "module": "Producto",
+      "title": "Aprobar MVP y criterios de salida",
+      "duration": 3,
+      "effort": {
+        "AP": 4.0,
+        "AM": 4.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 4.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T05",
+          "type": "V"
+        },
+        {
+          "id": "T06",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Backlog contractual aprobado",
+      "acceptance": "Distinguir piloto asistido y SaaS; aprobar límites y objetivos medibles",
+      "priority": "P0",
+      "optimistic": 2,
+      "conservative": 4,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 23,
+      "ef": 26,
+      "lf": 26,
+      "ls": 23,
+      "float": 0,
+      "hours": 12.0,
+      "owner": "AM"
+    },
+    {
+      "id": "T16",
+      "wbs": "2.09",
+      "phase": 2,
+      "module": "Ciencia",
+      "title": "Diseñar comparación y negociación de supuestos",
+      "duration": 5,
+      "effort": {
+        "AP": 20.0,
+        "AM": 4.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T06",
+          "type": "T"
+        },
+        {
+          "id": "T08",
+          "type": "T"
+        },
+        {
+          "id": "T07",
+          "type": "R"
+        }
+      ],
+      "deliverable": "Contrato de escenarios",
+      "acceptance": "Comparar versiones con mismas unidades, horizonte y método; rastrear cambios",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 26,
+      "ef": 31,
+      "lf": 31,
+      "ls": 26,
+      "float": 0,
+      "hours": 24.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T09",
+      "wbs": "2.02",
+      "phase": 2,
+      "module": "Ciencia",
+      "title": "Cerrar brechas de validación de entradas",
+      "duration": 10,
+      "effort": {
+        "AP": 48.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T08",
+          "type": "T"
+        },
+        {
+          "id": "T05",
+          "type": "R"
+        },
+        {
+          "id": "T16",
+          "type": "R"
+        }
+      ],
+      "deliverable": "Validador y pruebas negativas",
+      "acceptance": "NaN, churn >1, alpha >1 y adquisición negativa rechazados o justificados",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 31,
+      "ef": 41,
+      "lf": 41,
+      "ls": 31,
+      "float": 0,
+      "hours": 48.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T10",
+      "wbs": "2.03",
+      "phase": 2,
+      "module": "Ciencia",
+      "title": "Conciliar etapa fija y canales MILP",
+      "duration": 10,
+      "effort": {
+        "AP": 48.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T09",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Contrato de adquisición fija",
+      "acceptance": "CAC y EBITDA meses 1–12 coinciden bajo mix fijo; decidir qué mix se optimiza",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 41,
+      "ef": 51,
+      "lf": 51,
+      "ls": 41,
+      "float": 0,
+      "hours": 48.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T11",
+      "wbs": "2.04",
+      "phase": 2,
+      "module": "Ciencia",
+      "title": "Acordar caja, financiación y DCF",
+      "duration": 5,
+      "effort": {
+        "AP": 20.0,
+        "AM": 4.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T08",
+          "type": "T"
+        },
+        {
+          "id": "T04",
+          "type": "R"
+        }
+      ],
+      "deliverable": "Nota metodológica aprobada",
+      "acceptance": "Distinguir VAN/EV, suelo −VC, financiación mínima y FCFF; no prometer equivalencias",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 13,
+      "ef": 18,
+      "lf": 51,
+      "ls": 46,
+      "float": 33,
+      "hours": 24.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T12",
+      "wbs": "2.05",
+      "phase": 2,
+      "module": "Ciencia",
+      "title": "Alinear valoración y unit economics",
+      "duration": 10,
+      "effort": {
+        "AP": 48.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T10",
+          "type": "T"
+        },
+        {
+          "id": "T11",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Métricas trazables y regresión",
+      "acceptance": "Casos manuales multiservicio, terminal y horizonte parcial reconciliados",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 51,
+      "ef": 61,
+      "lf": 61,
+      "ls": 51,
+      "float": 0,
+      "hours": 48.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T15",
+      "wbs": "2.08",
+      "phase": 2,
+      "module": "Ciencia",
+      "title": "Congelar versión científica para piloto",
+      "duration": 5,
+      "effort": {
+        "AP": 20.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 12.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T12",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Versión y conjunto de casos patrón",
+      "acceptance": "3 casos patrón reproducibles; errores materiales cerrados o módulo excluido",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 61,
+      "ef": 66,
+      "lf": 81,
+      "ls": 76,
+      "float": 15,
+      "hours": 32.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T17",
+      "wbs": "3.01",
+      "phase": 3,
+      "module": "UX",
+      "title": "Prototipar captura y explicación de resultados",
+      "duration": 10,
+      "effort": {
+        "AP": 8.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 32.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T07",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Prototipo navegable",
+      "acceptance": "Alta, datos, ejecutar, error, comparar y descargar cubiertos",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 26,
+      "ef": 36,
+      "lf": 46,
+      "ls": 36,
+      "float": 10,
+      "hours": 40.0,
+      "owner": "UX"
+    },
+    {
+      "id": "T18",
+      "wbs": "3.02",
+      "phase": 3,
+      "module": "UX",
+      "title": "Probar prototipo con cinco usuarios",
+      "duration": 5,
+      "effort": {
+        "AP": 4.0,
+        "AM": 4.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 12.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T17",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Registro de tareas y ajustes",
+      "acceptance": "4/5 completan captura guiada sin ayuda crítica; registrar tiempo y errores",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 36,
+      "ef": 41,
+      "lf": 51,
+      "ls": 46,
+      "float": 10,
+      "hours": 20.0,
+      "owner": "UX"
+    },
+    {
+      "id": "T19",
+      "wbs": "3.03",
+      "phase": 3,
+      "module": "Infraestructura",
+      "title": "Preparar CI, entornos y secretos",
+      "duration": 10,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 12.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 28.0
+      },
+      "dependencies": [
+        {
+          "id": "T06",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Staging y pipeline de despliegue",
+      "acceptance": "Instalación limpia, lock reproducible, escaneo dependencias y rollback básico",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 23,
+      "ef": 33,
+      "lf": 61,
+      "ls": 51,
+      "float": 28,
+      "hours": 40.0,
+      "owner": "OP"
+    },
+    {
+      "id": "T20",
+      "wbs": "3.04",
+      "phase": 3,
+      "module": "Backend",
+      "title": "Crear organizaciones, usuarios y permisos",
+      "duration": 10,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 56.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 8.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T06",
+          "type": "T"
+        },
+        {
+          "id": "T07",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Modelo multiusuario y pruebas",
+      "acceptance": "Administrador, analista y lector; acceso denegado entre organizaciones",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 26,
+      "ef": 36,
+      "lf": 51,
+      "ls": 41,
+      "float": 15,
+      "hours": 64.0,
+      "owner": "BE"
+    },
+    {
+      "id": "T21",
+      "wbs": "3.05",
+      "phase": 3,
+      "module": "Backend",
+      "title": "Persistir escenarios y versiones inmutables",
+      "duration": 10,
+      "effort": {
+        "AP": 8.0,
+        "AM": 0.0,
+        "BE": 56.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T20",
+          "type": "T"
+        },
+        {
+          "id": "T16",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Persistencia y migración inicial",
+      "acceptance": "Versión/hash del input y motor; trazabilidad de autor y sin sobrescribir ejecuciones",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 36,
+      "ef": 46,
+      "lf": 61,
+      "ls": 51,
+      "float": 15,
+      "hours": 64.0,
+      "owner": "BE"
+    },
+    {
+      "id": "T22",
+      "wbs": "3.06",
+      "phase": 3,
+      "module": "Backend",
+      "title": "Implementar cola y ciclo de trabajos",
+      "duration": 10,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 56.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 12.0
+      },
+      "dependencies": [
+        {
+          "id": "T20",
+          "type": "T"
+        },
+        {
+          "id": "T19",
+          "type": "T"
+        },
+        {
+          "id": "T09",
+          "type": "R"
+        },
+        {
+          "id": "T21",
+          "type": "R"
+        }
+      ],
+      "deliverable": "Worker aislado y estados de ejecución",
+      "acceptance": "Timeout, cancelación, reintento idempotente, pérdida de worker y recuperación probados",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 46,
+      "ef": 56,
+      "lf": 71,
+      "ls": 61,
+      "float": 15,
+      "hours": 68.0,
+      "owner": "BE"
+    },
+    {
+      "id": "T23",
+      "wbs": "3.07",
+      "phase": 3,
+      "module": "Backend",
+      "title": "Integrar motor y artefactos privados",
+      "duration": 10,
+      "effort": {
+        "AP": 16.0,
+        "AM": 0.0,
+        "BE": 48.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 8.0
+      },
+      "dependencies": [
+        {
+          "id": "T21",
+          "type": "T"
+        },
+        {
+          "id": "T22",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Ejecución completa desde API",
+      "acceptance": "Cada job usa espacio aislado; solver status visible; descargas autorizadas",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 56,
+      "ef": 66,
+      "lf": 81,
+      "ls": 71,
+      "float": 15,
+      "hours": 72.0,
+      "owner": "BE"
+    },
+    {
+      "id": "T24",
+      "wbs": "3.08",
+      "phase": 3,
+      "module": "Frontend",
+      "title": "Implementar acceso y navegación por perfil",
+      "duration": 10,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 48.0,
+        "UX": 8.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T18",
+          "type": "V"
+        },
+        {
+          "id": "T20",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Interfaz autenticada",
+      "acceptance": "Estados vacíos y errores; rol lector no edita ni ejecuta",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 41,
+      "ef": 51,
+      "lf": 61,
+      "ls": 51,
+      "float": 10,
+      "hours": 56.0,
+      "owner": "FE"
+    },
+    {
+      "id": "T25",
+      "wbs": "3.09",
+      "phase": 3,
+      "module": "Frontend",
+      "title": "Implementar formulario con validación guiada",
+      "duration": 10,
+      "effort": {
+        "AP": 12.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 56.0,
+        "UX": 8.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T24",
+          "type": "T"
+        },
+        {
+          "id": "T09",
+          "type": "T"
+        },
+        {
+          "id": "T12",
+          "type": "R"
+        }
+      ],
+      "deliverable": "Captura validada y ayudas",
+      "acceptance": "Unidades explícitas, errores junto al campo, import/export no pierde valores",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 61,
+      "ef": 71,
+      "lf": 71,
+      "ls": 61,
+      "float": 0,
+      "hours": 76.0,
+      "owner": "FE"
+    },
+    {
+      "id": "T26",
+      "wbs": "3.10",
+      "phase": 3,
+      "module": "Frontend",
+      "title": "Integrar ejecución y seguimiento del trabajo",
+      "duration": 10,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 8.0,
+        "FE": 48.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T25",
+          "type": "T"
+        },
+        {
+          "id": "T22",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Pantalla de ejecuciones",
+      "acceptance": "Salir del navegador no pierde trabajo; progreso y errores accionables",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 71,
+      "ef": 81,
+      "lf": 81,
+      "ls": 71,
+      "float": 0,
+      "hours": 56.0,
+      "owner": "FE"
+    },
+    {
+      "id": "T27",
+      "wbs": "3.11",
+      "phase": 3,
+      "module": "Frontend",
+      "title": "Integrar resultados, informe y comparación",
+      "duration": 10,
+      "effort": {
+        "AP": 12.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 56.0,
+        "UX": 8.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T26",
+          "type": "T"
+        },
+        {
+          "id": "T23",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Recorrido financiero completo",
+      "acceptance": "Comparar 2 escenarios; distinguir resultado factible y diagnóstico; exportar",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 81,
+      "ef": 91,
+      "lf": 91,
+      "ls": 81,
+      "float": 0,
+      "hours": 76.0,
+      "owner": "FE"
+    },
+    {
+      "id": "T28",
+      "wbs": "3.12",
+      "phase": 3,
+      "module": "Seguridad",
+      "title": "Sanear HTML, archivos y generación PDF",
+      "duration": 10,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 32.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 16.0,
+        "OP": 16.0
+      },
+      "dependencies": [
+        {
+          "id": "T06",
+          "type": "T"
+        },
+        {
+          "id": "T19",
+          "type": "T"
+        },
+        {
+          "id": "T17",
+          "type": "R"
+        },
+        {
+          "id": "T09",
+          "type": "R"
+        },
+        {
+          "id": "T21",
+          "type": "R"
+        },
+        {
+          "id": "T10",
+          "type": "R"
+        },
+        {
+          "id": "T22",
+          "type": "R"
+        },
+        {
+          "id": "T12",
+          "type": "R"
+        },
+        {
+          "id": "T15",
+          "type": "R"
+        }
+      ],
+      "deliverable": "Render aislado y validado",
+      "acceptance": "Pruebas de escape, traversal, URLs remotas y límites de tamaño; sin fuga entre casos",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 66,
+      "ef": 76,
+      "lf": 91,
+      "ls": 81,
+      "float": 15,
+      "hours": 64.0,
+      "owner": "BE"
+    },
+    {
+      "id": "T29",
+      "wbs": "3.13",
+      "phase": 3,
+      "module": "Reportes",
+      "title": "Asegurar exportaciones y paridad de cifras",
+      "duration": 10,
+      "effort": {
+        "AP": 28.0,
+        "AM": 0.0,
+        "BE": 8.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 24.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T27",
+          "type": "T"
+        },
+        {
+          "id": "T28",
+          "type": "T"
+        }
+      ],
+      "deliverable": "HTML/PDF/CSV/XLSX consistentes",
+      "acceptance": "Mismos totales y unidades; backend PDF y dependencias en entorno limpio",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 91,
+      "ef": 101,
+      "lf": 101,
+      "ls": 91,
+      "float": 0,
+      "hours": 60.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T30",
+      "wbs": "3.14",
+      "phase": 3,
+      "module": "Consumo",
+      "title": "Agregar límites y registro de consumo",
+      "duration": 5,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 24.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 8.0
+      },
+      "dependencies": [
+        {
+          "id": "T22",
+          "type": "T"
+        },
+        {
+          "id": "T12",
+          "type": "R"
+        },
+        {
+          "id": "T15",
+          "type": "R"
+        },
+        {
+          "id": "T25",
+          "type": "R"
+        },
+        {
+          "id": "T28",
+          "type": "R"
+        }
+      ],
+      "deliverable": "Cuotas y ledger de uso",
+      "acceptance": "Un trabajo idempotente se cuenta una vez; límite de concurrencia y de tamaño",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 76,
+      "ef": 81,
+      "lf": 101,
+      "ls": 96,
+      "float": 20,
+      "hours": 32.0,
+      "owner": "BE"
+    },
+    {
+      "id": "T31",
+      "wbs": "3.15",
+      "phase": 3,
+      "module": "Operación",
+      "title": "Respaldos, alertas y recuperación",
+      "duration": 10,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 12.0,
+        "OP": 28.0
+      },
+      "dependencies": [
+        {
+          "id": "T21",
+          "type": "T"
+        },
+        {
+          "id": "T19",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Runbook y restauración probada",
+      "acceptance": "RPO 24h/RTO 8h como objetivo inicial; restaurar staging y registrar tiempo",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 46,
+      "ef": 56,
+      "lf": 101,
+      "ls": 91,
+      "float": 45,
+      "hours": 40.0,
+      "owner": "OP"
+    },
+    {
+      "id": "T32",
+      "wbs": "3.16",
+      "phase": 3,
+      "module": "Privacidad",
+      "title": "Definir datos, retención y consentimiento",
+      "duration": 10,
+      "effort": {
+        "AP": 0.0,
+        "AM": 8.0,
+        "BE": 8.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 16.0
+      },
+      "dependencies": [
+        {
+          "id": "T07",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Política y contrato de tratamiento",
+      "acceptance": "Inventario de datos; bajas/exportación; revisión jurídica externa requerida",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 26,
+      "ef": 36,
+      "lf": 101,
+      "ls": 91,
+      "float": 65,
+      "hours": 32.0,
+      "owner": "OP"
+    },
+    {
+      "id": "T33",
+      "wbs": "3.17",
+      "phase": 3,
+      "module": "Comercial",
+      "title": "Diseñar oferta, precio piloto y cobro manual",
+      "duration": 10,
+      "effort": {
+        "AP": 4.0,
+        "AM": 12.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T07",
+          "type": "V"
+        },
+        {
+          "id": "T16",
+          "type": "R"
+        }
+      ],
+      "deliverable": "Oferta de piloto y criterios de conversión",
+      "acceptance": "Definir comprador, servicio, límites, factura y soporte sin cobro API automático",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 31,
+      "ef": 41,
+      "lf": 114,
+      "ls": 104,
+      "float": 73,
+      "hours": 16.0,
+      "owner": "AM"
+    },
+    {
+      "id": "T34",
+      "wbs": "4.01",
+      "phase": 4,
+      "module": "QA",
+      "title": "Pruebas de integración y aislamiento",
+      "duration": 8,
+      "effort": {
+        "AP": 12.0,
+        "AM": 0.0,
+        "BE": 16.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 40.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T29",
+          "type": "T"
+        },
+        {
+          "id": "T30",
+          "type": "T"
+        },
+        {
+          "id": "T31",
+          "type": "T"
+        },
+        {
+          "id": "T32",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Informe QA y defectos",
+      "acceptance": "Dos organizaciones, autorización por objeto y jobs concurrentes; sin defectos críticos",
+      "priority": "P0",
+      "optimistic": 6,
+      "conservative": 12,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 101,
+      "ef": 109,
+      "lf": 109,
+      "ls": 101,
+      "float": 0,
+      "hours": 68.0,
+      "owner": "QA"
+    },
+    {
+      "id": "T35",
+      "wbs": "4.02",
+      "phase": 4,
+      "module": "QA",
+      "title": "Pruebas de carga y presupuesto de ejecución",
+      "duration": 5,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 4.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 20.0,
+        "OP": 12.0
+      },
+      "dependencies": [
+        {
+          "id": "T34",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Perfil CPU/RAM/tiempo y límites",
+      "acceptance": "Medir 3 tamaños y 5 jobs; límites evitan OOM; cola mantiene API disponible",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 109,
+      "ef": 114,
+      "lf": 114,
+      "ls": 109,
+      "float": 0,
+      "hours": 36.0,
+      "owner": "QA"
+    },
+    {
+      "id": "T36",
+      "wbs": "4.03",
+      "phase": 4,
+      "module": "UX",
+      "title": "Validar accesibilidad y comprensión",
+      "duration": 10,
+      "effort": {
+        "AP": 0.0,
+        "AM": 4.0,
+        "BE": 0.0,
+        "FE": 16.0,
+        "UX": 24.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T27",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Prueba de uso y backlog corregido",
+      "acceptance": "4/5 explican resultado y supuestos; teclado, contraste y textos revisados",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 91,
+      "ef": 101,
+      "lf": 114,
+      "ls": 104,
+      "float": 13,
+      "hours": 44.0,
+      "owner": "UX"
+    },
+    {
+      "id": "T37",
+      "wbs": "4.04",
+      "phase": 4,
+      "module": "Seguridad",
+      "title": "Revisión de seguridad previa al piloto",
+      "duration": 5,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 4.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 12.0,
+        "OP": 12.0
+      },
+      "dependencies": [
+        {
+          "id": "T34",
+          "type": "T"
+        },
+        {
+          "id": "T28",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Checklist y revisión independiente",
+      "acceptance": "Cero críticos/altos abiertos de aislamiento, secretos, archivos y autorización",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 109,
+      "ef": 114,
+      "lf": 114,
+      "ls": 109,
+      "float": 0,
+      "hours": 28.0,
+      "owner": "OP"
+    },
+    {
+      "id": "T38",
+      "wbs": "4.05",
+      "phase": 4,
+      "module": "Piloto",
+      "title": "Autorizar piloto con datos reales",
+      "duration": 2,
+      "effort": {
+        "AP": 4.0,
+        "AM": 2.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 4.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T15",
+          "type": "V"
+        },
+        {
+          "id": "T35",
+          "type": "V"
+        },
+        {
+          "id": "T36",
+          "type": "V"
+        },
+        {
+          "id": "T37",
+          "type": "V"
+        },
+        {
+          "id": "T33",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Acta go/no-go",
+      "acceptance": "Condiciones contractuales y privacidad aceptadas; fallback a piloto asistido",
+      "priority": "P0",
+      "optimistic": 2,
+      "conservative": 3,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 114,
+      "ef": 116,
+      "lf": 116,
+      "ls": 114,
+      "float": 0,
+      "hours": 10.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T39",
+      "wbs": "4.06",
+      "phase": 4,
+      "module": "Piloto",
+      "title": "Ejecutar primera ronda con tres organizaciones",
+      "duration": 5,
+      "effort": {
+        "AP": 24.0,
+        "AM": 8.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 12.0,
+        "QA": 12.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T38",
+          "type": "V"
+        }
+      ],
+      "deliverable": "3 casos completos y entrevistas",
+      "acceptance": "Medir finalización, tiempo, exactitud y disposición a pagar; consentimiento documentado",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 116,
+      "ef": 121,
+      "lf": 121,
+      "ls": 116,
+      "float": 0,
+      "hours": 56.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T40",
+      "wbs": "4.07",
+      "phase": 4,
+      "module": "Producto",
+      "title": "Corregir defectos del piloto",
+      "duration": 10,
+      "effort": {
+        "AP": 24.0,
+        "AM": 0.0,
+        "BE": 32.0,
+        "FE": 32.0,
+        "UX": 0.0,
+        "QA": 24.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T39",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Versión corregida",
+      "acceptance": "Todos los bloqueantes de captura, cálculo y exportación cerrados y retesteados",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 121,
+      "ef": 131,
+      "lf": 131,
+      "ls": 121,
+      "float": 0,
+      "hours": 112.0,
+      "owner": "BE"
+    },
+    {
+      "id": "T41",
+      "wbs": "4.08",
+      "phase": 4,
+      "module": "Piloto",
+      "title": "Repetir piloto y confirmar valor comercial",
+      "duration": 5,
+      "effort": {
+        "AP": 20.0,
+        "AM": 8.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 12.0,
+        "QA": 12.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T40",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Resultados de segunda ronda",
+      "acceptance": "3 organizaciones terminan; registrar aceptación y objeciones de compra",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 131,
+      "ef": 136,
+      "lf": 136,
+      "ls": 131,
+      "float": 0,
+      "hours": 52.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T42",
+      "wbs": "5.01",
+      "phase": 5,
+      "module": "Comercial",
+      "title": "Preparar y negociar primera venta",
+      "duration": 10,
+      "effort": {
+        "AP": 8.0,
+        "AM": 16.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T39",
+          "type": "V"
+        },
+        {
+          "id": "T33",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Propuesta y negociación documentada",
+      "acceptance": "Oferta enviada por Alejandro; objetivo 1 contrato pagado, sin garantizar decisión del cliente",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 121,
+      "ef": 131,
+      "lf": 146,
+      "ls": 136,
+      "float": 15,
+      "hours": 24.0,
+      "owner": "AM"
+    },
+    {
+      "id": "T43",
+      "wbs": "5.02",
+      "phase": 5,
+      "module": "Producto",
+      "title": "Resolver pendientes de experiencia y soporte",
+      "duration": 5,
+      "effort": {
+        "AP": 0.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 28.0,
+        "UX": 8.0,
+        "QA": 12.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T41",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Interfaz consolidada y ayuda",
+      "acceptance": "Recorrido principal sin asistencia técnica; mensajes y soporte consistentes",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 136,
+      "ef": 141,
+      "lf": 141,
+      "ls": 136,
+      "float": 0,
+      "hours": 48.0,
+      "owner": "FE"
+    },
+    {
+      "id": "T44",
+      "wbs": "5.03",
+      "phase": 5,
+      "module": "Operación",
+      "title": "Transferir operación y mantenimiento",
+      "duration": 10,
+      "effort": {
+        "AP": 16.0,
+        "AM": 0.0,
+        "BE": 16.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 24.0
+      },
+      "dependencies": [
+        {
+          "id": "T40",
+          "type": "T"
+        },
+        {
+          "id": "T31",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Runbooks, accesos y capacitación",
+      "acceptance": "Alonso despliega y restaura sin proveedor; cuentas corporativas, SBOM y manual",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 131,
+      "ef": 141,
+      "lf": 141,
+      "ls": 131,
+      "float": 0,
+      "hours": 56.0,
+      "owner": "OP"
+    },
+    {
+      "id": "T45",
+      "wbs": "5.04",
+      "phase": 5,
+      "module": "QA",
+      "title": "Validar versión candidata y recuperación",
+      "duration": 5,
+      "effort": {
+        "AP": 8.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 24.0,
+        "OP": 8.0
+      },
+      "dependencies": [
+        {
+          "id": "T43",
+          "type": "T"
+        },
+        {
+          "id": "T44",
+          "type": "T"
+        },
+        {
+          "id": "T37",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Informe final de calidad",
+      "acceptance": "Suite, instalación limpia, migración, rollback y 3 casos patrón pasan",
+      "priority": "P0",
+      "optimistic": 4,
+      "conservative": 8,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 141,
+      "ef": 146,
+      "lf": 146,
+      "ls": 141,
+      "float": 0,
+      "hours": 40.0,
+      "owner": "QA"
+    },
+    {
+      "id": "T46",
+      "wbs": "5.05",
+      "phase": 5,
+      "module": "Comercial",
+      "title": "Aprobar lanzamiento y continuidad",
+      "duration": 3,
+      "effort": {
+        "AP": 4.0,
+        "AM": 4.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 4.0
+      },
+      "dependencies": [
+        {
+          "id": "T45",
+          "type": "V"
+        },
+        {
+          "id": "T42",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Acta de entrega comercial",
+      "acceptance": "Alejandro acepta alcance, soporte, obligaciones y costos; registrar venta o causa de no conversión",
+      "priority": "P0",
+      "optimistic": 2,
+      "conservative": 4,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 146,
+      "ef": 149,
+      "lf": 149,
+      "ls": 146,
+      "float": 0,
+      "hours": 12.0,
+      "owner": "AM"
+    },
+    {
+      "id": "T47",
+      "wbs": "5.06",
+      "phase": 5,
+      "module": "Operación",
+      "title": "Acompañar primeras operaciones y cierre",
+      "duration": 10,
+      "effort": {
+        "AP": 16.0,
+        "AM": 4.0,
+        "BE": 8.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 8.0,
+        "OP": 16.0
+      },
+      "dependencies": [
+        {
+          "id": "T46",
+          "type": "V"
+        }
+      ],
+      "deliverable": "Cierre y backlog posterior",
+      "acceptance": "Dos semanas de operación revisadas; dueño por incidente y mantenimiento contratado o asumido",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 149,
+      "ef": 159,
+      "lf": 159,
+      "ls": 149,
+      "float": 0,
+      "hours": 52.0,
+      "owner": "OP"
+    },
+    {
+      "id": "T13",
+      "wbs": "2.06",
+      "phase": 2,
+      "module": "Ciencia",
+      "title": "Revisar paridad determinista y estocástica",
+      "duration": 10,
+      "effort": {
+        "AP": 48.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T12",
+          "type": "T"
+        },
+        {
+          "id": "T15",
+          "type": "R"
+        }
+      ],
+      "deliverable": "Matriz M1/M4 y límites de uso",
+      "acceptance": "Escenario degenerado comparable; diferencias de decisión y objetivo declaradas",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 66,
+      "ef": 76,
+      "lf": 149,
+      "ls": 139,
+      "float": 73,
+      "hours": 48.0,
+      "owner": "AP"
+    },
+    {
+      "id": "T14",
+      "wbs": "2.07",
+      "phase": 2,
+      "module": "Ciencia",
+      "title": "Validar escenarios fuera de muestra",
+      "duration": 10,
+      "effort": {
+        "AP": 40.0,
+        "AM": 0.0,
+        "BE": 0.0,
+        "FE": 0.0,
+        "UX": 0.0,
+        "QA": 0.0,
+        "OP": 0.0
+      },
+      "dependencies": [
+        {
+          "id": "T13",
+          "type": "T"
+        }
+      ],
+      "deliverable": "Informe de estabilidad y tiempos",
+      "acceptance": "Semillas separadas, CVaR y sensibilidad al tamaño muestral; sin afirmar garantía robusta",
+      "priority": "P0",
+      "optimistic": 8,
+      "conservative": 15,
+      "status": "No iniciada",
+      "progress": 0.0,
+      "es": 76,
+      "ef": 86,
+      "lf": 159,
+      "ls": 149,
+      "float": 73,
+      "hours": 40.0,
+      "owner": "AP"
+    }
+  ],
+  "validation": {
+    "task_count": 47,
+    "logical_days": 149,
+    "leveled_days": 159,
+    "optimistic_days": 126,
+    "conservative_days": 241,
+    "critical_paths": [
+      [
+        "T01",
+        "T03",
+        "T04",
+        "T05",
+        "T07",
+        "T16",
+        "T09",
+        "T10",
+        "T12",
+        "T25",
+        "T26",
+        "T27",
+        "T29",
+        "T34",
+        "T35",
+        "T38",
+        "T39",
+        "T40",
+        "T41",
+        "T43",
+        "T45",
+        "T46",
+        "T47"
+      ],
+      [
+        "T01",
+        "T03",
+        "T04",
+        "T06",
+        "T07",
+        "T16",
+        "T09",
+        "T10",
+        "T12",
+        "T25",
+        "T26",
+        "T27",
+        "T29",
+        "T34",
+        "T35",
+        "T38",
+        "T39",
+        "T40",
+        "T41",
+        "T43",
+        "T45",
+        "T46",
+        "T47"
+      ],
+      [
+        "T01",
+        "T03",
+        "T04",
+        "T05",
+        "T07",
+        "T16",
+        "T09",
+        "T10",
+        "T12",
+        "T25",
+        "T26",
+        "T27",
+        "T29",
+        "T34",
+        "T37",
+        "T38",
+        "T39",
+        "T40",
+        "T41",
+        "T43",
+        "T45",
+        "T46",
+        "T47"
+      ],
+      [
+        "T01",
+        "T03",
+        "T04",
+        "T06",
+        "T07",
+        "T16",
+        "T09",
+        "T10",
+        "T12",
+        "T25",
+        "T26",
+        "T27",
+        "T29",
+        "T34",
+        "T37",
+        "T38",
+        "T39",
+        "T40",
+        "T41",
+        "T43",
+        "T45",
+        "T46",
+        "T47"
+      ],
+      [
+        "T01",
+        "T03",
+        "T04",
+        "T05",
+        "T07",
+        "T16",
+        "T09",
+        "T10",
+        "T12",
+        "T25",
+        "T26",
+        "T27",
+        "T29",
+        "T34",
+        "T35",
+        "T38",
+        "T39",
+        "T40",
+        "T44",
+        "T45",
+        "T46",
+        "T47"
+      ],
+      [
+        "T01",
+        "T03",
+        "T04",
+        "T06",
+        "T07",
+        "T16",
+        "T09",
+        "T10",
+        "T12",
+        "T25",
+        "T26",
+        "T27",
+        "T29",
+        "T34",
+        "T35",
+        "T38",
+        "T39",
+        "T40",
+        "T44",
+        "T45",
+        "T46",
+        "T47"
+      ],
+      [
+        "T01",
+        "T03",
+        "T04",
+        "T05",
+        "T07",
+        "T16",
+        "T09",
+        "T10",
+        "T12",
+        "T25",
+        "T26",
+        "T27",
+        "T29",
+        "T34",
+        "T37",
+        "T38",
+        "T39",
+        "T40",
+        "T44",
+        "T45",
+        "T46",
+        "T47"
+      ],
+      [
+        "T01",
+        "T03",
+        "T04",
+        "T06",
+        "T07",
+        "T16",
+        "T09",
+        "T10",
+        "T12",
+        "T25",
+        "T26",
+        "T27",
+        "T29",
+        "T34",
+        "T37",
+        "T38",
+        "T39",
+        "T40",
+        "T44",
+        "T45",
+        "T46",
+        "T47"
+      ]
+    ],
+    "allocation": {
+      "AP": {
+        "hours": 620.0,
+        "peak_week": 33.6,
+        "peak_day": 7.2
+      },
+      "AM": {
+        "hours": 106.0,
+        "peak_week": 10.0,
+        "peak_day": 2.0
+      },
+      "BE": {
+        "hours": 428.0,
+        "peak_week": 35.6,
+        "peak_day": 7.6
+      },
+      "FE": {
+        "hours": 284.0,
+        "peak_week": 28.0,
+        "peak_day": 5.6
+      },
+      "UX": {
+        "hours": 152.0,
+        "peak_week": 16.0,
+        "peak_day": 3.2
+      },
+      "QA": {
+        "hours": 240.0,
+        "peak_week": 27.6,
+        "peak_day": 6.4
+      },
+      "OP": {
+        "hours": 200.0,
+        "peak_week": 20.4,
+        "peak_day": 4.8
+      }
+    },
+    "module_hours": {
+      "Dirección": 10.0,
+      "Ciencia": 364.0,
+      "Proveedor": 18.0,
+      "Producto": 212.0,
+      "Arquitectura": 72.0,
+      "UX": 104.0,
+      "Infraestructura": 40.0,
+      "Backend": 268.0,
+      "Frontend": 264.0,
+      "Seguridad": 92.0,
+      "Reportes": 60.0,
+      "Consumo": 32.0,
+      "Operación": 148.0,
+      "Privacidad": 32.0,
+      "Comercial": 52.0,
+      "QA": 144.0,
+      "Piloto": 118.0
+    },
+    "total_hours": 2030,
+    "cycles": 0,
+    "resource_links": 14,
+    "max_predecessors": 6
+  },
+  "workbook_overrides": {
+    "RESUMEN": {
+      "J6": null,
+      "J7": null,
+      "J8": null,
+      "J9": null,
+      "J10": null,
+      "J11": null,
+      "J12": null,
+      "J13": null,
+      "J14": null,
+      "J15": null,
+      "J16": null,
+      "J17": null,
+      "J18": null,
+      "J19": null,
+      "J20": null,
+      "J21": null,
+      "J22": null,
+      "J23": null,
+      "J24": null,
+      "J25": null
+    },
+    "PRESUPUESTO": {
+      "C6": 8.0,
+      "D6": 1400000.0,
+      "E6": 1.0,
+      "K6": 8.0,
+      "E7": 1.0,
+      "K7": 8.0,
+      "E8": 2.0,
+      "K8": 6.0,
+      "E9": 1.0,
+      "K9": 8.0,
+      "E10": 2.0,
+      "K10": 7.0,
+      "E11": 1.0,
+      "K11": 8.0,
+      "C12": 8.0,
+      "D12": 40000.0,
+      "E12": 1.0,
+      "K12": 8.0,
+      "C13": 8.0,
+      "D13": 200000.0,
+      "E13": 1.0,
+      "K13": 8.0,
+      "C14": 1.0,
+      "D14": 1000000.0,
+      "E14": 5.0,
+      "K14": 1.0,
+      "C15": 1.0,
+      "D15": 100000.0,
+      "E15": 1.0,
+      "K15": 1.0,
+      "C16": 0.0,
+      "D16": 1500000.0,
+      "E16": 4.0,
+      "K16": 1.0,
+      "C17": 0.15,
+      "E17": 1.0,
+      "K17": 8.0
+    },
+    "RIESGOS": {
+      "C6": 4.0,
+      "D6": 5.0,
+      "C7": 3.0,
+      "D7": 5.0,
+      "C8": 3.0,
+      "D8": 4.0,
+      "C9": 4.0,
+      "D9": 4.0,
+      "C10": 3.0,
+      "D10": 4.0,
+      "C11": 4.0,
+      "D11": 4.0,
+      "C12": 4.0,
+      "D12": 4.0,
+      "C13": 4.0,
+      "D13": 4.0,
+      "C14": 3.0,
+      "D14": 4.0,
+      "C15": 3.0,
+      "D15": 4.0,
+      "C16": 3.0,
+      "D16": 4.0,
+      "C17": 3.0,
+      "D17": 5.0
+    },
+    "HITOS Y CONTROL": {
+      "F6": "Pendiente",
+      "F7": "Pendiente",
+      "F8": "Pendiente",
+      "F9": "Pendiente",
+      "F10": "Pendiente",
+      "F11": "Pendiente",
+      "F12": "Pendiente",
+      "F13": "Pendiente",
+      "F14": "Pendiente",
+      "F15": "Pendiente"
+    }
+  }
+}

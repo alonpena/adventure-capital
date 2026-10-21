@@ -1,0 +1,15 @@
+{
+  "validation_accepts_alpha": true,
+  "validation_accepts_ticket": true,
+  "validation_accepts_churn_anual": true,
+  "validation_accepts_A_base": true,
+  "mixed_channels": {
+    "status": "Optimal",
+    "fixed_CAC": 126727.5,
+    "fixed_EBITDA": -98162.8060510151,
+    "milp_CAC": 113237.5,
+    "milp_EBITDA": -84672.8064
+  },
+  "autoescape_report_html_j2": false,
+  "inlines_file_outside_run": true
+}

@@ -1,0 +1,212 @@
+........................................................................ [ 37%]
+........................................................................ [ 74%]
+..................................................                       [100%]
+=============================== warnings summary ===============================
+tests/test_acquisition_envelope.py: 9111 warnings
+tests/test_artifact_contracts.py: 1050 warnings
+tests/test_cac_aggregation.py: 5782 warnings
+tests/test_calibration.py: 1050 warnings
+tests/test_cash_floor.py: 10080 warnings
+tests/test_ceiling.py: 5796 warnings
+tests/test_channels.py: 6660 warnings
+tests/test_cli_phase5.py: 210 warnings
+tests/test_consistency.py: 2484 warnings
+tests/test_convex_cac.py: 1320 warnings
+tests/test_due_diligence.py: 420 warnings
+tests/test_growth_commitment.py: 20451 warnings
+tests/test_model_behavior.py: 1470 warnings
+tests/test_multi_config_smoke.py: 2268 warnings
+tests/test_phase2.py: 630 warnings
+tests/test_phase3.py: 840 warnings
+tests/test_phase4.py: 420 warnings
+tests/test_phase5a.py: 210 warnings
+tests/test_phase5b.py: 420 warnings
+tests/test_phase5c.py: 420 warnings
+tests/test_phase5d.py: 210 warnings
+tests/test_phase5f.py: 210 warnings
+tests/test_postprocess.py: 630 warnings
+tests/test_scope_detection.py: 420 warnings
+tests/test_stochastic.py: 755 warnings
+tests/test_stochastic_model.py: 3689 warnings
+tests/test_template_formulas.py: 210 warnings
+tests/test_unit_economics.py: 2622 warnings
+tests/test_valuation_terminal.py: 420 warnings
+  /Users/apena/gits/adventure-capital/.venv/lib/python3.12/site-packages/pulp/pulp.py:329: DeprecationWarning: Constructing LpVariable(name, ...) directly is deprecated; in PuLP 4.0 use prob.add_variable(name, lowBound, upBound, cat=...). Variables are then attached to the model when created.
+    _v4_deprecation(msg, stacklevel=2)
+
+tests/test_artifact_contracts.py::test_p0_artifact_contract_files_created
+  /Users/apena/gits/adventure-capital/tests/test_artifact_contracts.py:21: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_artifact_contracts.py::test_model_instance_artifact_required_fields
+  /Users/apena/gits/adventure-capital/tests/test_artifact_contracts.py:40: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_artifact_contracts.py::test_growth_and_valuation_summary_required_fields
+  /Users/apena/gits/adventure-capital/tests/test_artifact_contracts.py:52: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_artifact_contracts.py::test_formula_trace_required_fields
+  /Users/apena/gits/adventure-capital/tests/test_artifact_contracts.py:90: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_artifact_contracts.py::test_artifacts_manifest_includes_contract_extensions
+  /Users/apena/gits/adventure-capital/tests/test_artifact_contracts.py:104: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_calibration.py::test_calibration_runs_against_baseline
+tests/test_calibration.py::test_calibration_writes_reports
+tests/test_calibration.py::test_cash_floor_failure_triggers_fail
+tests/test_calibration.py::test_disabled_check_is_skipped
+tests/test_calibration.py::test_verdict_aggregation_rule
+  /Users/apena/gits/adventure-capital/tests/test_calibration.py:26: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_cash_floor.py::test_diagnostic_does_not_modify_main_model
+tests/test_cash_floor.py::test_diagnostic_does_not_modify_main_model
+  /Users/apena/gits/adventure-capital/.venv/lib/python3.12/site-packages/pulp/pulp.py:1653: DeprecationWarning: Using LpProblem.constraints as a dict mapping is deprecated; in PuLP 4.0 constraints are returned by prob.constraints() as a list. Use get_constraint_by_name(name) or iterate prob.constraints() and compare constraint names.
+    self._warn_mapping()
+
+tests/test_cash_floor.py::test_pipeline_continues_with_diagnostic_outputs
+  /Users/apena/gits/adventure-capital/tests/test_cash_floor.py:103: UserWarning: pre-feasibility: VC=40,000 < year-1 committed fixed cost≈168,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    result = run_pipeline(config, output_dir=str(tmp_path))
+
+tests/test_cash_floor.py::test_due_diligence_receives_financing_gap_alert
+  /Users/apena/gits/adventure-capital/src/adventure_capital/due_diligence/workflow.py:128: UserWarning: pre-feasibility: VC=40,000 < year-1 committed fixed cost≈168,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    pipeline_result = run_pipeline(config, output_dir=str(out), verbose_solver=verbose_solver, baseline_only=True)
+
+tests/test_cli_phase5.py::test_cli_report_command_creates_html
+  /Users/apena/gits/adventure-capital/tests/test_cli_phase5.py:15: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_consistency.py::test_base_config_passes_all_checks
+  /Users/apena/gits/adventure-capital/tests/test_consistency.py:13: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, output_dir=str(tmp_path), baseline_only=True)
+
+tests/test_consistency.py::test_aijourney_passes_all_checks
+  /Users/apena/gits/adventure-capital/tests/test_consistency.py:23: UserWarning: pre-feasibility: VC=209,000 < year-1 committed fixed cost≈269,640 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, output_dir=str(tmp_path), baseline_only=True)
+
+tests/test_consistency.py::test_consistency_report_written_to_disk
+  /Users/apena/gits/adventure-capital/tests/test_consistency.py:31: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, output_dir=str(tmp_path), baseline_only=True)
+
+tests/test_due_diligence.py::test_full_workflow_on_base_config
+tests/test_due_diligence.py::test_run_assessment_chains_stochastic
+tests/test_growth_commitment.py::test_dd_chain_emits_w_warnings_and_survives_infeasible
+tests/test_growth_commitment.py::test_dd_chain_emits_w_warnings_and_survives_infeasible
+tests/test_postprocess.py::test_assessment_run_builds_dd_and_stochastic_view
+  /Users/apena/gits/adventure-capital/src/adventure_capital/due_diligence/workflow.py:128: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    pipeline_result = run_pipeline(config, output_dir=str(out), verbose_solver=verbose_solver, baseline_only=True)
+
+tests/test_model_behavior.py::test_van_monotonic_in_ticket
+tests/test_model_behavior.py::test_van_monotonic_in_ticket
+tests/test_model_behavior.py::test_recurrence_adds_value
+tests/test_model_behavior.py::test_higher_churn_destroys_value
+tests/test_model_behavior.py::test_higher_cac_costs_reduce_value
+tests/test_model_behavior.py::test_sellers_and_leaders_can_grow_in_projection
+  /Users/apena/gits/adventure-capital/tests/test_model_behavior.py:27: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    result = run_pipeline(config, baseline_only=True)
+
+tests/test_multi_config_smoke.py::test_pipeline_runs_without_error[base]
+  /Users/apena/gits/adventure-capital/tests/test_multi_config_smoke.py:19: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, output_dir=str(out_dir), baseline_only=True)
+
+tests/test_multi_config_smoke.py::test_pipeline_runs_without_error[aijourney]
+  /Users/apena/gits/adventure-capital/tests/test_multi_config_smoke.py:19: UserWarning: pre-feasibility: VC=209,000 < year-1 committed fixed cost≈269,640 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, output_dir=str(out_dir), baseline_only=True)
+
+tests/test_multi_config_smoke.py::test_consistency_report_all_passed[base]
+  /Users/apena/gits/adventure-capital/tests/test_multi_config_smoke.py:31: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, output_dir=str(out_dir), baseline_only=True)
+
+tests/test_multi_config_smoke.py::test_consistency_report_all_passed[aijourney]
+  /Users/apena/gits/adventure-capital/tests/test_multi_config_smoke.py:31: UserWarning: pre-feasibility: VC=209,000 < year-1 committed fixed cost≈269,640 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, output_dir=str(out_dir), baseline_only=True)
+
+tests/test_multi_config_smoke.py::test_report_pdf_generated[base]
+  /Users/apena/gits/adventure-capital/tests/test_multi_config_smoke.py:52: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, output_dir=str(out_dir), baseline_only=True, document_path="reports/valuation-ev.template.yaml")
+
+tests/test_multi_config_smoke.py::test_report_pdf_generated[aijourney]
+  /Users/apena/gits/adventure-capital/tests/test_multi_config_smoke.py:52: UserWarning: pre-feasibility: VC=209,000 < year-1 committed fixed cost≈269,640 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, output_dir=str(out_dir), baseline_only=True, document_path="reports/valuation-ev.template.yaml")
+
+tests/test_phase2.py::test_pipeline_runs_phase2_outputs
+  /Users/apena/gits/adventure-capital/tests/test_phase2.py:33: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    result = run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_phase3.py::test_pipeline_runs_phase3_outputs
+  /Users/apena/gits/adventure-capital/tests/test_phase3.py:54: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    result = run_pipeline(config, output_dir=str(tmp_path))
+
+tests/test_phase4.py::test_pipeline_generates_phase4_artifacts
+  /Users/apena/gits/adventure-capital/tests/test_phase4.py:14: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    result = run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_phase4.py::test_generate_report_can_be_called_directly
+  /Users/apena/gits/adventure-capital/tests/test_phase4.py:33: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    result = run_pipeline(_fast_config())
+
+tests/test_phase5a.py::test_phase5a_builds_report_data_package
+  /Users/apena/gits/adventure-capital/tests/test_phase5a.py:19: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_phase5b.py::test_phase5b_writes_derived_artifacts
+  /Users/apena/gits/adventure-capital/tests/test_phase5b.py:20: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_phase5b.py::test_phase5b_package_references_derived_artifacts
+  /Users/apena/gits/adventure-capital/tests/test_phase5b.py:47: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_phase5c.py::test_phase5c_generates_required_figures
+  /Users/apena/gits/adventure-capital/tests/test_phase5c.py:17: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_phase5c.py::test_phase5c_package_references_figures
+  /Users/apena/gits/adventure-capital/tests/test_phase5c.py:30: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_phase5d.py::test_phase5d_renders_html_report
+  /Users/apena/gits/adventure-capital/tests/test_phase5d.py:15: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_phase5f.py::test_phase5f_renders_pdf_when_backend_available
+  /Users/apena/gits/adventure-capital/tests/test_phase5f.py:22: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_postprocess.py::test_baseline_run_builds_deterministic_view
+  /Users/apena/gits/adventure-capital/tests/test_postprocess.py:22: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path), baseline_only=True)
+
+tests/test_postprocess.py::test_view_is_derived_not_recomputed
+  /Users/apena/gits/adventure-capital/tests/test_postprocess.py:50: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path), baseline_only=True)
+
+tests/test_scope_detection.py::test_ev_only_renders_15_pages
+  /Users/apena/gits/adventure-capital/tests/test_scope_detection.py:16: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(out_dir))
+
+tests/test_scope_detection.py::test_full_renders_16_pages
+  /Users/apena/gits/adventure-capital/tests/test_scope_detection.py:30: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(out_dir))
+
+tests/test_template_formulas.py::test_report_contains_0_formula_blocks
+  /Users/apena/gits/adventure-capital/tests/test_template_formulas.py:15: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(_fast_config(), output_dir=str(tmp_path))
+
+tests/test_valuation_terminal.py::test_pipeline_document_propagation
+  /Users/apena/gits/adventure-capital/tests/test_valuation_terminal.py:61: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    res = run_pipeline(config, output_dir=str(tmp_path / "out"), document_path=str(doc_path))
+
+tests/test_valuation_terminal.py::test_pipeline_document_validation_errors
+  /Users/apena/gits/adventure-capital/tests/test_valuation_terminal.py:93: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    run_pipeline(config, document_path=str(doc_path1))
+
+tests/test_valuation_terminal.py::test_pipeline_document_validation_errors
+  /Users/apena/gits/adventure-capital/tests/test_valuation_terminal.py:109: UserWarning: pre-feasibility: VC=100,000 < year-1 committed fixed cost≈138,000 (12*(g_adm+RRHH[1])): cash is likely to breach the -VC floor in year 1.
+    result = run_pipeline(config, document_path=str(doc_path2))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+194 passed, 80312 warnings in 59.27s

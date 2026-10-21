@@ -1,0 +1,58 @@
+{
+  "tasks": 47,
+  "finish_days": 159,
+  "logical_days": 149,
+  "cycles": 0,
+  "overloads": 0,
+  "loads": {
+    "AP": {
+      "hours": 620.0,
+      "peak_day": 7.2,
+      "peak_week": 33.6
+    },
+    "AM": {
+      "hours": 106.0,
+      "peak_day": 2.0,
+      "peak_week": 10.0
+    },
+    "BE": {
+      "hours": 428.0,
+      "peak_day": 7.6,
+      "peak_week": 35.599999999999994
+    },
+    "FE": {
+      "hours": 284.0,
+      "peak_day": 5.6,
+      "peak_week": 28.0
+    },
+    "UX": {
+      "hours": 152.0,
+      "peak_day": 3.2,
+      "peak_week": 16.0
+    },
+    "QA": {
+      "hours": 240.0,
+      "peak_day": 6.4,
+      "peak_week": 27.6
+    },
+    "OP": {
+      "hours": 200.0,
+      "peak_day": 4.8,
+      "peak_week": 20.400000000000002
+    }
+  },
+  "workbook_sheets": [
+    "RESUMEN",
+    "EDT Y TAREAS",
+    "CARTA GANTT",
+    "RECURSOS",
+    "PRESUPUESTO",
+    "RIESGOS",
+    "HITOS Y CONTROL"
+  ],
+  "live_formulas": 5480,
+  "cached_errors": 0,
+  "hours": 2193,
+  "budget_clp": 55510500,
+  "native_excel_recalculation": "Not executed; artifact engine recalculation and OOXML checked"
+}
